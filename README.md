@@ -69,6 +69,7 @@ config/controller-inventory.sample.psd1 Sanitized controller/tool capability inv
 config/snpx-readonly.psd1 SNPX V2 read-only ASG projection plan
 config/snpx-writes.psd1 SNPX V2 write allowlist and planning gates
 config/template-catalog.psd1 Deterministic TP template catalog
+config/interface-strategy.psd1 FTP/SNPX/KAREL/PCDK/RoboGuide interface roles
 config/safety-rules.psd1  Blocked LS source patterns
 generated/sources/   AI-generated .LS source files
 generated/compiled/  Compiled .TP files
@@ -287,6 +288,13 @@ Generate a RoboGuide/manual evidence packet from a spec:
 .\tools\New-FanucRoboguideEvidencePacket.ps1 -SpecPath .\examples\AI_IODIAG.program-spec.json -WriteMarkdown -Force
 ```
 
+Validate and emit the interface strategy before adding KAREL/PCDK bridge work:
+
+```powershell
+.\tools\Test-FanucInterfaceStrategy.ps1
+.\tools\Get-FanucInterfaceStrategy.ps1 -WriteMarkdown
+```
+
 Generate a read-only cell status plan:
 
 ```powershell
@@ -365,6 +373,7 @@ The first example spec is `examples/AI_HELLO.program-spec.json`.
 Planning docs for the next phase:
 
 - `docs/COMMUNICATION_STRATEGY.md`
+- `docs/KAREL_TCP_BRIDGE.md`
 - `docs/PROGRAM_TEMPLATES.md`
 - `docs/TEMPLATE_ROADMAP.md`
 - `docs/CELL_RESOURCE_MAP.md`

@@ -42,6 +42,7 @@ This repo is an AI-assisted FANUC TP workflow, not just a MakeTP/FTP script fold
 - `docs\MOTION_SAFETY.md`
 - `docs\INTERFACES.md`
 - `docs\COMMUNICATION_STRATEGY.md`
+- `docs\KAREL_TCP_BRIDGE.md`
 - `docs\PROGRAM_TEMPLATES.md`
 - `docs\TEMPLATE_CATALOG.md`
 - `docs\TEMPLATE_ROADMAP.md`
@@ -59,6 +60,7 @@ This repo is an AI-assisted FANUC TP workflow, not just a MakeTP/FTP script fold
 Prefer structured specs and deterministic emitters. Use AI for planning, drafting, inspection, and review support; keep robot-facing artifacts validated, compiled, round-tripped, and manually reviewed.
 
 Use `config\template-catalog.psd1` as the reviewed deterministic template list. Run `tools\Test-FanucTemplateCatalog.ps1` after adding or changing example specs/templates.
+Use `config\interface-strategy.psd1` and `tools\Test-FanucInterfaceStrategy.ps1` before adding KAREL, PCDK, or new bridge behavior. KAREL TCP must remain disabled until schemas, robot-resident code, deployment, rollback, and tests are reviewed.
 
 Run commands from this folder:
 

@@ -98,6 +98,13 @@ RoboGuide/manual evidence packet generation is available for specs:
 .\tools\New-FanucRoboguideEvidencePacket.ps1 -SpecPath .\examples\AI_IODIAG.program-spec.json -WriteMarkdown -Force
 ```
 
+Interface strategy is explicit in `config\interface-strategy.psd1`. KAREL TCP is documented as a future disabled bridge, not an active command path:
+
+```powershell
+.\tools\Test-FanucInterfaceStrategy.ps1
+.\tools\Get-FanucInterfaceStrategy.ps1 -WriteMarkdown
+```
+
 The latest proven local evidence is in `generated\jobs\AI_HELLO\manifest.json`. It records spec validation, LS safety, MakeTP compile, PrintTP decode, matching normalized `/MN` instructions, and file hashes. `localEvidencePassed` is true; `readyForUpload` stays false until human review/upload policy is explicitly recorded.
 
 `Invoke-FanucTpBuild.ps1 -Upload` now blocks manifest-backed jobs unless `readyForUpload=true`; successful uploads update manifest upload status automatically.

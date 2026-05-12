@@ -59,6 +59,8 @@ $templateCatalogValidator = Join-Path $scriptRoot "Test-FanucTemplateCatalog.ps1
 $templateCatalogTool = Join-Path $scriptRoot "Get-FanucTemplateCatalog.ps1"
 $roboguideEvidenceValidator = Join-Path $scriptRoot "Test-FanucRoboguideEvidenceConfig.ps1"
 $roboguideEvidencePacketTool = Join-Path $scriptRoot "New-FanucRoboguideEvidencePacket.ps1"
+$interfaceStrategyValidator = Join-Path $scriptRoot "Test-FanucInterfaceStrategy.ps1"
+$interfaceStrategyTool = Join-Path $scriptRoot "Get-FanucInterfaceStrategy.ps1"
 $snpxReadonlyValidator = Join-Path $scriptRoot "Test-FanucSnpxReadonlyConfig.ps1"
 $snpxWriteValidator = Join-Path $scriptRoot "Test-FanucSnpxWriteConfig.ps1"
 $snpxMatrixTool = Join-Path $scriptRoot "Get-FanucSnpxCommissioningMatrix.ps1"
@@ -147,6 +149,25 @@ Invoke-ExpectPass -Name "RoboguideEvidencePacketIoValid" -Command {
     $states = @($packet.expectedWrites.ioSignals | ForEach-Object { "$($_.signal)=$($_.state)" })
     if ($states -notcontains "DO[1]=ON" -or $states -notcontains "DO[1]=OFF") {
         throw "Expected AI_IODIAG packet to include DO[1] ON and OFF writes."
+    }
+}
+Invoke-ExpectPass -Name "InterfaceStrategyValid" -Command {
+    & $interfaceStrategyValidator -Quiet
+}
+Invoke-ExpectPass -Name "InterfaceStrategyArtifactValid" -Command {
+    $strategyPath = Join-Path $projectRoot "generated\test-runs\interface-strategy.json"
+    & $interfaceStrategyTool -OutputPath $strategyPath -WriteMarkdown | Out-Null
+    $strategy = Get-Content -LiteralPath $strategyPath -Raw | ConvertFrom-Json
+    $karel = @($strategy.interfaces | Where-Object { $_.Name -eq "karel-tcp-bridge" } | Select-Object -First 1)
+    if (-not $karel -or $karel.Enabled) {
+        throw "Expected KAREL TCP bridge to exist and remain disabled."
+    }
+    if ($karel.AllowsProgramRun -or $karel.AllowsRobotMotion -or $karel.AllowsLiveWrites) {
+        throw "Expected KAREL TCP bridge to grant no physical command authority yet."
+    }
+    $writeSchemas = @($strategy.messageSchemas | Where-Object { $_.AllowsWrites })
+    if ($writeSchemas.Count -ne 1 -or $writeSchemas[0].Name -ne "command.reviewed-write.request") {
+        throw "Expected exactly one proposed reviewed-write request schema."
     }
 }
 Invoke-ExpectPass -Name "SnpxReadonlyConfigValid" -Command {
