@@ -59,6 +59,7 @@ $snpxSnapshotTool = Join-Path $scriptRoot "Invoke-FanucSnpxReadSnapshot.ps1"
 $snpxWritePlanTool = Join-Path $scriptRoot "New-FanucSnpxWritePlan.ps1"
 $snpxLiveReadTool = Join-Path $scriptRoot "Invoke-FanucSnpxLiveRead.ps1"
 $snpxLiveWriteTool = Join-Path $scriptRoot "Invoke-FanucSnpxLiveWrite.ps1"
+$statusPlanTool = Join-Path $scriptRoot "New-FanucCellStatusPlan.ps1"
 $statusSnapshotTool = Join-Path $scriptRoot "New-FanucCellStatusSnapshot.ps1"
 $statusCompareTool = Join-Path $scriptRoot "Compare-FanucCellStatusSnapshot.ps1"
 $schemaPath = Join-Path $projectRoot "schemas\program-spec.schema.json"
@@ -122,7 +123,9 @@ Invoke-ExpectPass -Name "SnpxLiveWritePlanValid" -Command {
 }
 Invoke-ExpectPass -Name "CellStatusSnapshotSample" -Command {
     $testRoot = Join-Path $projectRoot "generated\test-runs\cell-status"
-    $planPath = Join-Path $projectRoot "generated\cell-status\latest\status-plan.json"
+    $planRoot = Join-Path $projectRoot "generated\test-runs\cell-status-plan"
+    & $statusPlanTool -OutputRoot $planRoot -Force | Out-Null
+    $planPath = Join-Path $planRoot "latest\status-plan.json"
     $valuesPath = Join-Path $projectRoot "tests\fixtures\valid\cell-status-values.sample.json"
     $before = & $statusSnapshotTool -PlanPath $planPath -Label test-empty -OutputRoot $testRoot -Force
     $after = & $statusSnapshotTool -PlanPath $planPath -ValuesPath $valuesPath -Label test-populated -OutputRoot $testRoot -Force
