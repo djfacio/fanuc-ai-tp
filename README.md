@@ -281,6 +281,7 @@ Validate and emit the SNPX read-only address plan:
 ```powershell
 .\tools\Test-FanucSnpxReadonlyConfig.ps1
 .\tools\Get-FanucSnpxAddressMap.ps1 -WriteMarkdown
+.\tools\Get-FanucSnpxCommissioningMatrix.ps1 -WriteMarkdown
 .\tools\Invoke-FanucSnpxReadSnapshot.ps1 -PlanOnly
 ```
 

@@ -245,6 +245,7 @@ Useful commands:
 ```powershell
 .\tools\Test-FanucSnpxReadonlyConfig.ps1
 .\tools\Get-FanucSnpxAddressMap.ps1 -WriteMarkdown
+.\tools\Get-FanucSnpxCommissioningMatrix.ps1 -WriteMarkdown
 .\tools\Invoke-FanucSnpxReadSnapshot.ps1 -PlanOnly
 .\tools\Test-FanucSnpxWriteConfig.ps1
 .\tools\New-FanucSnpxWritePlan.ps1 -Fanuc "R[99]" -Value 123

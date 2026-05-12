@@ -57,6 +57,7 @@ $controllerInventoryValidator = Join-Path $scriptRoot "Test-FanucControllerInven
 $controllerCapabilityTool = Join-Path $scriptRoot "Get-FanucControllerCapability.ps1"
 $snpxReadonlyValidator = Join-Path $scriptRoot "Test-FanucSnpxReadonlyConfig.ps1"
 $snpxWriteValidator = Join-Path $scriptRoot "Test-FanucSnpxWriteConfig.ps1"
+$snpxMatrixTool = Join-Path $scriptRoot "Get-FanucSnpxCommissioningMatrix.ps1"
 $snpxSnapshotTool = Join-Path $scriptRoot "Invoke-FanucSnpxReadSnapshot.ps1"
 $snpxWritePlanTool = Join-Path $scriptRoot "New-FanucSnpxWritePlan.ps1"
 $snpxLiveReadTool = Join-Path $scriptRoot "Invoke-FanucSnpxLiveRead.ps1"
@@ -102,6 +103,24 @@ Invoke-ExpectPass -Name "SnpxReadonlyConfigValid" -Command {
 }
 Invoke-ExpectPass -Name "SnpxWriteConfigValid" -Command {
     & $snpxWriteValidator -Quiet
+}
+Invoke-ExpectPass -Name "SnpxCommissioningMatrixValid" -Command {
+    $matrixPath = Join-Path $projectRoot "generated\test-runs\snpx-commissioning-matrix.json"
+    & $snpxMatrixTool -OutputPath $matrixPath -WriteMarkdown | Out-Null
+    $matrix = Get-Content -LiteralPath $matrixPath -Raw | ConvertFrom-Json
+    if ([int]$matrix.summary.collisionCount -ne 0) {
+        throw "Expected SNPX commissioning matrix to have no projection collisions."
+    }
+    if ([int]$matrix.summary.writeAllowedCount -ne 6) {
+        throw "Expected SNPX commissioning matrix to report 6 write-allowlisted rows."
+    }
+    if ([int]$matrix.summary.restorationRequiredCount -ne 1) {
+        throw "Expected SNPX commissioning matrix to report 1 restoration-required row."
+    }
+    $do1 = @($matrix.rows | Where-Object { $_.fanuc -eq "DO[1]" } | Select-Object -First 1)
+    if (-not $do1 -or -not $do1.restorationRequired -or $do1.commissioningStatus -ne "read-write-restore-gated") {
+        throw "Expected DO[1] matrix row to be restore-gated."
+    }
 }
 Invoke-ExpectPass -Name "SnpxPlanValuesValid" -Command {
     $valuesPath = Join-Path $projectRoot "generated\test-runs\snpx-values.json"

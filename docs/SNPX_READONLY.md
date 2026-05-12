@@ -10,6 +10,7 @@ This document covers status snapshots, which stay read-only. SNPX writes are a s
 config\snpx-readonly.psd1
 tools\Test-FanucSnpxReadonlyConfig.ps1
 tools\Get-FanucSnpxAddressMap.ps1
+tools\Get-FanucSnpxCommissioningMatrix.ps1
 tools\Invoke-FanucSnpxReadSnapshot.ps1
 vendor\snpx-codec\
 ```
@@ -54,6 +55,12 @@ Generate the address map:
 
 ```powershell
 .\tools\Get-FanucSnpxAddressMap.ps1 -WriteMarkdown
+```
+
+Generate the commissioning matrix with read/write/restoration status and projection collision checks:
+
+```powershell
+.\tools\Get-FanucSnpxCommissioningMatrix.ps1 -WriteMarkdown
 ```
 
 Emit a plan-only values file shaped for the status snapshot tool:

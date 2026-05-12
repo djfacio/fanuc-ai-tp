@@ -9,6 +9,7 @@ config\snpx-writes.psd1
 tools\Test-FanucSnpxWriteConfig.ps1
 tools\New-FanucSnpxWritePlan.ps1
 tools\Invoke-FanucSnpxLiveWrite.ps1
+tools\Get-FanucSnpxCommissioningMatrix.ps1
 ```
 
 The write allowlist is intentionally tied back to:
@@ -19,6 +20,12 @@ config\snpx-readonly.psd1
 ```
 
 That means an SNPX write must be approved in the same cell resource map used by generated TP programs, and it must have a matching ASG projection entry.
+
+Use the commissioning matrix to review the combined read/write map, projection ranges, collision rules, live-proof status, and restoration requirements:
+
+```powershell
+.\tools\Get-FanucSnpxCommissioningMatrix.ps1 -WriteMarkdown
+```
 
 ## Current Scope
 
