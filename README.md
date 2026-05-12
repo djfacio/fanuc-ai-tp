@@ -291,6 +291,14 @@ Validate and emit an SNPX write plan:
 .\tools\New-FanucSnpxWritePlan.ps1 -Fanuc "R[99]" -Value 123
 ```
 
+Dry-run a live SNPX write plan before any robot write:
+
+```powershell
+.\tools\Invoke-FanucSnpxLiveWrite.ps1 -PlanPath .\generated\cell-status\snpx-write-plan.json
+```
+
+Live write execution requires an approved plan, exact approval phrase, and `-AcceptLiveWrite`. Output writes that require restoration also require `-RestoreAfterWrite`.
+
 Run the local Rust SNPX codec wrapper for commissioning reads:
 
 ```powershell

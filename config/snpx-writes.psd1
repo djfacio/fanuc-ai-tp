@@ -80,7 +80,7 @@
             AllowedStates = @("ON", "OFF")
             RequiresCellMap = $true
             RequiresLiveProof = $true
-            Notes = "Planned through the ASG projection. Keep plan-only until live proof confirms this projection changes DO[1] as expected."
+            Notes = "Output writes that request ON must restore to OFF and record post-restore readback evidence."
         }
     )
 

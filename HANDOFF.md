@@ -236,7 +236,9 @@ The plan uses SNPX V2 on TCP `60008` with private per-connection `$SNPX_ASG` pro
 
 Live reads are not enabled yet. The live reader must connect, probe `$SNPX_PARAM.$VERSION` and `$SNPX_PARAM.$NUM_CIMP`, run `CLRASG`, run `SETASG` for every configured row, verify `$SNPX_ASG` by readback, then read `%R`. Unassigned `%R` values can return zero, so verification is mandatory.
 
-SNPX writes are planned separately in `config\snpx-writes.psd1`. This is intentional: status snapshots stay read-only, while command writes get their own allowlist, value validation, pre-read/write/post-read evidence, and human approval gate. The current write plan includes `R[90]`, `R[91]`, `R[97]`, `R[98]`, `R[99]`, and `DO[1]`, all tied back to `config\cell-map.psd1`. `DO[1]` is marked as requiring live proof before commissioned execution.
+SNPX writes are planned separately in `config\snpx-writes.psd1`. This is intentional: status snapshots stay read-only, while command writes get their own allowlist, value validation, pre-read/write/post-read evidence, and human approval gate. The current write plan includes `R[90]`, `R[91]`, `R[97]`, `R[98]`, `R[99]`, and `DO[1]`, all tied back to `config\cell-map.psd1`.
+
+Live SNPX writes now require exact approval text from the generated plan. Output writes that request `ON` include a restoration section and require `-RestoreAfterWrite`; evidence records write and restore readbacks separately.
 
 Useful commands:
 

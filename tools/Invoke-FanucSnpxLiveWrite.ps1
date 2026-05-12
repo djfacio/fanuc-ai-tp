@@ -3,8 +3,10 @@ param(
     [string]$ReadConfigPath = "..\config\snpx-readonly.psd1",
     [string]$OutputPath = "generated\cell-status\snpx-live-write.json",
     [string]$HostAddress,
+    [string]$ApprovalPhrase,
     [switch]$Execute,
-    [switch]$AcceptLiveWrite
+    [switch]$AcceptLiveWrite,
+    [switch]$RestoreAfterWrite
 )
 
 $ErrorActionPreference = "Stop"
@@ -37,6 +39,33 @@ function Invoke-CodecToolJson {
     }
 
     return ($jsonLine | ConvertFrom-Json)
+}
+
+function Convert-ToUInt16Word {
+    param([object]$Value)
+
+    $intValue = [int]$Value
+    return [int]([uint16]$intValue)
+}
+
+function Assert-EncodedWordsReadBack {
+    param(
+        [object[]]$Actual,
+        [object[]]$Expected,
+        [string]$Context
+    )
+
+    if (@($Actual).Count -lt @($Expected).Count) {
+        throw "$Context readback returned $(@($Actual).Count) word(s), expected $(@($Expected).Count)."
+    }
+
+    for ($index = 0; $index -lt @($Expected).Count; $index++) {
+        $actualWord = Convert-ToUInt16Word -Value $Actual[$index]
+        $expectedWord = Convert-ToUInt16Word -Value $Expected[$index]
+        if ($actualWord -ne $expectedWord) {
+            throw "$Context readback word $index was $actualWord, expected $expectedWord."
+        }
+    }
 }
 
 $resolvedPlanPath = Resolve-ProjectPath $PlanPath
@@ -108,11 +137,28 @@ if ($plan.write.type -eq "bool") {
     $writeValue = [int]$plan.write.value
 }
 
+$restoreValue = $null
+if ($plan.restoration.required) {
+    if ($plan.write.type -eq "bool") {
+        $restoreState = ([string]$plan.restoration.value).ToUpperInvariant()
+        if ($restoreState -eq "ON") {
+            $restoreValue = 1
+        } elseif ($restoreState -eq "OFF") {
+            $restoreValue = 0
+        } else {
+            throw "Boolean SNPX restoration value must be ON or OFF. Saw '$($plan.restoration.value)'."
+        }
+    } else {
+        $restoreValue = [int]$plan.restoration.value
+    }
+}
+
 $evidence = [ordered]@{
     schemaVersion = 1
     generatedAt = (Get-Date).ToString("o")
     executed = [bool]$Execute
     acceptedLiveWrite = [bool]$AcceptLiveWrite
+    restoreAfterWrite = [bool]$RestoreAfterWrite
     hostAddress = $HostAddress
     planPath = (Get-Item -LiteralPath $resolvedPlanPath).FullName
     readConfigPath = (Get-Item -LiteralPath $resolvedReadConfig).FullName
@@ -127,7 +173,34 @@ $evidence = [ordered]@{
             start = [int]$mappedRead.SnpxStart
             value = $plan.write.value
             encodedValue = [int]$writeValue
+            expectedEncodedWords = @($plan.write.encodedWords | ForEach-Object { Convert-ToUInt16Word -Value $_ })
         }
+        restore = if ($plan.restoration.required) {
+            [ordered]@{
+                operation = "asg-write-r"
+                fanuc = $plan.restoration.fanuc
+                snpxAddress = $plan.write.snpxAddress
+                start = [int]$mappedRead.SnpxStart
+                value = $plan.restoration.value
+                encodedValue = [int]$restoreValue
+                expectedEncodedWords = @($plan.restoration.encodedWords | ForEach-Object { Convert-ToUInt16Word -Value $_ })
+            }
+        } else {
+            $null
+        }
+    }
+    operatorApproval = [ordered]@{
+        required = [bool]$plan.operatorApproval.required
+        requiredPhrase = [string]$plan.operatorApproval.requiredPhrase
+        suppliedPhrase = $ApprovalPhrase
+        phraseAccepted = (-not [bool]$plan.operatorApproval.required -or $ApprovalPhrase -eq [string]$plan.operatorApproval.requiredPhrase)
+        warning = [string]$plan.operatorApproval.warning
+    }
+    restoration = [ordered]@{
+        required = [bool]$plan.restoration.required
+        requested = [bool]$RestoreAfterWrite
+        value = $plan.restoration.value
+        reason = $plan.restoration.reason
     }
     results = [ordered]@{}
 }
@@ -135,6 +208,12 @@ $evidence = [ordered]@{
 if ($Execute) {
     if (-not $AcceptLiveWrite) {
         throw "Live SNPX write requires -AcceptLiveWrite after reviewing the approved plan."
+    }
+    if ([bool]$plan.operatorApproval.required -and $ApprovalPhrase -ne [string]$plan.operatorApproval.requiredPhrase) {
+        throw "Live SNPX write requires exact -ApprovalPhrase: '$($plan.operatorApproval.requiredPhrase)'"
+    }
+    if ([bool]$plan.restoration.required -and -not $RestoreAfterWrite) {
+        throw "Live SNPX write for $($plan.write.fanuc) requires -RestoreAfterWrite because the plan requires restoration to $($plan.restoration.value)."
     }
 
     $writeResult = Invoke-CodecToolJson -Parameters @{
@@ -148,8 +227,21 @@ if ($Execute) {
 
     $evidence.results.write = $writeResult
     $after = @($writeResult.after)
-    if ($after.Count -lt 1 -or [int]$after[0] -ne [int]$writeValue) {
-        throw "SNPX live write did not read back expected encoded value $writeValue for $($plan.write.fanuc)."
+    Assert-EncodedWordsReadBack -Actual $after -Expected @($plan.write.encodedWords) -Context "SNPX live write for $($plan.write.fanuc)"
+
+    if ([bool]$plan.restoration.required) {
+        $restoreResult = Invoke-CodecToolJson -Parameters @{
+            Operation = "asg-write-r"
+            HostAddress = $HostAddress
+            SetupFile = $setupPath
+            Start = [int]$mappedRead.SnpxStart
+            Value = [int]$restoreValue
+            AcceptLiveWrite = $true
+        }
+
+        $evidence.results.restore = $restoreResult
+        $restoreAfter = @($restoreResult.after)
+        Assert-EncodedWordsReadBack -Actual $restoreAfter -Expected @($plan.restoration.encodedWords) -Context "SNPX live restoration for $($plan.write.fanuc)"
     }
 }
 
@@ -166,6 +258,8 @@ $evidence | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $resolvedOutputP
     Fanuc = $plan.write.fanuc
     Value = $plan.write.value
     EncodedValue = [int]$writeValue
+    RequiresRestoration = [bool]$plan.restoration.required
+    RestoredAfterWrite = [bool]($Execute -and $plan.restoration.required -and $RestoreAfterWrite)
     SnpxAddress = $plan.write.snpxAddress
     Start = [int]$mappedRead.SnpxStart
     OutputPath = (Get-Item -LiteralPath $resolvedOutputPath).FullName

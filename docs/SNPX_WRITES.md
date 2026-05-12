@@ -8,6 +8,7 @@ SNPX is a read/write interface for this project. The status snapshot path stays 
 config\snpx-writes.psd1
 tools\Test-FanucSnpxWriteConfig.ps1
 tools\New-FanucSnpxWritePlan.ps1
+tools\Invoke-FanucSnpxLiveWrite.ps1
 ```
 
 The write allowlist is intentionally tied back to:
@@ -30,7 +31,7 @@ Approved planning entries:
 - `R[99]`
 - `DO[1]`
 
-The marker registers are ready for the first live write implementation once the private ASG handshake is wired. `DO[1]` remains marked `RequiresLiveProof` because the planned path writes through the ASG `%R` projection, and we need a controlled live proof before treating that IO write as commissioned.
+The marker registers use integer ASG projection writes. `DO[1]` is an output write; plans that request `DO[1]=ON` require a matching restoration write back to `OFF` and post-restore readback evidence.
 
 ## Commands
 
@@ -54,6 +55,12 @@ Create a write plan for the reviewed output:
 
 These commands do not write to the robot. They generate a JSON execution plan with the FANUC item, SNPX projection address, encoded word value, and live execution gates.
 
+Approved plans also include exact operator approval text. A live execution must supply that phrase with `-ApprovalPhrase` so the command line records the reviewed target, value, and SNPX projection:
+
+```powershell
+.\tools\New-FanucSnpxWritePlan.ps1 -Fanuc "DO[1]" -State ON -Approved
+```
+
 ## Live Write Gate
 
 Before a live SNPX write tool is allowed:
@@ -65,7 +72,25 @@ Before a live SNPX write tool is allowed:
 5. Read the current target value before writing.
 6. Write only an allowlisted target from `config\snpx-writes.psd1`.
 7. Read the target value after writing.
-8. Emit evidence that distinguishes ASG setup, pre-read, write, and post-read.
+8. For output writes that require restoration, write the restore value and read it back.
+9. Emit evidence that distinguishes ASG setup, pre-read, write, post-read, restore, and post-restore.
+
+Dry-run live evidence:
+
+```powershell
+.\tools\Invoke-FanucSnpxLiveWrite.ps1 -PlanPath .\generated\cell-status\snpx-write-plan.json
+```
+
+Live execution requires the approved plan, the exact approval phrase, and `-AcceptLiveWrite`. If the plan requires restoration, it also requires `-RestoreAfterWrite`:
+
+```powershell
+.\tools\Invoke-FanucSnpxLiveWrite.ps1 `
+  -PlanPath .\generated\cell-status\snpx-write-plan.json `
+  -Execute `
+  -AcceptLiveWrite `
+  -RestoreAfterWrite `
+  -ApprovalPhrase "I approve live SNPX write: DO[1]=ON via %R00015"
+```
 
 No SNPX write tool should modify system variables, UOP/SOP, DCS, motion state, production program state, or unmapped resources.
 

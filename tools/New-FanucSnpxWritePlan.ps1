@@ -51,6 +51,9 @@ if ($null -eq $entry) {
 
 $plannedValue = $null
 $encodedWords = @()
+$restorationRequired = $false
+$restorationValue = $null
+$restorationEncodedWords = @()
 switch ($entry.Type) {
     "int" {
         if ($null -eq $Value) {
@@ -85,11 +88,20 @@ switch ($entry.Type) {
             $boolWord,
             0
         )
+
+        if ($stateText -eq "ON" -and @($entry.AllowedStates | ForEach-Object { $_.ToUpperInvariant() }) -contains "OFF") {
+            $restorationRequired = $true
+            $restorationValue = "OFF"
+            $restorationEncodedWords = @(0, 0)
+        }
     }
     default {
         throw "SNPX write type '$($entry.Type)' is valid in config but not implemented by this plan tool yet."
     }
 }
+
+$approvalValue = if ($entry.Type -eq "bool") { [string]$plannedValue } else { [string]$plannedValue }
+$approvalPhrase = "I approve live SNPX write: $($entry.Fanuc)=$approvalValue via $($entry.SnpxAddress)"
 
 $plan = [ordered]@{
     schemaVersion = 1
@@ -113,11 +125,26 @@ $plan = [ordered]@{
         requiresLiveProof = [bool]$entry.RequiresLiveProof
         notes = $entry.Notes
     }
+    operatorApproval = [ordered]@{
+        required = [bool]$config.RequireHumanApproval
+        requiredPhrase = $approvalPhrase
+        warning = "Review the target, value, SNPX projection, encoded words, and restoration section before live execution."
+    }
+    restoration = [ordered]@{
+        required = [bool]$restorationRequired
+        reason = if ($restorationRequired) { "Output write requests ON and must be restored to OFF after proof." } else { "No automatic restoration required for this planned value." }
+        fanuc = if ($restorationRequired) { $entry.Fanuc } else { $null }
+        value = $restorationValue
+        encodedWords = $restorationEncodedWords
+    }
     executionGate = [ordered]@{
         mustProgramPrivateAsg = $true
         mustVerifyAsgReadback = $true
         mustReadBeforeWrite = $true
         mustReadAfterWrite = $true
+        mustUseExactApprovalPhrase = [bool]$config.RequireHumanApproval
+        mustRestoreAfterWrite = [bool]$restorationRequired
+        mustReadAfterRestore = [bool]$restorationRequired
         snapshotToolRemainsReadOnly = $true
     }
 }

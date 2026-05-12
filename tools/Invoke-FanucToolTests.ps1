@@ -125,6 +125,57 @@ Invoke-ExpectPass -Name "SnpxWritePlanValid" -Command {
         throw "Expected R[99] to map to %R00013."
     }
 }
+Invoke-ExpectPass -Name "SnpxIntegerEncodingValid" -Command {
+    $planPath = Join-Path $projectRoot "generated\test-runs\snpx-write-plan-r99-encoding.json"
+    & $snpxWritePlanTool -Fanuc "R[99]" -Value 70000 -OutputPath $planPath | Out-Null
+    $plan = Get-Content -LiteralPath $planPath -Raw | ConvertFrom-Json
+    $words = @($plan.write.encodedWords)
+    if ([int]$words[0] -ne 4464 -or [int]$words[1] -ne 1) {
+        throw "Expected 70000 to encode as [4464, 1]."
+    }
+    if ($plan.restoration.required) {
+        throw "Expected integer write plan not to require restoration."
+    }
+}
+Invoke-ExpectPass -Name "SnpxBooleanRestorationValid" -Command {
+    $planPath = Join-Path $projectRoot "generated\test-runs\snpx-write-plan-do1-restore.json"
+    $evidencePath = Join-Path $projectRoot "generated\test-runs\snpx-live-write-do1-restore.json"
+    & $snpxWritePlanTool -Fanuc "DO[1]" -State ON -OutputPath $planPath -Approved | Out-Null
+    $plan = Get-Content -LiteralPath $planPath -Raw | ConvertFrom-Json
+    if (-not $plan.restoration.required) {
+        throw "Expected DO[1]=ON plan to require restoration."
+    }
+    if ($plan.restoration.value -ne "OFF") {
+        throw "Expected DO[1]=ON restoration value to be OFF."
+    }
+    if ($plan.operatorApproval.requiredPhrase -ne "I approve live SNPX write: DO[1]=ON via %R00015") {
+        throw "Unexpected required approval phrase."
+    }
+
+    $result = & $snpxLiveWriteTool -PlanPath $planPath -OutputPath $evidencePath
+    if ($result.Executed) {
+        throw "Dry-run SNPX live write plan should not execute."
+    }
+    if (-not $result.RequiresRestoration) {
+        throw "Expected dry-run result to report required restoration."
+    }
+    $evidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
+    if ($evidence.commands.restore.value -ne "OFF") {
+        throw "Expected dry-run evidence to include OFF restore command."
+    }
+}
+Invoke-ExpectFail -Name "SnpxLiveWriteRequiresApprovalPhrase" -Command {
+    $planPath = Join-Path $projectRoot "generated\test-runs\snpx-write-plan-do1-approval-gate.json"
+    $evidencePath = Join-Path $projectRoot "generated\test-runs\snpx-live-write-do1-approval-gate.json"
+    & $snpxWritePlanTool -Fanuc "DO[1]" -State ON -OutputPath $planPath -Approved | Out-Null
+    & $snpxLiveWriteTool -PlanPath $planPath -OutputPath $evidencePath -Execute -AcceptLiveWrite | Out-Null
+}
+Invoke-ExpectFail -Name "SnpxLiveWriteRequiresRestoreSwitch" -Command {
+    $planPath = Join-Path $projectRoot "generated\test-runs\snpx-write-plan-do1-restore-gate.json"
+    $evidencePath = Join-Path $projectRoot "generated\test-runs\snpx-live-write-do1-restore-gate.json"
+    & $snpxWritePlanTool -Fanuc "DO[1]" -State ON -OutputPath $planPath -Approved | Out-Null
+    & $snpxLiveWriteTool -PlanPath $planPath -OutputPath $evidencePath -Execute -AcceptLiveWrite -ApprovalPhrase "I approve live SNPX write: DO[1]=ON via %R00015" | Out-Null
+}
 Invoke-ExpectPass -Name "SnpxLiveReadPlanValid" -Command {
     $evidencePath = Join-Path $projectRoot "generated\test-runs\snpx-live-read-plan.json"
     $result = & $snpxLiveReadTool -OutputPath $evidencePath
