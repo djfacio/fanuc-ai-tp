@@ -41,7 +41,7 @@ The current read-only plan lives in:
 config\snpx-readonly.psd1
 ```
 
-It projects selected registers and output states into `%R00001` through `%R00009` through ASG slots 1 through 9. These are not direct native FANUC addresses; they are the project-owned GE memory projection to be programmed per connection.
+It projects selected registers and output states into `%R00001` through `%R00028` through system probes plus ASG slots 1 through 12. These are not direct native FANUC addresses; they are the project-owned GE memory projection to be programmed per connection.
 
 ## Live Reader Acceptance
 

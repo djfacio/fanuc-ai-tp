@@ -248,7 +248,7 @@ docs\SNPX_IMPLEMENTATION_NOTES.md
 vendor\snpx-codec\
 ```
 
-The plan uses SNPX V2 on TCP `60008` with private per-connection `$SNPX_ASG` projection into `%R`. Current assignments use ASG slots 1 through 9 and `%R00001` through `%R00009` for selected marker registers and output states.
+The plan uses SNPX V2 on TCP `60008` with private per-connection `$SNPX_ASG` projection into `%R`. Current assignments use system probes plus ASG slots 1 through 12 and `%R00001` through `%R00028` for selected marker registers, production-sample registers, and output states.
 
 Live reads are not enabled yet. The live reader must connect, probe `$SNPX_PARAM.$VERSION` and `$SNPX_PARAM.$NUM_CIMP`, run `CLRASG`, run `SETASG` for every configured row, verify `$SNPX_ASG` by readback, then read `%R`. Unassigned `%R` values can return zero, so verification is mandatory.
 

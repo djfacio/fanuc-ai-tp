@@ -183,6 +183,9 @@ Invoke-ExpectPass -Name "SnpxCommissioningMatrixValid" -Command {
     if ([int]$matrix.summary.collisionCount -ne 0) {
         throw "Expected SNPX commissioning matrix to have no projection collisions."
     }
+    if ([int]$matrix.summary.rowCount -ne 14) {
+        throw "Expected SNPX commissioning matrix to report 14 rows including probes and read rows."
+    }
     if ([int]$matrix.summary.writeAllowedCount -ne 6) {
         throw "Expected SNPX commissioning matrix to report 6 write-allowlisted rows."
     }
@@ -192,6 +195,10 @@ Invoke-ExpectPass -Name "SnpxCommissioningMatrixValid" -Command {
     $do1 = @($matrix.rows | Where-Object { $_.fanuc -eq "DO[1]" } | Select-Object -First 1)
     if (-not $do1 -or -not $do1.restorationRequired -or $do1.commissioningStatus -ne "read-write-restore-gated") {
         throw "Expected DO[1] matrix row to be restore-gated."
+    }
+    $r103 = @($matrix.rows | Where-Object { $_.fanuc -eq "R[103]" } | Select-Object -First 1)
+    if (-not $r103 -or $r103.writeAllowed -or $r103.commissioningStatus -ne "read-planned") {
+        throw "Expected R[103] matrix row to be read-only planned."
     }
 }
 Invoke-ExpectPass -Name "SnpxPlanValuesValid" -Command {

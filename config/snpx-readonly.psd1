@@ -190,6 +190,54 @@
             SnpxAddress = "%R00021"
             WordCount = 2
             Required = $false
+        },
+        @{
+            Name = "Production sample register"
+            Fanuc = "R[103]"
+            SnapshotKey = "R[103]"
+            Type = "int"
+            Representation = "word"
+            AsgSlot = 10
+            SetAsgRegion = "R[103]"
+            SetAsgDataType = "INTEGER"
+            SetAsgMultiply = 1
+            SnpxArea = "%R"
+            SnpxStart = 23
+            SnpxAddress = "%R00023"
+            WordCount = 2
+            Required = $false
+        },
+        @{
+            Name = "Production sample register"
+            Fanuc = "R[107]"
+            SnapshotKey = "R[107]"
+            Type = "int"
+            Representation = "word"
+            AsgSlot = 11
+            SetAsgRegion = "R[107]"
+            SetAsgDataType = "INTEGER"
+            SetAsgMultiply = 1
+            SnpxArea = "%R"
+            SnpxStart = 25
+            SnpxAddress = "%R00025"
+            WordCount = 2
+            Required = $false
+        },
+        @{
+            Name = "Production sample register"
+            Fanuc = "R[110]"
+            SnapshotKey = "R[110]"
+            Type = "int"
+            Representation = "word"
+            AsgSlot = 12
+            SetAsgRegion = "R[110]"
+            SetAsgDataType = "INTEGER"
+            SetAsgMultiply = 1
+            SnpxArea = "%R"
+            SnpxStart = 27
+            SnpxAddress = "%R00027"
+            WordCount = 2
+            Required = $false
         }
     )
 }
