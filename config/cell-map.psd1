@@ -1,8 +1,16 @@
 @{
     SchemaVersion = 1
-    Notes = "Reviewed cell resource map for generated AI_ specs. Keep writes narrow and explicit."
+    Notes = "Reviewed cell resource map for generated AI_ specs. User-approved writable scratch scope is R[90]-R[99] and DO[1]-DO[80]. Production/status values outside that scope are read-only unless separately approved."
 
     RegisterWrites = @{
+        AllowedRanges = @(
+            @{
+                Start = 90
+                End = 99
+                Name = "AI scratch marker registers"
+                Notes = "User-approved scratch register range. Do not write production/status registers outside this range."
+            }
+        )
         Allowed = @(
             @{
                 Register = 90
@@ -33,6 +41,16 @@
     }
 
     IoWrites = @{
+        AllowedRanges = @(
+            @{
+                Type = "DO"
+                Start = 1
+                End = 80
+                Name = "AI scratch digital outputs"
+                SafeStates = @("ON", "OFF")
+                Notes = "User-approved scratch output range. Outputs above DO[80] remain read-only unless separately approved."
+            }
+        )
         Allowed = @(
             @{
                 Signal = "DO[1]"

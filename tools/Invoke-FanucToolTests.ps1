@@ -314,6 +314,32 @@ Invoke-ExpectPass -Name "CellStatusSnapshotSample" -Command {
 Invoke-ExpectPass -Name "SchemaValidSpec" -Command {
     & $schemaValidator -JsonPath (Join-Path $projectRoot "tests\fixtures\valid\AI_VALID.program-spec.json") -SchemaPath $schemaPath -Quiet
 }
+Invoke-ExpectPass -Name "SpecScratchRangePasses" -Command {
+    $specPath = Join-Path $projectRoot "generated\test-runs\AI_RANGE_OK.program-spec.json"
+    @'
+{
+  "programName": "AI_RANGE_OK",
+  "intent": "Validate approved scratch write ranges.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true
+  },
+  "operations": [
+    {
+      "type": "registerWrite",
+      "register": 95,
+      "value": 123
+    },
+    {
+      "type": "ioWrite",
+      "signal": "DO[80]",
+      "state": true
+    }
+  ]
+}
+'@ | Set-Content -LiteralPath $specPath -Encoding ASCII
+    & $specValidator -SpecPath $specPath -Quiet
+}
 Invoke-ExpectFail -Name "SpecBadPrefixFails" -Command {
     & $specValidator -SpecPath (Join-Path $projectRoot "tests\fixtures\invalid\BAD_PREFIX.program-spec.json") -Quiet
 }
@@ -325,6 +351,32 @@ Invoke-ExpectFail -Name "SpecBadRegisterFails" -Command {
 }
 Invoke-ExpectFail -Name "SpecBadSignalFails" -Command {
     & $specValidator -SpecPath (Join-Path $projectRoot "tests\fixtures\invalid\AI_BAD_SIGNAL.program-spec.json") -Quiet
+}
+Invoke-ExpectFail -Name "SpecScratchRangeStopsAtBoundary" -Command {
+    $specPath = Join-Path $projectRoot "generated\test-runs\AI_RANGE_BAD.program-spec.json"
+    @'
+{
+  "programName": "AI_RANGE_BAD",
+  "intent": "Validate scratch write range boundary.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true
+  },
+  "operations": [
+    {
+      "type": "registerWrite",
+      "register": 100,
+      "value": 123
+    },
+    {
+      "type": "ioWrite",
+      "signal": "DO[81]",
+      "state": true
+    }
+  ]
+}
+'@ | Set-Content -LiteralPath $specPath -Encoding ASCII
+    & $specValidator -SpecPath $specPath -Quiet
 }
 Invoke-ExpectFail -Name "SpecBadCallFails" -Command {
     & $specValidator -SpecPath (Join-Path $projectRoot "tests\fixtures\invalid\AI_BAD_CALL.program-spec.json") -Quiet

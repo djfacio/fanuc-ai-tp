@@ -56,6 +56,12 @@ function Add-Finding {
 function Test-AllowedRegisterWrite {
     param([int]$Register)
 
+    foreach ($range in @($cellMap.RegisterWrites.AllowedRanges)) {
+        if ($null -ne $range.Start -and $null -ne $range.End -and $Register -ge [int]$range.Start -and $Register -le [int]$range.End) {
+            return $true
+        }
+    }
+
     foreach ($entry in @($cellMap.RegisterWrites.Allowed)) {
         if ([int]$entry.Register -eq $Register) {
             return $true
@@ -71,8 +77,9 @@ function Test-AllowedIoWrite {
     )
 
     $stateText = if ($State) { "ON" } else { "OFF" }
+    $normalizedSignal = $Signal.ToUpperInvariant()
     foreach ($entry in @($cellMap.IoWrites.Allowed)) {
-        if ($entry.Signal.ToUpperInvariant() -ne $Signal.ToUpperInvariant()) {
+        if ($entry.Signal.ToUpperInvariant() -ne $normalizedSignal) {
             continue
         }
 
@@ -82,6 +89,26 @@ function Test-AllowedIoWrite {
 
         return (@($entry.SafeStates | ForEach-Object { $_.ToUpperInvariant() }) -contains $stateText)
     }
+
+    if ($normalizedSignal -match '^(DO|RO)\[(\d+)\]$') {
+        $signalType = $Matches[1]
+        $signalNumber = [int]$Matches[2]
+        foreach ($range in @($cellMap.IoWrites.AllowedRanges)) {
+            if ($range.Type.ToUpperInvariant() -ne $signalType) {
+                continue
+            }
+            if ($signalNumber -lt [int]$range.Start -or $signalNumber -gt [int]$range.End) {
+                continue
+            }
+
+            if ($null -eq $range.SafeStates -or @($range.SafeStates).Count -eq 0) {
+                return $true
+            }
+
+            return (@($range.SafeStates | ForEach-Object { $_.ToUpperInvariant() }) -contains $stateText)
+        }
+    }
+
     return $false
 }
 

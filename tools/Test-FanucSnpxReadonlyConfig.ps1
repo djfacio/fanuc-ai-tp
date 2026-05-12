@@ -90,7 +90,7 @@ foreach ($read in @($config.Reads)) {
         Add-Finding -Rule "Type" -Message "Read entry '$($read.Name)' has unsupported Type '$($read.Type)'."
     }
 
-    if ($read.Representation -notin @("word", "word-bool", "real32", "string40")) {
+    if ($read.Representation -notin @("word", "word-bool", "scaled-word", "real32", "string40")) {
         Add-Finding -Rule "Representation" -Message "Read entry '$($read.Name)' has unsupported Representation '$($read.Representation)'."
     }
 
@@ -114,6 +114,15 @@ foreach ($read in @($config.Reads)) {
 
     if ($null -eq $read.SetAsgMultiply -or [int]$read.SetAsgMultiply -lt 0) {
         Add-Finding -Rule "SetAsgMultiply" -Message "Read entry '$($read.Name)' must include non-negative SetAsgMultiply."
+    }
+
+    if ($read.Representation -eq "scaled-word") {
+        if ($read.Type -ne "real") {
+            Add-Finding -Rule "ScaledWordType" -Message "Read entry '$($read.Name)' with Representation scaled-word must use Type real."
+        }
+        if ($null -eq $read.ScaleDivisor -or [decimal]$read.ScaleDivisor -le 0) {
+            Add-Finding -Rule "ScaleDivisor" -Message "Read entry '$($read.Name)' with Representation scaled-word must include ScaleDivisor > 0."
+        }
     }
 
     if ($read.SnpxArea -ne "%R") {

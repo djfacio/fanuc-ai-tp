@@ -86,18 +86,72 @@ if (Test-Path -LiteralPath $mappingPath) {
 
 $allowedRegisters = @{}
 $allowedSignals = @{}
+$allowedRegisterRanges = New-Object System.Collections.Generic.List[object]
+$allowedSignalRanges = New-Object System.Collections.Generic.List[object]
 if (Test-Path -LiteralPath $cellMapPath) {
     $cellMapValidator = Join-Path $scriptRoot "Test-FanucCellMap.ps1"
     & $cellMapValidator -CellMapPath $cellMapPath -Quiet
     $cellMap = Import-PowerShellDataFile -LiteralPath $cellMapPath
 
+    foreach ($range in @($cellMap.RegisterWrites.AllowedRanges)) {
+        $allowedRegisterRanges.Add([pscustomobject]@{
+            Start = [int]$range.Start
+            End = [int]$range.End
+        })
+    }
+
     foreach ($entry in @($cellMap.RegisterWrites.Allowed)) {
         $allowedRegisters[[int]$entry.Register] = $true
+    }
+
+    foreach ($range in @($cellMap.IoWrites.AllowedRanges)) {
+        $allowedSignalRanges.Add([pscustomobject]@{
+            Type = $range.Type.ToUpperInvariant()
+            Start = [int]$range.Start
+            End = [int]$range.End
+            SafeStates = @($range.SafeStates | ForEach-Object { $_.ToUpperInvariant() })
+        })
     }
 
     foreach ($entry in @($cellMap.IoWrites.Allowed)) {
         $allowedSignals[$entry.Signal.ToUpperInvariant()] = @($entry.SafeStates | ForEach-Object { $_.ToUpperInvariant() })
     }
+}
+
+function Test-CellMapRegisterAllowed {
+    param([int]$Register)
+
+    if ($allowedRegisters.ContainsKey($Register)) {
+        return $true
+    }
+
+    foreach ($range in $allowedRegisterRanges) {
+        if ($Register -ge $range.Start -and $Register -le $range.End) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Get-CellMapSignalSafeStates {
+    param([string]$FanucKey)
+
+    if ($allowedSignals.ContainsKey($FanucKey)) {
+        return @($allowedSignals[$FanucKey])
+    }
+
+    if ($FanucKey -match '^(DO|RO)\[(\d+)\]$') {
+        $signalType = $Matches[1]
+        $signalNumber = [int]$Matches[2]
+        foreach ($range in $allowedSignalRanges) {
+            if ($range.Type -eq $signalType -and $signalNumber -ge $range.Start -and $signalNumber -le $range.End) {
+                return @($range.SafeStates)
+            }
+        }
+    }
+
+    return $null
 }
 
 $fanucWrites = @{}
@@ -149,14 +203,14 @@ foreach ($write in @($config.AllowedWrites)) {
     if ([bool]$write.RequiresCellMap) {
         if ($fanucKey -match '^R\[(\d+)\]$') {
             $register = [int]$Matches[1]
-            if (-not $allowedRegisters.ContainsKey($register)) {
+            if (-not (Test-CellMapRegisterAllowed -Register $register)) {
                 Add-Finding -Rule "CellMapRegisterMissing" -Message "Write entry '$fanucKey' is not approved in config\cell-map.psd1."
             }
         } elseif ($fanucKey -match '^(DO|RO)\[\d+\]$') {
-            if (-not $allowedSignals.ContainsKey($fanucKey)) {
+            $cellStates = @(Get-CellMapSignalSafeStates -FanucKey $fanucKey)
+            if ($null -eq $cellStates) {
                 Add-Finding -Rule "CellMapSignalMissing" -Message "Write entry '$fanucKey' is not approved in config\cell-map.psd1."
             } elseif ($write.AllowedStates) {
-                $cellStates = @($allowedSignals[$fanucKey])
                 foreach ($state in @($write.AllowedStates)) {
                     if ($cellStates -notcontains $state.ToUpperInvariant()) {
                         Add-Finding -Rule "CellMapSignalStateMissing" -Message "Write entry '$fanucKey' allows state '$state', but cell map does not."

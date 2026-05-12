@@ -38,6 +38,19 @@ function Invoke-CodecToolJson {
     return ($jsonLine | ConvertFrom-Json)
 }
 
+function ConvertFrom-SnpxWords {
+    param(
+        [object[]]$Words,
+        [int]$WordCount
+    )
+
+    $value = [int]$Words[0]
+    if ($WordCount -ge 2) {
+        $value = $value -bor ([int]$Words[1] -shl 16)
+    }
+    return $value
+}
+
 if ([System.IO.Path]::IsPathRooted($ConfigPath)) {
     $resolvedConfig = Resolve-Path -LiteralPath $ConfigPath
 } else {
@@ -146,9 +159,9 @@ if ($Execute) {
             $value = ([int]$rawWords[0] -ne 0)
             $values.ioSignals[$read.SnapshotKey] = $value
         } else {
-            $value = [int]$rawWords[0]
-            if ([int]$read.WordCount -ge 2) {
-                $value = $value -bor ([int]$rawWords[1] -shl 16)
+            $value = ConvertFrom-SnpxWords -Words $rawWords -WordCount ([int]$read.WordCount)
+            if ($read.Representation -eq "scaled-word") {
+                $value = [decimal]$value / [decimal]$read.ScaleDivisor
             }
             $values.registers[$read.SnapshotKey] = $value
         }

@@ -7,7 +7,7 @@
     CellMapSource = "config\cell-map.psd1"
     DefaultMode = "plan"
     RequireHumanApproval = $true
-    Notes = "SNPX writes are supported as a separate allowlisted command path. Status snapshots remain read-only."
+    Notes = "SNPX writes are supported as a separate allowlisted command path. User-approved scratch boundary is R[90]-R[99] and DO[1]-DO[80], but live SNPX writes still require explicit entries here and matching ASG mappings. Status snapshots remain read-only."
 
     AllowedWrites = @(
         @{

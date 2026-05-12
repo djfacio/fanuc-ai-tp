@@ -227,17 +227,19 @@
             Name = "Production sample register"
             Fanuc = "R[110]"
             SnapshotKey = "R[110]"
-            Type = "int"
-            Representation = "word"
+            Type = "real"
+            Representation = "scaled-word"
             AsgSlot = 12
             SetAsgRegion = "R[110]"
             SetAsgDataType = "INTEGER"
-            SetAsgMultiply = 1
+            SetAsgMultiply = 1000
+            ScaleDivisor = 1000
             SnpxArea = "%R"
             SnpxStart = 27
             SnpxAddress = "%R00027"
             WordCount = 2
             Required = $false
+            Notes = "Robot value is fractional. SETASG scales by 1000 so readback preserves values such as 21.209 without writing R[110]."
         }
     )
 }

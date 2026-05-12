@@ -8,7 +8,7 @@
   "operations": [
     {
       "type": "ioWrite",
-      "signal": "DO[2]",
+      "signal": "DO[81]",
       "state": true
     }
   ]

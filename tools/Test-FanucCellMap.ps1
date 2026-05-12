@@ -30,6 +30,23 @@ function Add-Finding {
 }
 
 $registers = @{}
+$registerRanges = New-Object System.Collections.Generic.List[object]
+foreach ($range in @($cellMap.RegisterWrites.AllowedRanges)) {
+    if ($null -eq $range) {
+        continue
+    }
+
+    if ($null -eq $range.Start -or $null -eq $range.End -or [int]$range.Start -lt 1 -or [int]$range.End -lt [int]$range.Start) {
+        Add-Finding -Rule "RegisterRangeInvalid" -Message "Register write ranges must include Start >= 1 and End >= Start."
+        continue
+    }
+
+    $registerRanges.Add([pscustomobject]@{
+        Start = [int]$range.Start
+        End = [int]$range.End
+    })
+}
+
 foreach ($entry in @($cellMap.RegisterWrites.Allowed)) {
     if ($null -eq $entry) {
         continue
@@ -48,6 +65,37 @@ foreach ($entry in @($cellMap.RegisterWrites.Allowed)) {
 }
 
 $signals = @{}
+$signalRanges = New-Object System.Collections.Generic.List[object]
+foreach ($range in @($cellMap.IoWrites.AllowedRanges)) {
+    if ($null -eq $range) {
+        continue
+    }
+
+    if (-not $range.Type -or $range.Type -notin @("DO", "RO")) {
+        Add-Finding -Rule "SignalRangeTypeInvalid" -Message "IO write ranges must include Type DO or RO."
+        continue
+    }
+
+    if ($null -eq $range.Start -or $null -eq $range.End -or [int]$range.Start -lt 1 -or [int]$range.End -lt [int]$range.Start) {
+        Add-Finding -Rule "SignalRangeInvalid" -Message "IO write ranges must include Start >= 1 and End >= Start."
+        continue
+    }
+
+    if ($range.SafeStates) {
+        foreach ($state in @($range.SafeStates)) {
+            if ($state.ToUpperInvariant() -notin @("ON", "OFF")) {
+                Add-Finding -Rule "SignalRangeStateInvalid" -Message "IO write range '$($range.Type)[$($range.Start)-$($range.End)]' has invalid SafeState '$state'."
+            }
+        }
+    }
+
+    $signalRanges.Add([pscustomobject]@{
+        Type = $range.Type.ToUpperInvariant()
+        Start = [int]$range.Start
+        End = [int]$range.End
+    })
+}
+
 foreach ($entry in @($cellMap.IoWrites.Allowed)) {
     if ($null -eq $entry) {
         continue
@@ -87,7 +135,9 @@ $result = New-Object psobject -Property ([ordered]@{
     Path = (Get-Item -LiteralPath $resolvedCellMapPath).FullName
     IsValid = ($findings.Count -eq 0)
     RegisterWriteCount = $registers.Count
+    RegisterWriteRangeCount = $registerRanges.Count
     IoWriteCount = $signals.Count
+    IoWriteRangeCount = $signalRanges.Count
     CallTargetCount = $calls.Count
     Findings = $findings.ToArray()
 })

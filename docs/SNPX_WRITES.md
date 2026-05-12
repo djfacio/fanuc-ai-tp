@@ -38,6 +38,8 @@ Approved planning entries:
 - `R[99]`
 - `DO[1]`
 
+The broader user-approved scratch write boundary is `R[90]` through `R[99]` and `DO[1]` through `DO[80]`. A target still needs an explicit SNPX `AllowedWrites` entry and ASG mapping before the live SNPX write tool can use it. Production/status values outside that boundary, including `R[103]`, `R[107]`, `R[110]`, and outputs above `DO[80]`, are read-only unless separately approved.
+
 The marker registers use integer ASG projection writes. `DO[1]` is an output write; plans that request `DO[1]=ON` require a matching restoration write back to `OFF` and post-restore readback evidence.
 
 ## Commands

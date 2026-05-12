@@ -208,8 +208,11 @@ See `docs\CONTROLLER_INVENTORY.md`.
 
 Current approved writes:
 
-- `R[90]`, `R[91]`, `R[97]`, `R[98]`, `R[99]`
-- `DO[1]` ON/OFF
+- Scratch register range: `R[90]` through `R[99]`
+- Scratch output range: `DO[1]` through `DO[80]`, ON/OFF
+- Named current template writes: `R[90]`, `R[91]`, `R[97]`, `R[98]`, `R[99]`, and `DO[1]`
+
+Do not write production/status values outside those scratch ranges without separate approval. `R[103]`, `R[107]`, and `R[110]` are read-only status/sample registers in the current SNPX map. `R[110]` contains a fractional robot value; SNPX readback uses a 1000x scale to preserve values such as `21.209`.
 
 No generated `CALL` targets are approved yet.
 

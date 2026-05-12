@@ -43,6 +43,8 @@ Live code must perform this sequence:
 
 Unassigned `%R` reads can return `0`, so ASG readback verification is not optional.
 
+Fractional robot registers need explicit scaling. `R[110]` is read-only and is configured with `SETASG` multiply `1000` plus `ScaleDivisor = 1000` so values such as `21.209` are preserved in snapshots.
+
 ## Commands
 
 Validate the config:
