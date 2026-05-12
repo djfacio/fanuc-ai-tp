@@ -49,6 +49,7 @@ This repo is an AI-assisted FANUC TP workflow, not just a MakeTP/FTP script fold
 - `docs\SNPX_READONLY.md`
 - `docs\SNPX_WRITES.md`
 - `docs\SNPX_IMPLEMENTATION_NOTES.md`
+- `docs\CONTROLLER_INVENTORY.md`
 - `docs\ROBOGUIDE_TESTING.md`
 - `docs\ROBOGUIDE_EVIDENCE_PIPELINE.md`
 - `schemas\program-spec.schema.json`
@@ -98,6 +99,7 @@ This downloads `F_MAIN.TP` from robot `MD:` into `downloaded\tp\` and decodes re
 - Keep generated register writes, IO writes, and CALL targets allowlisted in `config\cell-map.psd1`. The spec validator enforces this map.
 - Use `config\cell-observations.psd1`, `tools\New-FanucCellStatusPlan.ps1`, `tools\New-FanucCellStatusSnapshot.ps1`, and `tools\Compare-FanucCellStatusSnapshot.ps1` for read-only status planning and pre/post evidence. This map does not grant write permission.
 - Use `config\snpx-readonly.psd1` for SNPX status planning and `config\snpx-writes.psd1` for SNPX write planning. SNPX live reads and writes must use private per-connection `$SNPX_ASG` mapping on TCP `60008`, verify the ASG table by readback, and use the local `vendor\snpx-codec\` source rather than another local project path.
+- Use `config\controller-inventory.sample.psd1` as the publishable capability model and `config\controller-inventory.local.psd1` for real local cell/tool details. Validate with `tools\Test-FanucControllerInventory.ps1` and summarize with `tools\Get-FanucControllerCapability.ps1`.
 - Run `tools\Test-FanucLsSafety.ps1` before compiling or uploading generated `.LS` files. `Invoke-FanucTpBuild.ps1` also runs this gate automatically.
 - Run `tools\Invoke-FanucTpRoundTrip.ps1` before upload. It records PrintTP decode evidence in `generated\jobs\<PROGRAM>\roundtrip.json`.
 - Prefer `tools\Invoke-FanucLocalWorkflow.ps1` for local end-to-end evidence generation.

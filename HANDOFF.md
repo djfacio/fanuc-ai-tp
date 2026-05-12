@@ -163,6 +163,31 @@ It found 14 distinct `CALL` targets, 25 IO write states, and 25 register referen
 
 ## Cell Resource Map
 
+## Controller Inventory
+
+Controller and workstation capabilities now have an explicit inventory model.
+The public sample keeps live capabilities disabled:
+
+```powershell
+.\tools\Test-FanucControllerInventory.ps1
+.\tools\Get-FanucControllerCapability.ps1
+```
+
+The local ignored inventory is:
+
+```text
+config\controller-inventory.local.psd1
+```
+
+Use it for real cell decisions:
+
+```powershell
+.\tools\Test-FanucControllerInventory.ps1 -InventoryPath .\config\controller-inventory.local.psd1
+.\tools\Get-FanucControllerCapability.ps1 -InventoryPath .\config\controller-inventory.local.psd1
+```
+
+See `docs\CONTROLLER_INVENTORY.md`.
+
 `config\cell-map.psd1` is now the reviewed allowlist for generated specs. `tools\Test-FanucProgramSpec.ps1` blocks unapproved register writes, unapproved IO writes, and unapproved generated `CALL` targets before LS generation.
 
 Current approved writes:

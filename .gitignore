@@ -19,3 +19,4 @@ Thumbs.db
 .env
 .env.*
 *.secret.*
+/config/controller-inventory.local.psd1

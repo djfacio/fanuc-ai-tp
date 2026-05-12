@@ -65,6 +65,7 @@ human approval gates in the relevant tools.
 config/              Robot, FTP, and MakeTP settings
 config/cell-map.psd1 Reviewed register/IO/CALL allowlist
 config/cell-observations.psd1 Read-only status observation plan
+config/controller-inventory.sample.psd1 Sanitized controller/tool capability inventory
 config/snpx-readonly.psd1 SNPX V2 read-only ASG projection plan
 config/snpx-writes.psd1 SNPX V2 write allowlist and planning gates
 config/safety-rules.psd1  Blocked LS source patterns
@@ -78,6 +79,26 @@ schemas/             Structured program spec schemas
 examples/            Example reviewed program specs
 vendor/snpx-codec/   Local Rust SNPX/SRTP codec source and test vectors
 ```
+
+## Controller Inventory
+
+Validate the sanitized public sample:
+
+```powershell
+.\tools\Test-FanucControllerInventory.ps1
+.\tools\Get-FanucControllerCapability.ps1
+```
+
+For a real cell, copy `config/controller-inventory.sample.psd1` to
+`config/controller-inventory.local.psd1`, update the local details, then run:
+
+```powershell
+.\tools\Test-FanucControllerInventory.ps1 -InventoryPath .\config\controller-inventory.local.psd1
+.\tools\Get-FanucControllerCapability.ps1 -InventoryPath .\config\controller-inventory.local.psd1
+```
+
+The local inventory file is ignored by Git. See
+`docs/CONTROLLER_INVENTORY.md`.
 
 ## Generate From A Spec
 

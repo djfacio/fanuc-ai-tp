@@ -53,6 +53,8 @@ $lsValidator = Join-Path $scriptRoot "Test-FanucLsSafety.ps1"
 $schemaValidator = Join-Path $scriptRoot "Test-FanucJsonSchema.ps1"
 $cellMapValidator = Join-Path $scriptRoot "Test-FanucCellMap.ps1"
 $cellObservationsValidator = Join-Path $scriptRoot "Test-FanucCellObservations.ps1"
+$controllerInventoryValidator = Join-Path $scriptRoot "Test-FanucControllerInventory.ps1"
+$controllerCapabilityTool = Join-Path $scriptRoot "Get-FanucControllerCapability.ps1"
 $snpxReadonlyValidator = Join-Path $scriptRoot "Test-FanucSnpxReadonlyConfig.ps1"
 $snpxWriteValidator = Join-Path $scriptRoot "Test-FanucSnpxWriteConfig.ps1"
 $snpxSnapshotTool = Join-Path $scriptRoot "Invoke-FanucSnpxReadSnapshot.ps1"
@@ -69,6 +71,31 @@ Invoke-ExpectPass -Name "CellMapValid" -Command {
 }
 Invoke-ExpectPass -Name "CellObservationsValid" -Command {
     & $cellObservationsValidator -Quiet
+}
+Invoke-ExpectPass -Name "ControllerInventorySampleValid" -Command {
+    & $controllerInventoryValidator -Quiet
+}
+Invoke-ExpectFail -Name "ControllerInventoryBadFails" -Command {
+    & $controllerInventoryValidator -InventoryPath (Join-Path $projectRoot "tests\fixtures\invalid\controller-inventory-bad.psd1") -Quiet
+}
+Invoke-ExpectPass -Name "ControllerCapabilitySampleSafe" -Command {
+    $capability = & $controllerCapabilityTool
+    foreach ($property in @(
+        "CanCompileTp",
+        "CanUploadTp",
+        "CanReadTp",
+        "CanUseSnpx",
+        "CanWriteSnpx",
+        "CanUseKarelBridge",
+        "CanRunRoboguideEvidence"
+    )) {
+        if ($capability.$property) {
+            throw "Expected public sample capability $property to be false."
+        }
+    }
+    if (-not $capability.RequiresHumanApproval) {
+        throw "Expected public sample to require human approval."
+    }
 }
 Invoke-ExpectPass -Name "SnpxReadonlyConfigValid" -Command {
     & $snpxReadonlyValidator -Quiet
