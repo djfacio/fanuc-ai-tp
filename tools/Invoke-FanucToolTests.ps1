@@ -55,6 +55,8 @@ $cellMapValidator = Join-Path $scriptRoot "Test-FanucCellMap.ps1"
 $cellObservationsValidator = Join-Path $scriptRoot "Test-FanucCellObservations.ps1"
 $controllerInventoryValidator = Join-Path $scriptRoot "Test-FanucControllerInventory.ps1"
 $controllerCapabilityTool = Join-Path $scriptRoot "Get-FanucControllerCapability.ps1"
+$templateCatalogValidator = Join-Path $scriptRoot "Test-FanucTemplateCatalog.ps1"
+$templateCatalogTool = Join-Path $scriptRoot "Get-FanucTemplateCatalog.ps1"
 $snpxReadonlyValidator = Join-Path $scriptRoot "Test-FanucSnpxReadonlyConfig.ps1"
 $snpxWriteValidator = Join-Path $scriptRoot "Test-FanucSnpxWriteConfig.ps1"
 $snpxMatrixTool = Join-Path $scriptRoot "Get-FanucSnpxCommissioningMatrix.ps1"
@@ -96,6 +98,21 @@ Invoke-ExpectPass -Name "ControllerCapabilitySampleSafe" -Command {
     }
     if (-not $capability.RequiresHumanApproval) {
         throw "Expected public sample to require human approval."
+    }
+}
+Invoke-ExpectPass -Name "TemplateCatalogValid" -Command {
+    & $templateCatalogValidator -Quiet
+}
+Invoke-ExpectPass -Name "TemplateCatalogArtifactValid" -Command {
+    $catalogPath = Join-Path $projectRoot "generated\test-runs\template-catalog.json"
+    & $templateCatalogTool -OutputPath $catalogPath -WriteMarkdown | Out-Null
+    $catalog = Get-Content -LiteralPath $catalogPath -Raw | ConvertFrom-Json
+    if ([int]$catalog.templateCount -ne 7) {
+        throw "Expected template catalog artifact to contain 7 templates."
+    }
+    $motionTemplates = @($catalog.templates | Where-Object { $_.motionClass -ne "no-motion" })
+    if ($motionTemplates.Count -ne 0) {
+        throw "Expected current template catalog to remain no-motion only."
     }
 }
 Invoke-ExpectPass -Name "SnpxReadonlyConfigValid" -Command {

@@ -68,6 +68,7 @@ config/cell-observations.psd1 Read-only status observation plan
 config/controller-inventory.sample.psd1 Sanitized controller/tool capability inventory
 config/snpx-readonly.psd1 SNPX V2 read-only ASG projection plan
 config/snpx-writes.psd1 SNPX V2 write allowlist and planning gates
+config/template-catalog.psd1 Deterministic TP template catalog
 config/safety-rules.psd1  Blocked LS source patterns
 generated/sources/   AI-generated .LS source files
 generated/compiled/  Compiled .TP files
@@ -99,6 +100,17 @@ For a real cell, copy `config/controller-inventory.sample.psd1` to
 
 The local inventory file is ignored by Git. See
 `docs/CONTROLLER_INVENTORY.md`.
+
+## Template Catalog
+
+Validate and emit the deterministic no-motion template catalog:
+
+```powershell
+.\tools\Test-FanucTemplateCatalog.ps1
+.\tools\Get-FanucTemplateCatalog.ps1 -WriteMarkdown
+```
+
+See `docs/TEMPLATE_CATALOG.md`.
 
 ## Generate From A Spec
 

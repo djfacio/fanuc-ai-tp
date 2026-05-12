@@ -89,6 +89,8 @@ Compile and upload to robot `MD:`:
 
 Build out spec-driven generators around constrained templates, starting with no-motion diagnostics and simple IO/register utilities. Keep motion generation behind explicit review and manual verification. Use `docs\STRATEGY.md`, `docs\SAFETY.md`, `docs\WORKFLOW.md`, and `schemas\program-spec.schema.json` as the starting architecture.
 
+The deterministic no-motion template catalog is now explicit in `config\template-catalog.psd1`. Validate it with `tools\Test-FanucTemplateCatalog.ps1` and emit review artifacts with `tools\Get-FanucTemplateCatalog.ps1 -WriteMarkdown`.
+
 The latest proven local evidence is in `generated\jobs\AI_HELLO\manifest.json`. It records spec validation, LS safety, MakeTP compile, PrintTP decode, matching normalized `/MN` instructions, and file hashes. `localEvidencePassed` is true; `readyForUpload` stays false until human review/upload policy is explicitly recorded.
 
 `Invoke-FanucTpBuild.ps1 -Upload` now blocks manifest-backed jobs unless `readyForUpload=true`; successful uploads update manifest upload status automatically.

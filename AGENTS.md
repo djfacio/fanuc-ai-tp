@@ -43,6 +43,7 @@ This repo is an AI-assisted FANUC TP workflow, not just a MakeTP/FTP script fold
 - `docs\INTERFACES.md`
 - `docs\COMMUNICATION_STRATEGY.md`
 - `docs\PROGRAM_TEMPLATES.md`
+- `docs\TEMPLATE_CATALOG.md`
 - `docs\TEMPLATE_ROADMAP.md`
 - `docs\CELL_RESOURCE_MAP.md`
 - `docs\CELL_STATUS_PLAN.md`
@@ -56,6 +57,8 @@ This repo is an AI-assisted FANUC TP workflow, not just a MakeTP/FTP script fold
 - `examples\AI_HELLO.program-spec.json`
 
 Prefer structured specs and deterministic emitters. Use AI for planning, drafting, inspection, and review support; keep robot-facing artifacts validated, compiled, round-tripped, and manually reviewed.
+
+Use `config\template-catalog.psd1` as the reviewed deterministic template list. Run `tools\Test-FanucTemplateCatalog.ps1` after adding or changing example specs/templates.
 
 Run commands from this folder:
 
