@@ -1,0 +1,14 @@
+{
+  "programName": "AI_BAD_CALL",
+  "intent": "Invalid unapproved call target.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true
+  },
+  "operations": [
+    {
+      "type": "callProgram",
+      "program": "F_MAIN"
+    }
+  ]
+}

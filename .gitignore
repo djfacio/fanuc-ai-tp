@@ -1,0 +1,21 @@
+# Local run artifacts and robot evidence
+/downloaded/
+/generated/
+/logs/
+*.pcap
+*.pcapng
+
+# Build outputs
+/vendor/snpx-codec/target/
+**/target/
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+
+# Local-only secrets/auth material
+.env
+.env.*
+*.secret.*

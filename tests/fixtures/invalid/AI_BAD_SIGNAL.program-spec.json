@@ -1,0 +1,15 @@
+{
+  "programName": "AI_BAD_SIGNAL",
+  "intent": "Invalid unapproved output write.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true
+  },
+  "operations": [
+    {
+      "type": "ioWrite",
+      "signal": "DO[2]",
+      "state": true
+    }
+  ]
+}

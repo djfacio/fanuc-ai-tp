@@ -1,0 +1,14 @@
+{
+  "programName": "AI_BAD_OPERATION",
+  "intent": "Test invalid operation payload.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true
+  },
+  "operations": [
+    {
+      "type": "message",
+      "text": "THIS MESSAGE IS TOO LONG FOR THE GENERATOR"
+    }
+  ]
+}

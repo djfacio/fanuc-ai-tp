@@ -1,0 +1,30 @@
+{
+  "programName": "AI_REGDIAG",
+  "intent": "No-motion register diagnostic that writes known test values and displays a short operator message.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true,
+    "notes": "No motion. Register writes only."
+  },
+  "operations": [
+    {
+      "type": "message",
+      "text": "AI REG DIAG"
+    },
+    {
+      "type": "registerWrite",
+      "register": 90,
+      "value": 9001
+    },
+    {
+      "type": "registerWrite",
+      "register": 91,
+      "value": 9002
+    }
+  ],
+  "verification": {
+    "roboguideRequired": false,
+    "manualT1Required": true,
+    "notes": "Verify R[90] and R[91] after running."
+  }
+}

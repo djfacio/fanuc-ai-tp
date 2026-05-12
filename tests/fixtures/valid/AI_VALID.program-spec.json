@@ -1,0 +1,14 @@
+{
+  "programName": "AI_VALID",
+  "intent": "Test valid spec.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true
+  },
+  "operations": [
+    {
+      "type": "message",
+      "text": "AI TEST"
+    }
+  ]
+}

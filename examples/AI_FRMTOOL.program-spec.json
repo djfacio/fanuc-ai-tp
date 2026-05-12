@@ -1,0 +1,24 @@
+{
+  "programName": "AI_FRMTOOL",
+  "intent": "No-motion checklist program for frame and tool review.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true,
+    "notes": "No UFRAME, UTOOL, or system variables are changed."
+  },
+  "operations": [
+    {
+      "type": "message",
+      "text": "AI FRAME TOOL"
+    },
+    {
+      "type": "comment",
+      "text": "Verify UFRAME UTOOL"
+    }
+  ],
+  "verification": {
+    "roboguideRequired": false,
+    "manualT1Required": true,
+    "notes": "Operator confirms frame/tool setup from pendant or controlled docs."
+  }
+}

@@ -1,0 +1,6 @@
+snpx-codec
+
+This crate includes test fixtures derived from wire captures in
+Booozie-Z/Fanuc_GESRTP_Driver
+(https://github.com/Booozie-Z/Fanuc_GESRTP_Driver), distributed under the
+MIT License. The fixtures live in crates/snpx-codec/src/golden/.

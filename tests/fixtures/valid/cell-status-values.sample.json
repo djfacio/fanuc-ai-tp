@@ -1,0 +1,30 @@
+{
+  "registers": {
+    "R[90]": 900,
+    "R[91]": 901,
+    "R[97]": 20260512,
+    "R[98]": 20260512,
+    "R[99]": 123,
+    "R[103]": 0,
+    "R[107]": 0,
+    "R[110]": 0
+  },
+  "ioSignals": {
+    "DO[1]": "OFF",
+    "DO[107]": "OFF",
+    "DO[110]": "OFF",
+    "DO[113]": "OFF"
+  },
+  "programPresence": {
+    "AI_HELLO": true,
+    "AI_CELLCHK": true,
+    "BNEMAIN": true,
+    "F_FEEDER": true
+  },
+  "operatorChecks": {
+    "Mode": "T1 manual",
+    "Override": "Low",
+    "Frames": "Verify active UFRAME/UTOOL on pendant",
+    "Recovery": "Clear and recoverable"
+  }
+}

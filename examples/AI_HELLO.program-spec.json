@@ -1,0 +1,30 @@
+{
+  "programName": "AI_HELLO",
+  "intent": "Display a short operator message and write a known value to a register for workflow validation.",
+  "controller": {
+    "model": "R-30iB Mate Plus",
+    "robotIp": "192.168.5.10",
+    "winOlpcVersion": "V9.40-1"
+  },
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true,
+    "notes": "No motion. No controller configuration changes. Upload does not run the program."
+  },
+  "operations": [
+    {
+      "type": "message",
+      "text": "AI FTP upload OK"
+    },
+    {
+      "type": "registerWrite",
+      "register": 99,
+      "value": 123
+    }
+  ],
+  "verification": {
+    "roboguideRequired": false,
+    "manualT1Required": true,
+    "notes": "Select on pendant and verify message plus R[99] value before treating the workflow as proven."
+  }
+}

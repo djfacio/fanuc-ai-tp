@@ -1,0 +1,167 @@
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$LsPath,
+
+    [string]$ConfigPath = "..\config\robot.psd1",
+    [switch]$Upload,
+    [switch]$Force
+)
+
+$ErrorActionPreference = "Stop"
+
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = Split-Path -Parent $scriptRoot
+if ([System.IO.Path]::IsPathRooted($ConfigPath)) {
+    $resolvedConfig = Resolve-Path -LiteralPath $ConfigPath
+} else {
+    $resolvedConfig = Resolve-Path -LiteralPath (Join-Path $scriptRoot $ConfigPath)
+}
+$config = Import-PowerShellDataFile -LiteralPath $resolvedConfig
+
+function Resolve-ProjectPath {
+    param(
+        [string]$Path
+    )
+
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return $Path
+    }
+
+    return Join-Path $projectRoot $Path
+}
+
+function Invoke-FtpScript {
+    param(
+        [string[]]$Commands,
+        [string]$RobotIp
+    )
+
+    $ftpScript = Join-Path $env:TEMP ("fanuc-ai-tp-{0}.ftp" -f ([Guid]::NewGuid().ToString("N")))
+    try {
+        Set-Content -LiteralPath $ftpScript -Value $Commands -Encoding ASCII
+        $output = & ftp.exe -n -s:$ftpScript $RobotIp 2>&1
+        [pscustomobject]@{
+            ExitCode = $LASTEXITCODE
+            Output = $output
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $ftpScript) {
+            Remove-Item -LiteralPath $ftpScript -Force
+        }
+    }
+}
+
+function Test-RemoteFile {
+    param(
+        [string]$RemoteName
+    )
+
+    $result = Invoke-FtpScript -RobotIp $config.RobotIp -Commands @(
+        "user $($config.UserName) $($config.Password)",
+        "binary",
+        "dir $RemoteName",
+        "quit"
+    )
+
+    return (($result.Output -join "`n") -match "(?im)\s$([regex]::Escape($RemoteName.ToLowerInvariant()))\s*$")
+}
+
+$resolvedLs = Resolve-Path -LiteralPath $LsPath
+$lsItem = Get-Item -LiteralPath $resolvedLs
+$programName = $lsItem.BaseName.ToUpperInvariant()
+$safetyTool = Join-Path $scriptRoot "Test-FanucLsSafety.ps1"
+& $safetyTool -LsPath $lsItem.FullName -ProgramName $programName -ConfigPath $resolvedConfig -Quiet
+
+$manifestPath = Join-Path (Join-Path (Join-Path $projectRoot "generated\jobs") $programName) "manifest.json"
+if ($Upload -and (Test-Path -LiteralPath $manifestPath)) {
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    if (-not [bool]$manifest.gates.readyForUpload) {
+        throw "Job manifest is not ready for upload: $manifestPath. Record human review with Set-FanucJobStatus.ps1 after local evidence is reviewed."
+    }
+}
+
+if (-not (Test-Path -LiteralPath $config.MakeTpPath)) {
+    throw "MakeTP not found: $($config.MakeTpPath)"
+}
+
+$robotIniPath = Resolve-ProjectPath $config.RobotIniPath
+$compiledDir = Join-Path $projectRoot "generated\compiled"
+$tpPath = Join-Path $compiledDir ($programName + ".TP")
+$workcellTpPath = Join-Path $config.WorkcellRobotPath ("output\" + $programName + ".TP")
+
+if ((Test-Path -LiteralPath $tpPath) -and -not $Force) {
+    throw "Compiled output already exists: $tpPath. Use -Force to overwrite."
+}
+
+if (Test-Path -LiteralPath $tpPath) {
+    Remove-Item -LiteralPath $tpPath -Force
+}
+
+if (Test-Path -LiteralPath $workcellTpPath) {
+    Remove-Item -LiteralPath $workcellTpPath -Force
+}
+
+Write-Host "Compiling $($lsItem.FullName)"
+if (Test-Path -LiteralPath $robotIniPath) {
+    & $config.MakeTpPath $lsItem.FullName $tpPath /config $robotIniPath /ver $config.WinOlpcVersion
+} else {
+    & $config.MakeTpPath $lsItem.FullName $tpPath /ver $config.WinOlpcVersion
+}
+
+if ($LASTEXITCODE -ne 0 -and -not (Test-Path -LiteralPath $workcellTpPath)) {
+    throw "MakeTP failed with exit code $LASTEXITCODE"
+}
+
+if (-not (Test-Path -LiteralPath $tpPath) -and (Test-Path -LiteralPath $workcellTpPath)) {
+    Copy-Item -LiteralPath $workcellTpPath -Destination $tpPath -Force
+}
+
+if (-not (Test-Path -LiteralPath $tpPath)) {
+    throw "MakeTP completed but TP file was not created: $tpPath"
+}
+
+$jobDir = Join-Path (Join-Path $projectRoot "generated\jobs") $programName
+if (Test-Path -LiteralPath $jobDir) {
+    Copy-Item -LiteralPath $tpPath -Destination (Join-Path $jobDir ($programName + ".TP")) -Force
+}
+
+Write-Host "Created $tpPath"
+
+if (-not $Upload) {
+    Write-Host "Upload skipped. Re-run with -Upload to send the TP to robot MD:."
+    return
+}
+
+$remoteName = $programName + ".TP"
+if ((Test-RemoteFile -RemoteName $remoteName) -and -not $Force) {
+    throw "Remote file already exists on robot: $remoteName. Use -Force to overwrite."
+}
+
+$uploadResult = Invoke-FtpScript -RobotIp $config.RobotIp -Commands @(
+    "user $($config.UserName) $($config.Password)",
+    "binary",
+    "put `"$tpPath`" $remoteName",
+    "dir $remoteName",
+    "quit"
+)
+
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$logPath = Join-Path $projectRoot ("logs\upload-$programName-$timestamp.log")
+Set-Content -LiteralPath $logPath -Value $uploadResult.Output -Encoding ASCII
+
+if ($uploadResult.ExitCode -ne 0) {
+    throw "FTP failed with exit code $($uploadResult.ExitCode). See $logPath"
+}
+
+$statusTool = Join-Path $scriptRoot "Set-FanucJobStatus.ps1"
+if (Test-Path -LiteralPath $statusTool) {
+    try {
+        & $statusTool -ProgramName $programName -UploadStatus uploaded -UploadLogPath $logPath | Out-Null
+    } catch {
+        Write-Warning "Upload succeeded, but job manifest upload status was not updated: $($_.Exception.Message)"
+    }
+}
+
+Write-Host "Uploaded $remoteName to $($config.RobotIp)"
+Write-Host "Log: $logPath"

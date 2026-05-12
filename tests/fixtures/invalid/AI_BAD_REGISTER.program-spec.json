@@ -1,0 +1,15 @@
+{
+  "programName": "AI_BAD_REGISTER",
+  "intent": "Invalid unapproved register write.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true
+  },
+  "operations": [
+    {
+      "type": "registerWrite",
+      "register": 1,
+      "value": 1
+    }
+  ]
+}

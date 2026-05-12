@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.fanuc-ai-tp/schemas/program-spec.schema.json",
+  "title": "FANUC AI TP Program Spec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["programName", "intent", "safety", "operations"],
+  "properties": {
+    "programName": {
+      "type": "string",
+      "pattern": "^AI_[A-Z0-9_]{1,29}$"
+    },
+    "intent": {
+      "type": "string",
+      "minLength": 1
+    },
+    "controller": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model": { "type": "string" },
+        "robotIp": { "type": "string" },
+        "winOlpcVersion": { "type": "string" }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["motionAllowed", "requiresHumanReview"],
+      "properties": {
+        "motionAllowed": { "type": "boolean" },
+        "requiresHumanReview": { "type": "boolean" },
+        "notes": { "type": "string" }
+      }
+    },
+    "assumptions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["message", "registerWrite", "ioWrite", "wait", "comment", "diagnosticCheck", "callProgram"]
+          },
+          "text": { "type": "string" },
+          "name": { "type": "string" },
+          "program": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{0,31}$"
+          },
+          "register": { "type": "integer", "minimum": 1 },
+          "value": { "type": "integer" },
+          "signal": { "type": "string" },
+          "state": { "type": "boolean" },
+          "seconds": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "roboguideRequired": { "type": "boolean" },
+        "manualT1Required": { "type": "boolean" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

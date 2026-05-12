@@ -1,0 +1,14 @@
+{
+  "programName": "BAD_NAME",
+  "intent": "Test invalid prefix.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true
+  },
+  "operations": [
+    {
+      "type": "message",
+      "text": "AI TEST"
+    }
+  ]
+}

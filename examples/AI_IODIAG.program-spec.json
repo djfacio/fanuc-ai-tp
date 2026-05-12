@@ -1,0 +1,34 @@
+{
+  "programName": "AI_IODIAG",
+  "intent": "No-motion digital output diagnostic that pulses a reviewed output.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true,
+    "notes": "Only use on outputs verified safe to toggle."
+  },
+  "operations": [
+    {
+      "type": "message",
+      "text": "AI IO DIAG"
+    },
+    {
+      "type": "ioWrite",
+      "signal": "DO[1]",
+      "state": true
+    },
+    {
+      "type": "wait",
+      "seconds": 0.5
+    },
+    {
+      "type": "ioWrite",
+      "signal": "DO[1]",
+      "state": false
+    }
+  ],
+  "verification": {
+    "roboguideRequired": true,
+    "manualT1Required": true,
+    "notes": "Confirm DO[1] is safe before review approval."
+  }
+}
