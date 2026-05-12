@@ -15,7 +15,7 @@ Each simulation run should record:
 - Actual observations.
 - Pass/fail status and reviewer.
 
-The existing `tools\Set-FanucSimulationEvidence.ps1` records the current status. The next increment is a generated test-plan file that humans can execute in RoboGuide and then attach back to the manifest.
+The existing `tools\Set-FanucSimulationEvidence.ps1` records the current status. `tools\New-FanucRoboguideEvidencePacket.ps1` generates a structured evidence packet and optional Markdown checklist from a program spec.
 
 ## Gate Policy
 
@@ -26,4 +26,27 @@ The existing `tools\Set-FanucSimulationEvidence.ps1` records the current status.
 
 ## Next Tooling Target
 
-Generate `generated\jobs\<PROGRAM>\roboguide-test-plan.md` from the spec and manifest. The plan should include setup, run steps, expected observations, and evidence fields.
+Generate `generated\jobs\<PROGRAM>\roboguide-evidence-packet.json` and optional Markdown from the spec. The packet includes evidence class, required sections, expected writes, setup/run/snapshot steps, and result fields.
+
+## Commands
+
+Validate the evidence policy:
+
+```powershell
+.\tools\Test-FanucRoboguideEvidenceConfig.ps1
+```
+
+Generate an evidence packet from an example spec:
+
+```powershell
+.\tools\New-FanucRoboguideEvidencePacket.ps1 `
+  -SpecPath .\examples\AI_IODIAG.program-spec.json `
+  -WriteMarkdown `
+  -Force
+```
+
+Evidence classes:
+
+- `no-motion`: RoboGuide optional, manual T1 required, no before/after snapshot required.
+- `io-sequence`: RoboGuide and manual T1 required, before/after snapshot required.
+- `motion`: RoboGuide and manual T1 required, before/after snapshot required.

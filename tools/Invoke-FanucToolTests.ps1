@@ -57,6 +57,8 @@ $controllerInventoryValidator = Join-Path $scriptRoot "Test-FanucControllerInven
 $controllerCapabilityTool = Join-Path $scriptRoot "Get-FanucControllerCapability.ps1"
 $templateCatalogValidator = Join-Path $scriptRoot "Test-FanucTemplateCatalog.ps1"
 $templateCatalogTool = Join-Path $scriptRoot "Get-FanucTemplateCatalog.ps1"
+$roboguideEvidenceValidator = Join-Path $scriptRoot "Test-FanucRoboguideEvidenceConfig.ps1"
+$roboguideEvidencePacketTool = Join-Path $scriptRoot "New-FanucRoboguideEvidencePacket.ps1"
 $snpxReadonlyValidator = Join-Path $scriptRoot "Test-FanucSnpxReadonlyConfig.ps1"
 $snpxWriteValidator = Join-Path $scriptRoot "Test-FanucSnpxWriteConfig.ps1"
 $snpxMatrixTool = Join-Path $scriptRoot "Get-FanucSnpxCommissioningMatrix.ps1"
@@ -113,6 +115,38 @@ Invoke-ExpectPass -Name "TemplateCatalogArtifactValid" -Command {
     $motionTemplates = @($catalog.templates | Where-Object { $_.motionClass -ne "no-motion" })
     if ($motionTemplates.Count -ne 0) {
         throw "Expected current template catalog to remain no-motion only."
+    }
+}
+Invoke-ExpectPass -Name "RoboguideEvidenceConfigValid" -Command {
+    & $roboguideEvidenceValidator -Quiet
+}
+Invoke-ExpectPass -Name "RoboguideEvidencePacketNoMotionValid" -Command {
+    $packetPath = Join-Path $projectRoot "generated\test-runs\roboguide-ai-hello.json"
+    & $roboguideEvidencePacketTool -SpecPath (Join-Path $projectRoot "examples\AI_HELLO.program-spec.json") -OutputPath $packetPath -WriteMarkdown -Force | Out-Null
+    $packet = Get-Content -LiteralPath $packetPath -Raw | ConvertFrom-Json
+    if ($packet.evidenceClass -ne "no-motion") {
+        throw "Expected AI_HELLO evidence class to be no-motion."
+    }
+    if ($packet.roboguideRequired) {
+        throw "Expected AI_HELLO not to require RoboGuide."
+    }
+    if ($packet.requiresBeforeAfterSnapshot) {
+        throw "Expected AI_HELLO not to require before/after snapshots."
+    }
+}
+Invoke-ExpectPass -Name "RoboguideEvidencePacketIoValid" -Command {
+    $packetPath = Join-Path $projectRoot "generated\test-runs\roboguide-ai-iodiag.json"
+    & $roboguideEvidencePacketTool -SpecPath (Join-Path $projectRoot "examples\AI_IODIAG.program-spec.json") -OutputPath $packetPath -WriteMarkdown -Force | Out-Null
+    $packet = Get-Content -LiteralPath $packetPath -Raw | ConvertFrom-Json
+    if ($packet.evidenceClass -ne "io-sequence") {
+        throw "Expected AI_IODIAG evidence class to be io-sequence."
+    }
+    if (-not $packet.roboguideRequired -or -not $packet.requiresBeforeAfterSnapshot) {
+        throw "Expected AI_IODIAG to require RoboGuide and before/after snapshots."
+    }
+    $states = @($packet.expectedWrites.ioSignals | ForEach-Object { "$($_.signal)=$($_.state)" })
+    if ($states -notcontains "DO[1]=ON" -or $states -notcontains "DO[1]=OFF") {
+        throw "Expected AI_IODIAG packet to include DO[1] ON and OFF writes."
     }
 }
 Invoke-ExpectPass -Name "SnpxReadonlyConfigValid" -Command {

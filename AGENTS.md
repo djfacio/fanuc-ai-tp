@@ -114,6 +114,7 @@ This downloads `F_MAIN.TP` from robot `MD:` into `downloaded\tp\` and decodes re
 - Use `tools\Get-FanucJobSummary.ps1` to review local job status, and `tools\Get-FanucJobSummary.ps1 -IncludeRobot` or `tools\Get-FanucRobotDirectory.ps1 -Pattern "AI_*.TP"` to reconcile against robot `MD:` without running programs.
 - Use `tools\Save-FanucRobotInventory.ps1` for read-only robot `MD:` snapshots, `tools\Invoke-FanucProductionProgramAnalysis.ps1` for controlled download/decode analysis of selected existing TP programs, `tools\Get-FanucProductionAnalysisSummary.ps1 -WriteMarkdown` for count summaries, and `tools\Get-FanucProductionResourceReport.ps1 -WriteMarkdown` for CALL/IO/register candidates.
 - If a spec requires RoboGuide, `localEvidencePassed` stays false until simulation evidence is recorded as passed.
+- Use `tools\New-FanucRoboguideEvidencePacket.ps1` to generate structured RoboGuide/manual evidence packets from specs. IO-sequence and motion packets require before/after snapshots.
 - Do not auto-run uploaded programs.
 - Do not overwrite production robot programs.
 - Keep early/generated programs no-motion unless the user explicitly asks for motion and provides frames, tools, points, speeds, payload assumptions, and verification plan.

@@ -280,6 +280,13 @@ Generate a RoboGuide execution checklist from a manifested job:
 .\tools\New-FanucRoboguideTestPlan.ps1 -ProgramName AI_CELLCHK -Force
 ```
 
+Generate a RoboGuide/manual evidence packet from a spec:
+
+```powershell
+.\tools\Test-FanucRoboguideEvidenceConfig.ps1
+.\tools\New-FanucRoboguideEvidencePacket.ps1 -SpecPath .\examples\AI_IODIAG.program-spec.json -WriteMarkdown -Force
+```
+
 Generate a read-only cell status plan:
 
 ```powershell
