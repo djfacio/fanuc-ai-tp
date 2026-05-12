@@ -68,6 +68,7 @@ human approval gates in the relevant tools.
 ```text
 config/              Robot, FTP, and MakeTP settings
 config/cell-map.psd1 Reviewed register/IO/CALL allowlist
+config/cell-map.sample.psd1 Safe starter policy for a new project/workcell
 config/cell-observations.psd1 Read-only status observation plan
 config/controller-inventory.sample.psd1 Sanitized controller/tool capability inventory
 config/snpx-readonly.psd1 SNPX V2 read-only ASG projection plan
@@ -105,6 +106,20 @@ For a real cell, copy `config/controller-inventory.sample.psd1` to
 
 The local inventory file is ignored by Git. See
 `docs/CONTROLLER_INVENTORY.md`.
+
+## Project Cell Policy
+
+Each project/workcell needs its own reviewed cell policy. For a new project,
+start from:
+
+```text
+config/cell-map.sample.psd1
+```
+
+Copy it to the project config, set `PolicyScope`, `ProjectName`, and
+`WorkcellName`, then add only the register, IO, and CALL resources reviewed for
+that workcell. The local commissioning/test policy in this repo does not carry
+over automatically.
 
 ## Template Catalog
 

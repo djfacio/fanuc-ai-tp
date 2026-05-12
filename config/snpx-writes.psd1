@@ -10,6 +10,44 @@
     PolicyScope = "local-commissioning-test"
     Notes = "SNPX writes are supported as a separate allowlisted command path. This local commissioning/test policy uses scratch boundary R[90]-R[99] and DO[1]-DO[80], but live SNPX writes still require explicit entries here and matching ASG mappings. Establish a separate policy per project/workcell."
 
+    DynamicProjection = @{
+        Enabled = $true
+        SnpxAddress = "%R00079"
+        SnpxStart = 79
+        WordCount = 2
+        SetAsgMultiply = 1
+        Notes = "Temporary private ASG projection for one reviewed scratch write per live execution. This keeps the read snapshot map stable while avoiding a large static DO/register map."
+    }
+
+    AllowedWriteRanges = @(
+        @{
+            Name = "Local test scratch register range"
+            FanucType = "R"
+            Start = 90
+            End = 99
+            Type = "int"
+            Transport = "dynamic-asg-projection"
+            WordCount = 2
+            Min = -999999
+            Max = 999999
+            RequiresCellMap = $true
+            Notes = "Dynamic write planning for this local commissioning/test register range."
+        },
+        @{
+            Name = "Local test scratch output range"
+            FanucType = "DO"
+            Start = 1
+            End = 80
+            Type = "bool"
+            Transport = "dynamic-asg-projection"
+            WordCount = 2
+            AllowedStates = @("ON", "OFF")
+            RequiresCellMap = $true
+            RequiresLiveProof = $true
+            Notes = "Dynamic write planning for this local commissioning/test output range. ON plans require restore to OFF."
+        }
+    )
+
     AllowedWrites = @(
         @{
             Name = "AI_REGDIAG marker A"

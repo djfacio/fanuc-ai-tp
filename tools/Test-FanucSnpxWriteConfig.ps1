@@ -57,6 +57,10 @@ if (-not [bool]$config.RequireHumanApproval) {
     Add-Finding -Rule "HumanApproval" -Message "SNPX writes must require human approval."
 }
 
+if (-not $config.PolicyScope -or $config.PolicyScope.Trim().Length -eq 0) {
+    Add-Finding -Rule "PolicyScopeRequired" -Message "SNPX write config must declare PolicyScope so write policies do not carry across projects implicitly."
+}
+
 if ($RequireEnabled -and -not [bool]$config.Enabled) {
     Add-Finding -Rule "Enabled" -Message "Config must be enabled for live SNPX writes."
 }
@@ -80,6 +84,37 @@ if (Test-Path -LiteralPath $mappingPath) {
     foreach ($read in @($mapping.Reads)) {
         if ($read.Fanuc) {
             $mappingReads[$read.Fanuc.ToUpperInvariant()] = $read
+        }
+    }
+}
+
+$dynamicProjection = $config.DynamicProjection
+if ($dynamicProjection) {
+    if ($null -eq $dynamicProjection.Enabled) {
+        Add-Finding -Rule "DynamicProjectionEnabled" -Message "DynamicProjection must include Enabled."
+    }
+    if (-not $dynamicProjection.SnpxAddress -or $dynamicProjection.SnpxAddress -notmatch '^%R[0-9]+$') {
+        Add-Finding -Rule "DynamicProjectionAddress" -Message "DynamicProjection must include a %R SnpxAddress."
+    }
+    if ($null -eq $dynamicProjection.SnpxStart -or [int]$dynamicProjection.SnpxStart -lt 1) {
+        Add-Finding -Rule "DynamicProjectionStart" -Message "DynamicProjection.SnpxStart must be >= 1."
+    }
+    if ($null -eq $dynamicProjection.WordCount -or [int]$dynamicProjection.WordCount -ne 2) {
+        Add-Finding -Rule "DynamicProjectionWordCount" -Message "DynamicProjection.WordCount must be 2 for current integer/boolean scratch writes."
+    }
+    if ($null -eq $dynamicProjection.SetAsgMultiply -or [int]$dynamicProjection.SetAsgMultiply -lt 1) {
+        Add-Finding -Rule "DynamicProjectionMultiply" -Message "DynamicProjection.SetAsgMultiply must be >= 1."
+    }
+
+    if ($null -ne $dynamicProjection.SnpxStart -and $null -ne $dynamicProjection.WordCount) {
+        $dynamicStart = [int]$dynamicProjection.SnpxStart
+        $dynamicEnd = $dynamicStart + [int]$dynamicProjection.WordCount - 1
+        foreach ($read in $mappingReads.Values) {
+            $readStart = [int]$read.SnpxStart
+            $readEnd = $readStart + [int]$read.WordCount - 1
+            if ($dynamicStart -le $readEnd -and $readStart -le $dynamicEnd) {
+                Add-Finding -Rule "DynamicProjectionCollision" -Message "DynamicProjection %R$('{0:d5}' -f $dynamicStart)..%R$('{0:d5}' -f $dynamicEnd) overlaps read mapping '$($read.Fanuc)'."
+            }
         }
     }
 }
@@ -152,6 +187,93 @@ function Get-CellMapSignalSafeStates {
     }
 
     return $null
+}
+
+function Test-CellMapSignalAllowed {
+    param(
+        [string]$FanucKey,
+        [object[]]$States
+    )
+
+    $cellStates = @(Get-CellMapSignalSafeStates -FanucKey $FanucKey)
+    if ($null -eq $cellStates) {
+        return $false
+    }
+
+    foreach ($state in @($States)) {
+        if ($cellStates -notcontains $state.ToUpperInvariant()) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
+$rangeKeys = @{}
+foreach ($range in @($config.AllowedWriteRanges)) {
+    if ($null -eq $range) {
+        continue
+    }
+
+    if (-not $range.FanucType -or $range.FanucType -notin @("R", "DO", "RO")) {
+        Add-Finding -Rule "RangeFanucType" -Message "AllowedWriteRanges entries must use FanucType R, DO, or RO."
+        continue
+    }
+
+    if ($null -eq $range.Start -or $null -eq $range.End -or [int]$range.Start -lt 1 -or [int]$range.End -lt [int]$range.Start) {
+        Add-Finding -Rule "RangeBounds" -Message "AllowedWriteRanges '$($range.Name)' must include Start >= 1 and End >= Start."
+        continue
+    }
+
+    $rangeKey = "$($range.FanucType.ToUpperInvariant())[$($range.Start)-$($range.End)]"
+    if ($rangeKeys.ContainsKey($rangeKey)) {
+        Add-Finding -Rule "RangeDuplicate" -Message "AllowedWriteRanges '$rangeKey' appears more than once."
+    } else {
+        $rangeKeys[$rangeKey] = $true
+    }
+
+    if ($range.Type -notin @("int", "bool")) {
+        Add-Finding -Rule "RangeType" -Message "AllowedWriteRanges '$rangeKey' currently supports Type int or bool."
+    }
+
+    if ($range.Transport -ne "dynamic-asg-projection") {
+        Add-Finding -Rule "RangeTransport" -Message "AllowedWriteRanges '$rangeKey' must use dynamic-asg-projection."
+    }
+
+    if ($null -eq $range.WordCount -or [int]$range.WordCount -ne 2) {
+        Add-Finding -Rule "RangeWordCount" -Message "AllowedWriteRanges '$rangeKey' must use WordCount 2."
+    }
+
+    if ($range.Transport -eq "dynamic-asg-projection" -and (-not $dynamicProjection -or -not [bool]$dynamicProjection.Enabled)) {
+        Add-Finding -Rule "DynamicProjectionMissing" -Message "AllowedWriteRanges '$rangeKey' needs DynamicProjection.Enabled=true."
+    }
+
+    if ([bool]$range.RequiresCellMap) {
+        if ($range.FanucType -eq "R") {
+            for ($register = [int]$range.Start; $register -le [int]$range.End; $register++) {
+                if (-not (Test-CellMapRegisterAllowed -Register $register)) {
+                    Add-Finding -Rule "CellMapRegisterRangeMissing" -Message "AllowedWriteRanges '$rangeKey' includes R[$register], which is not approved in config\cell-map.psd1."
+                    break
+                }
+            }
+        } elseif ($range.FanucType -in @("DO", "RO")) {
+            for ($signal = [int]$range.Start; $signal -le [int]$range.End; $signal++) {
+                $fanucKey = "$($range.FanucType.ToUpperInvariant())[$signal]"
+                if (-not (Test-CellMapSignalAllowed -FanucKey $fanucKey -States @($range.AllowedStates))) {
+                    Add-Finding -Rule "CellMapSignalRangeMissing" -Message "AllowedWriteRanges '$rangeKey' includes $fanucKey, which is not approved with matching states in config\cell-map.psd1."
+                    break
+                }
+            }
+        }
+    }
+
+    if ($range.Type -eq "int" -and ($null -eq $range.Min -or $null -eq $range.Max -or [int]$range.Min -gt [int]$range.Max)) {
+        Add-Finding -Rule "RangeIntBounds" -Message "AllowedWriteRanges '$rangeKey' integer range must include Min <= Max."
+    }
+
+    if ($range.Type -eq "bool" -and @($range.AllowedStates).Count -eq 0) {
+        Add-Finding -Rule "RangeBoolStates" -Message "AllowedWriteRanges '$rangeKey' boolean range must include AllowedStates."
+    }
 }
 
 $fanucWrites = @{}
@@ -239,6 +361,7 @@ $result = New-Object psobject -Property ([ordered]@{
     MappingMode = $config.MappingMode
     DefaultMode = $config.DefaultMode
     AllowedWriteCount = @($config.AllowedWrites).Count
+    AllowedWriteRangeCount = @($config.AllowedWriteRanges).Count
     Findings = $findings.ToArray()
 })
 

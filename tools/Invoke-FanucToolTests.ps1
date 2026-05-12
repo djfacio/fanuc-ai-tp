@@ -76,6 +76,9 @@ $schemaPath = Join-Path $projectRoot "schemas\program-spec.schema.json"
 Invoke-ExpectPass -Name "CellMapValid" -Command {
     & $cellMapValidator -Quiet
 }
+Invoke-ExpectPass -Name "CellMapSampleValid" -Command {
+    & $cellMapValidator -CellMapPath (Join-Path $projectRoot "config\cell-map.sample.psd1") -Quiet
+}
 Invoke-ExpectPass -Name "CellObservationsValid" -Command {
     & $cellObservationsValidator -Quiet
 }
@@ -189,6 +192,9 @@ Invoke-ExpectPass -Name "SnpxCommissioningMatrixValid" -Command {
     if ([int]$matrix.summary.writeAllowedCount -ne 6) {
         throw "Expected SNPX commissioning matrix to report 6 write-allowlisted rows."
     }
+    if ([int]$matrix.summary.dynamicWriteRangeCount -ne 2) {
+        throw "Expected SNPX commissioning matrix to report 2 dynamic write ranges."
+    }
     if ([int]$matrix.summary.restorationRequiredCount -ne 1) {
         throw "Expected SNPX commissioning matrix to report 1 restoration-required row."
     }
@@ -222,6 +228,54 @@ Invoke-ExpectPass -Name "SnpxWritePlanValid" -Command {
     if ($plan.write.snpxAddress -ne "%R00013") {
         throw "Expected R[99] to map to %R00013."
     }
+}
+Invoke-ExpectPass -Name "SnpxDynamicRegisterWritePlanValid" -Command {
+    $planPath = Join-Path $projectRoot "generated\test-runs\snpx-write-plan-r95-dynamic.json"
+    & $snpxWritePlanTool -Fanuc "R[95]" -Value 9501 -OutputPath $planPath -Approved | Out-Null
+    $plan = Get-Content -LiteralPath $planPath -Raw | ConvertFrom-Json
+    if ($plan.write.fanuc -ne "R[95]") {
+        throw "Expected dynamic SNPX write plan for R[95]."
+    }
+    if (-not $plan.write.dynamicProjection) {
+        throw "Expected R[95] to use dynamic projection."
+    }
+    if ($plan.write.snpxAddress -ne "%R00079" -or [int]$plan.write.snpxStart -ne 79) {
+        throw "Expected R[95] dynamic plan to use %R00079."
+    }
+    if ($plan.operatorApproval.requiredPhrase -ne "I approve live SNPX write: R[95]=9501 via %R00079 dynamic ASG") {
+        throw "Unexpected dynamic R[95] approval phrase."
+    }
+}
+Invoke-ExpectPass -Name "SnpxDynamicOutputWritePlanValid" -Command {
+    $planPath = Join-Path $projectRoot "generated\test-runs\snpx-write-plan-do2-dynamic.json"
+    $evidencePath = Join-Path $projectRoot "generated\test-runs\snpx-live-write-do2-dynamic.json"
+    & $snpxWritePlanTool -Fanuc "DO[2]" -State ON -OutputPath $planPath -Approved | Out-Null
+    $plan = Get-Content -LiteralPath $planPath -Raw | ConvertFrom-Json
+    if (-not $plan.write.dynamicProjection -or $plan.write.snpxAddress -ne "%R00079") {
+        throw "Expected DO[2] to use dynamic projection at %R00079."
+    }
+    if (-not $plan.restoration.required -or $plan.restoration.value -ne "OFF") {
+        throw "Expected DO[2]=ON dynamic plan to require OFF restoration."
+    }
+    $result = & $snpxLiveWriteTool -PlanPath $planPath -OutputPath $evidencePath
+    if ($result.Executed) {
+        throw "Dry-run dynamic SNPX live write plan should not execute."
+    }
+    if (-not $result.DynamicProjection -or [int]$result.Start -ne 79) {
+        throw "Expected dry-run dynamic SNPX live write to use start 79."
+    }
+    $evidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
+    if (@($evidence.commands.setasg | Where-Object { $_ -eq "SETASG 79 2 DO[2] 1" }).Count -ne 1) {
+        throw "Expected dry-run evidence to include dynamic SETASG for DO[2]."
+    }
+}
+Invoke-ExpectFail -Name "SnpxDynamicRegisterOutsideRangeFails" -Command {
+    $planPath = Join-Path $projectRoot "generated\test-runs\snpx-write-plan-r100-dynamic.json"
+    & $snpxWritePlanTool -Fanuc "R[100]" -Value 100 -OutputPath $planPath | Out-Null
+}
+Invoke-ExpectFail -Name "SnpxDynamicOutputOutsideRangeFails" -Command {
+    $planPath = Join-Path $projectRoot "generated\test-runs\snpx-write-plan-do81-dynamic.json"
+    & $snpxWritePlanTool -Fanuc "DO[81]" -State ON -OutputPath $planPath | Out-Null
 }
 Invoke-ExpectPass -Name "SnpxIntegerEncodingValid" -Command {
     $planPath = Join-Path $projectRoot "generated\test-runs\snpx-write-plan-r99-encoding.json"

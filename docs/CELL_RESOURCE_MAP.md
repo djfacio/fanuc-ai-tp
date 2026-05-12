@@ -29,6 +29,19 @@ CALL targets:
 
 - None approved yet
 
+## New Project Template
+
+Use `config\cell-map.sample.psd1` as the starting point for another project or workcell. It contains no approved writes or CALL targets. A real project policy must declare:
+
+- `PolicyScope`
+- `ProjectName`
+- `WorkcellName`
+- reviewed register write ranges or entries
+- reviewed IO write ranges or entries
+- reviewed CALL targets, if any
+
+Do not copy this test cell's scratch ranges into another project without review.
+
 ## Policy
 
 - Add to the map only after reviewing the actual cell resource and recovery behavior.

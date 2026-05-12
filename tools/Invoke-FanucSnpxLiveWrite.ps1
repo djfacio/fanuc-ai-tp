@@ -107,13 +107,43 @@ $setasg = @($setasgEntries | ForEach-Object {
     "SETASG $($_.SnpxStart) $($_.WordCount) $($_.SetAsgRegion) $($_.SetAsgMultiply)"
 })
 
-$mappedRead = @($reads | Where-Object { $_.Fanuc.ToUpperInvariant() -eq $plan.write.fanuc.ToUpperInvariant() } | Select-Object -First 1)
-if (-not $mappedRead) {
-    throw "SNPX write target '$($plan.write.fanuc)' is not present in $($resolvedReadConfig.Path)."
-}
+$usesDynamicProjection = [bool]$plan.write.dynamicProjection
+$writeStart = $null
 
-if ($mappedRead.SnpxAddress -ne $plan.write.snpxAddress) {
-    throw "Plan maps $($plan.write.fanuc) to $($plan.write.snpxAddress), but read config maps it to $($mappedRead.SnpxAddress)."
+if ($usesDynamicProjection) {
+    if ($null -eq $plan.write.snpxStart -or [int]$plan.write.snpxStart -lt 1) {
+        throw "Dynamic SNPX write plan for $($plan.write.fanuc) is missing snpxStart."
+    }
+    if ($null -eq $plan.write.setAsgRegion -or [string]$plan.write.setAsgRegion -ne [string]$plan.write.fanuc) {
+        throw "Dynamic SNPX write plan for $($plan.write.fanuc) must map setAsgRegion to the same FANUC target."
+    }
+    if ($null -eq $plan.write.setAsgMultiply -or [int]$plan.write.setAsgMultiply -lt 1) {
+        throw "Dynamic SNPX write plan for $($plan.write.fanuc) is missing setAsgMultiply."
+    }
+
+    $dynamicStart = [int]$plan.write.snpxStart
+    $dynamicEnd = $dynamicStart + [int]$plan.write.wordCount - 1
+    foreach ($read in $reads) {
+        $readStart = [int]$read.SnpxStart
+        $readEnd = $readStart + [int]$read.WordCount - 1
+        if ($dynamicStart -le $readEnd -and $readStart -le $dynamicEnd) {
+            throw "Dynamic SNPX write projection $($plan.write.snpxAddress) overlaps read mapping '$($read.Fanuc)'."
+        }
+    }
+
+    $setasg += "SETASG $dynamicStart $($plan.write.wordCount) $($plan.write.setAsgRegion) $($plan.write.setAsgMultiply)"
+    $writeStart = $dynamicStart
+} else {
+    $mappedRead = @($reads | Where-Object { $_.Fanuc.ToUpperInvariant() -eq $plan.write.fanuc.ToUpperInvariant() } | Select-Object -First 1)
+    if (-not $mappedRead) {
+        throw "SNPX write target '$($plan.write.fanuc)' is not present in $($resolvedReadConfig.Path)."
+    }
+
+    if ($mappedRead.SnpxAddress -ne $plan.write.snpxAddress) {
+        throw "Plan maps $($plan.write.fanuc) to $($plan.write.snpxAddress), but read config maps it to $($mappedRead.SnpxAddress)."
+    }
+
+    $writeStart = [int]$mappedRead.SnpxStart
 }
 
 $setupPath = Resolve-ProjectPath "generated\cell-status\snpx-asg-commands.txt"
@@ -170,7 +200,8 @@ $evidence = [ordered]@{
             operation = "asg-write-r"
             fanuc = $plan.write.fanuc
             snpxAddress = $plan.write.snpxAddress
-            start = [int]$mappedRead.SnpxStart
+            start = [int]$writeStart
+            dynamicProjection = [bool]$usesDynamicProjection
             value = $plan.write.value
             encodedValue = [int]$writeValue
             expectedEncodedWords = @($plan.write.encodedWords | ForEach-Object { Convert-ToUInt16Word -Value $_ })
@@ -180,7 +211,8 @@ $evidence = [ordered]@{
                 operation = "asg-write-r"
                 fanuc = $plan.restoration.fanuc
                 snpxAddress = $plan.write.snpxAddress
-                start = [int]$mappedRead.SnpxStart
+                start = [int]$writeStart
+                dynamicProjection = [bool]$usesDynamicProjection
                 value = $plan.restoration.value
                 encodedValue = [int]$restoreValue
                 expectedEncodedWords = @($plan.restoration.encodedWords | ForEach-Object { Convert-ToUInt16Word -Value $_ })
@@ -220,7 +252,7 @@ if ($Execute) {
         Operation = "asg-write-r"
         HostAddress = $HostAddress
         SetupFile = $setupPath
-        Start = [int]$mappedRead.SnpxStart
+        Start = [int]$writeStart
         Value = [int]$writeValue
         AcceptLiveWrite = $true
     }
@@ -234,7 +266,7 @@ if ($Execute) {
             Operation = "asg-write-r"
             HostAddress = $HostAddress
             SetupFile = $setupPath
-            Start = [int]$mappedRead.SnpxStart
+            Start = [int]$writeStart
             Value = [int]$restoreValue
             AcceptLiveWrite = $true
         }
@@ -261,6 +293,7 @@ $evidence | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $resolvedOutputP
     RequiresRestoration = [bool]$plan.restoration.required
     RestoredAfterWrite = [bool]($Execute -and $plan.restoration.required -and $RestoreAfterWrite)
     SnpxAddress = $plan.write.snpxAddress
-    Start = [int]$mappedRead.SnpxStart
+    Start = [int]$writeStart
+    DynamicProjection = [bool]$usesDynamicProjection
     OutputPath = (Get-Item -LiteralPath $resolvedOutputPath).FullName
 }

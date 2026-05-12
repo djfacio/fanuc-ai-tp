@@ -38,9 +38,47 @@ $validator = Join-Path $scriptRoot "Test-FanucSnpxWriteConfig.ps1"
 $config = Import-PowerShellDataFile -LiteralPath $resolvedConfig
 $fanucKey = $Fanuc.ToUpperInvariant()
 $entry = $null
+$usesDynamicProjection = $false
 foreach ($candidate in @($config.AllowedWrites)) {
     if ($candidate.Fanuc.ToUpperInvariant() -eq $fanucKey) {
         $entry = $candidate
+        break
+    }
+}
+
+if ($null -eq $entry) {
+    foreach ($range in @($config.AllowedWriteRanges)) {
+        if ($fanucKey -notmatch "^$($range.FanucType.ToUpperInvariant())\[(\d+)\]$") {
+            continue
+        }
+
+        $addressNumber = [int]$Matches[1]
+        if ($addressNumber -lt [int]$range.Start -or $addressNumber -gt [int]$range.End) {
+            continue
+        }
+
+        if (-not $config.DynamicProjection -or -not [bool]$config.DynamicProjection.Enabled) {
+            throw "SNPX write '$Fanuc' matched a dynamic range, but DynamicProjection is not enabled in $($resolvedConfig.Path)."
+        }
+
+        $entry = [ordered]@{
+            Name = "$($range.Name) $fanucKey"
+            Fanuc = $fanucKey
+            Type = $range.Type
+            Transport = $range.Transport
+            SnpxAddress = $config.DynamicProjection.SnpxAddress
+            SnpxStart = [int]$config.DynamicProjection.SnpxStart
+            WordCount = [int]$range.WordCount
+            SetAsgRegion = $fanucKey
+            SetAsgMultiply = [int]$config.DynamicProjection.SetAsgMultiply
+            Min = $range.Min
+            Max = $range.Max
+            AllowedStates = $range.AllowedStates
+            RequiresCellMap = [bool]$range.RequiresCellMap
+            RequiresLiveProof = [bool]$range.RequiresLiveProof
+            Notes = "$($range.Notes) Uses temporary dynamic ASG projection $($config.DynamicProjection.SnpxAddress)."
+        }
+        $usesDynamicProjection = $true
         break
     }
 }
@@ -101,7 +139,8 @@ switch ($entry.Type) {
 }
 
 $approvalValue = if ($entry.Type -eq "bool") { [string]$plannedValue } else { [string]$plannedValue }
-$approvalPhrase = "I approve live SNPX write: $($entry.Fanuc)=$approvalValue via $($entry.SnpxAddress)"
+$approvalProjection = if ($usesDynamicProjection) { "$($entry.SnpxAddress) dynamic ASG" } else { $entry.SnpxAddress }
+$approvalPhrase = "I approve live SNPX write: $($entry.Fanuc)=$approvalValue via $approvalProjection"
 
 $plan = [ordered]@{
     schemaVersion = 1
@@ -119,7 +158,11 @@ $plan = [ordered]@{
         value = $plannedValue
         transport = $entry.Transport
         snpxAddress = $entry.SnpxAddress
+        snpxStart = if ($usesDynamicProjection) { [int]$entry.SnpxStart } else { $null }
         wordCount = [int]$entry.WordCount
+        dynamicProjection = [bool]$usesDynamicProjection
+        setAsgRegion = if ($usesDynamicProjection) { $entry.SetAsgRegion } else { $null }
+        setAsgMultiply = if ($usesDynamicProjection) { [int]$entry.SetAsgMultiply } else { $null }
         encodedWords = $encodedWords
         requiresHumanApproval = [bool]$config.RequireHumanApproval
         requiresLiveProof = [bool]$entry.RequiresLiveProof
@@ -162,6 +205,7 @@ $plan | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $resolvedOutputPath -
     Type = $entry.Type
     Value = $plannedValue
     SnpxAddress = $entry.SnpxAddress
+    DynamicProjection = [bool]$usesDynamicProjection
     ApprovedForLive = [bool]$Approved
     LiveExecutionImplemented = $false
     OutputPath = (Get-Item -LiteralPath $resolvedOutputPath).FullName

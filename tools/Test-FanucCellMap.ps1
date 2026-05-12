@@ -29,6 +29,20 @@ function Add-Finding {
     })
 }
 
+if ([int]$cellMap.SchemaVersion -ne 1) {
+    Add-Finding -Rule "SchemaVersion" -Message "Cell map SchemaVersion must be 1."
+}
+
+if (-not $cellMap.PolicyScope -or $cellMap.PolicyScope.Trim().Length -eq 0) {
+    Add-Finding -Rule "PolicyScopeRequired" -Message "Cell map must declare PolicyScope so policies do not carry across projects implicitly."
+}
+
+foreach ($requiredName in @("ProjectName", "WorkcellName")) {
+    if (-not $cellMap.$requiredName -or $cellMap.$requiredName.Trim().Length -eq 0) {
+        Add-Finding -Rule "$($requiredName)Required" -Message "Cell map must declare $requiredName."
+    }
+}
+
 $registers = @{}
 $registerRanges = New-Object System.Collections.Generic.List[object]
 foreach ($range in @($cellMap.RegisterWrites.AllowedRanges)) {

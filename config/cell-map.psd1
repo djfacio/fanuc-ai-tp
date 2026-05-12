@@ -1,6 +1,8 @@
 @{
     SchemaVersion = 1
     PolicyScope = "local-commissioning-test"
+    ProjectName = "fanuc-ai-tp local commissioning"
+    WorkcellName = "TA_Aerospace Robot_1 test cell"
     Notes = "Reviewed cell resource map for this local commissioning/test project. The temporary writable scratch scope is R[90]-R[99] and DO[1]-DO[80]. Establish a separate map for each project/workcell."
 
     RegisterWrites = @{

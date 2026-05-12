@@ -206,6 +206,8 @@ See `docs\CONTROLLER_INVENTORY.md`.
 
 `config\cell-map.psd1` is now the reviewed allowlist for generated specs. `tools\Test-FanucProgramSpec.ps1` blocks unapproved register writes, unapproved IO writes, and unapproved generated `CALL` targets before LS generation.
 
+For a new project/workcell, start from `config\cell-map.sample.psd1`. The sample approves no writes. A real policy must declare `PolicyScope`, `ProjectName`, and `WorkcellName`, then explicitly add reviewed register, IO, and CALL resources for that workcell.
+
 Current local commissioning/test policy:
 
 - Scratch register range: `R[90]` through `R[99]`
@@ -256,6 +258,8 @@ The plan uses SNPX V2 on TCP `60008` with private per-connection `$SNPX_ASG` pro
 Live reads are not enabled yet. The live reader must connect, probe `$SNPX_PARAM.$VERSION` and `$SNPX_PARAM.$NUM_CIMP`, run `CLRASG`, run `SETASG` for every configured row, verify `$SNPX_ASG` by readback, then read `%R`. Unassigned `%R` values can return zero, so verification is mandatory.
 
 SNPX writes are planned separately in `config\snpx-writes.psd1`. This is intentional: status snapshots stay read-only, while command writes get their own allowlist, value validation, pre-read/write/post-read evidence, and human approval gate. The current write plan includes `R[90]`, `R[91]`, `R[97]`, `R[98]`, `R[99]`, and `DO[1]`, all tied back to `config\cell-map.psd1`.
+
+Dynamic SNPX scratch write planning is available for this local commissioning/test policy. `R[95]` and `DO[2]` style targets inside `R[90]`-`R[99]` and `DO[1]`-`DO[80]` use a temporary private ASG projection at `%R00079` for the current connection instead of expanding the read snapshot map. Outputs written `ON` still require restoration to `OFF`.
 
 Live SNPX writes now require exact approval text from the generated plan. Output writes that request `ON` include a restoration section and require `-RestoreAfterWrite`; evidence records write and restore readbacks separately.
 

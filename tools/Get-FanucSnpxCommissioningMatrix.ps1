@@ -107,6 +107,21 @@ foreach ($write in @($writeConfig.AllowedWrites)) {
     }
 }
 
+$dynamicWriteRanges = @($writeConfig.AllowedWriteRanges | ForEach-Object {
+    [ordered]@{
+        name = $_.Name
+        fanucType = $_.FanucType
+        start = [int]$_.Start
+        end = [int]$_.End
+        type = $_.Type
+        transport = $_.Transport
+        snpxAddress = if ($writeConfig.DynamicProjection) { $writeConfig.DynamicProjection.SnpxAddress } else { "" }
+        snpxStart = if ($writeConfig.DynamicProjection) { [int]$writeConfig.DynamicProjection.SnpxStart } else { $null }
+        wordCount = [int]$_.WordCount
+        commissioningStatus = "dynamic-write-approval-gated"
+    }
+})
+
 $rows = New-Object System.Collections.Generic.List[object]
 foreach ($probe in @($readConfig.SystemProbes | Sort-Object { [int]$_.SnpxStart })) {
     $rows.Add((New-MatrixRow -Kind "probe" -Entry $probe -WriteEntry $null))
@@ -151,12 +166,14 @@ $matrix = [ordered]@{
         "Output writes that request ON must restore to OFF with post-restore evidence."
     )
     rows = $rowArray
+    dynamicWriteRanges = $dynamicWriteRanges
     collisions = @($collisions.ToArray())
     summary = [ordered]@{
         rowCount = $rowArray.Count
         probeCount = @($rowArray | Where-Object { $_.kind -eq "probe" }).Count
         readCount = @($rowArray | Where-Object { $_.kind -eq "read" }).Count
         writeAllowedCount = @($rowArray | Where-Object { $_.writeAllowed }).Count
+        dynamicWriteRangeCount = @($dynamicWriteRanges).Count
         restorationRequiredCount = @($rowArray | Where-Object { $_.restorationRequired }).Count
         collisionCount = $collisions.Count
     }
@@ -196,6 +213,18 @@ if ($WriteMarkdown) {
         $write = if ($row.writeAllowed) { "yes" } else { "no" }
         $restore = if ($row.restorationRequired) { "yes" } else { "no" }
         $lines.Add("| $($row.kind) | $($row.fanuc) | $range | $($row.wordCount) | $($row.type) / $($row.representation) | $write | $restore | $($row.commissioningStatus) | $($row.name) |")
+    }
+    if (@($dynamicWriteRanges).Count -gt 0) {
+        $lines.Add("")
+        $lines.Add("## Dynamic Write Ranges")
+        $lines.Add("")
+        $lines.Add("| FANUC range | SNPX projection | Words | Type | Status | Name |")
+        $lines.Add("| --- | --- | --- | --- | --- | --- |")
+        foreach ($range in @($dynamicWriteRanges)) {
+            $fanucRange = "$($range.fanucType)[$($range.start)-$($range.end)]"
+            $projection = "$($range.snpxAddress)..%R$('{0:d5}' -f ([int]$range.snpxStart + [int]$range.wordCount - 1))"
+            $lines.Add("| $fanucRange | $projection | $($range.wordCount) | $($range.type) | $($range.commissioningStatus) | $($range.name) |")
+        }
     }
     $lines.Add("")
     if ($collisions.Count -gt 0) {
