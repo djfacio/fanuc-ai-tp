@@ -23,9 +23,9 @@ configuration. Review `config/robot.psd1`, `config/cell-map.psd1`,
 `config/snpx-readonly.psd1`, and `config/snpx-writes.psd1` for your own robot
 before any live operation.
 
-The current local scratch write boundary is `R[90]` through `R[99]` and
-`DO[1]` through `DO[80]`. Values outside that scope are treated as read-only
-unless separately approved.
+For this local commissioning/test project only, the scratch write boundary is
+`R[90]` through `R[99]` and `DO[1]` through `DO[80]`. Establish a separate
+cell map and write policy for each project/workcell.
 
 ## Capabilities
 

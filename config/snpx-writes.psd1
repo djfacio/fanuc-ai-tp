@@ -7,7 +7,8 @@
     CellMapSource = "config\cell-map.psd1"
     DefaultMode = "plan"
     RequireHumanApproval = $true
-    Notes = "SNPX writes are supported as a separate allowlisted command path. User-approved scratch boundary is R[90]-R[99] and DO[1]-DO[80], but live SNPX writes still require explicit entries here and matching ASG mappings. Status snapshots remain read-only."
+    PolicyScope = "local-commissioning-test"
+    Notes = "SNPX writes are supported as a separate allowlisted command path. This local commissioning/test policy uses scratch boundary R[90]-R[99] and DO[1]-DO[80], but live SNPX writes still require explicit entries here and matching ASG mappings. Establish a separate policy per project/workcell."
 
     AllowedWrites = @(
         @{

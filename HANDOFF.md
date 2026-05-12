@@ -206,13 +206,13 @@ See `docs\CONTROLLER_INVENTORY.md`.
 
 `config\cell-map.psd1` is now the reviewed allowlist for generated specs. `tools\Test-FanucProgramSpec.ps1` blocks unapproved register writes, unapproved IO writes, and unapproved generated `CALL` targets before LS generation.
 
-Current approved writes:
+Current local commissioning/test policy:
 
 - Scratch register range: `R[90]` through `R[99]`
 - Scratch output range: `DO[1]` through `DO[80]`, ON/OFF
 - Named current template writes: `R[90]`, `R[91]`, `R[97]`, `R[98]`, `R[99]`, and `DO[1]`
 
-Do not write production/status values outside those scratch ranges without separate approval. `R[103]`, `R[107]`, and `R[110]` are read-only status/sample registers in the current SNPX map. `R[110]` contains a fractional robot value; SNPX readback uses a 1000x scale to preserve values such as `21.209`.
+This policy is not universal. Establish a separate cell map and write policy per project/workcell. For this test cell, do not write production/status values outside those scratch ranges without separate approval. `R[103]`, `R[107]`, and `R[110]` are read-only status/sample registers in the current SNPX map. `R[110]` contains a fractional robot value; SNPX readback uses a 1000x scale to preserve values such as `21.209`.
 
 No generated `CALL` targets are approved yet.
 

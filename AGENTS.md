@@ -102,7 +102,7 @@ This downloads `F_MAIN.TP` from robot `MD:` into `downloaded\tp\` and decodes re
 - Keep generated program names prefixed with `AI_`.
 - Keep the `.LS` filename and `/PROG` header identical. The build script checks both before compiling.
 - Keep generated register writes, IO writes, and CALL targets allowlisted in `config\cell-map.psd1`. The spec validator enforces this map.
-- Current user-approved scratch write scope is `R[90]`-`R[99]` and `DO[1]`-`DO[80]`. Do not write production/status values outside that scope, including `R[103]`, `R[107]`, `R[110]`, or outputs above `DO[80]`, without separate approval.
+- This repo's current scratch write scope is for the local commissioning/test project only: `R[90]`-`R[99]` and `DO[1]`-`DO[80]`. Establish a separate policy per project/workcell. Do not write production/status values outside the active project's policy, including `R[103]`, `R[107]`, `R[110]`, or outputs above `DO[80]` in this test cell, without separate approval.
 - Use `config\cell-observations.psd1`, `tools\New-FanucCellStatusPlan.ps1`, `tools\New-FanucCellStatusSnapshot.ps1`, and `tools\Compare-FanucCellStatusSnapshot.ps1` for read-only status planning and pre/post evidence. This map does not grant write permission.
 - Use `config\snpx-readonly.psd1` for SNPX status planning and `config\snpx-writes.psd1` for SNPX write planning. SNPX live reads and writes must use private per-connection `$SNPX_ASG` mapping on TCP `60008`, verify the ASG table by readback, and use the local `vendor\snpx-codec\` source rather than another local project path.
 - Use `tools\Get-FanucSnpxCommissioningMatrix.ps1` before expanding SNPX mappings. The matrix must show no `%R` projection collisions and must make write/restoration gates visible.

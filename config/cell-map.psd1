@@ -1,14 +1,15 @@
 @{
     SchemaVersion = 1
-    Notes = "Reviewed cell resource map for generated AI_ specs. User-approved writable scratch scope is R[90]-R[99] and DO[1]-DO[80]. Production/status values outside that scope are read-only unless separately approved."
+    PolicyScope = "local-commissioning-test"
+    Notes = "Reviewed cell resource map for this local commissioning/test project. The temporary writable scratch scope is R[90]-R[99] and DO[1]-DO[80]. Establish a separate map for each project/workcell."
 
     RegisterWrites = @{
         AllowedRanges = @(
             @{
                 Start = 90
                 End = 99
-                Name = "AI scratch marker registers"
-                Notes = "User-approved scratch register range. Do not write production/status registers outside this range."
+                Name = "Local test scratch marker registers"
+                Notes = "Temporary scratch register range for this commissioning/test project. Do not carry this range into another project without review."
             }
         )
         Allowed = @(
@@ -46,9 +47,9 @@
                 Type = "DO"
                 Start = 1
                 End = 80
-                Name = "AI scratch digital outputs"
+                Name = "Local test scratch digital outputs"
                 SafeStates = @("ON", "OFF")
-                Notes = "User-approved scratch output range. Outputs above DO[80] remain read-only unless separately approved."
+                Notes = "Temporary scratch output range for this commissioning/test project. Do not carry this range into another project without review."
             }
         )
         Allowed = @(
