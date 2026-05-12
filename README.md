@@ -1,18 +1,63 @@
 # FANUC AI TP Workflow
 
-Clean workspace for generating, compiling, and uploading small FANUC TP programs.
+Tools and workflow notes for planning, generating, validating, and deploying
+AI-assisted FANUC TP programs.
 
 For a fresh Codex session, read [AGENTS.md](AGENTS.md) and [HANDOFF.md](HANDOFF.md) first.
 
-This project targets the R-30iB Mate Plus controller at `192.168.5.10` and uses:
+## Public Safety Notice
+
+This repository can generate robot programs and includes tooling for FTP upload
+and SNPX reads/writes. Treat every live controller command as machine-control
+software:
+
+- Run offline validation before compiling or uploading.
+- Review generated `.LS` source and evidence manually.
+- Test in RoboGuide or T1/manual mode before production use.
+- Keep robot IPs, credentials, packet captures, downloaded programs, and run
+  evidence out of Git.
+- Do not use this workflow to overwrite production programs.
+
+The checked-in config is a commissioning starting point, not a universal cell
+configuration. Review `config/robot.psd1`, `config/cell-map.psd1`,
+`config/snpx-readonly.psd1`, and `config/snpx-writes.psd1` for your own robot
+before any live operation.
+
+## Capabilities
+
+This project currently supports:
 
 - WinOLPC `MakeTP` to compile `.LS` source into `.TP`
-- Robot FTP with `anonymous` / `guest`
 - A required `AI_` program-name prefix
 - A checked `/PROG` header that must match the `.LS` filename
 - Project-owned JSON schema and safety-rule validation
 - Reviewed cell resource map validation for register, IO, and future CALL targets
+- Robot FTP upload/readback evidence when configured locally
+- SNPX V2 per-connection ASG read/write planning and live proof tooling
 - No auto-run behavior
+
+## Quick Start
+
+Run the offline validator suite:
+
+```powershell
+.\tools\Invoke-FanucToolTests.ps1
+```
+
+Run the vendored SNPX codec tests:
+
+```powershell
+cargo test --manifest-path .\vendor\snpx-codec\Cargo.toml
+```
+
+Generate local evidence for a no-motion example:
+
+```powershell
+.\tools\Invoke-FanucLocalWorkflow.ps1 -SpecPath .\examples\AI_HELLO.program-spec.json -Force
+```
+
+Live robot operations require local review of `config/robot.psd1` and explicit
+human approval gates in the relevant tools.
 
 ## Folders
 
@@ -31,7 +76,7 @@ tools/               PowerShell workflow scripts
 docs/                Strategy, workflow, and safety notes
 schemas/             Structured program spec schemas
 examples/            Example reviewed program specs
-vendor/snpx-codec/   Local Rust SNPX/SRTP codec source for future live reads
+vendor/snpx-codec/   Local Rust SNPX/SRTP codec source and test vectors
 ```
 
 ## Generate From A Spec
@@ -296,6 +341,14 @@ Run the local validator fixture suite:
 ```powershell
 .\tools\Invoke-FanucToolTests.ps1
 ```
+
+Run the Rust SNPX codec suite:
+
+```powershell
+cargo test --manifest-path .\vendor\snpx-codec\Cargo.toml
+```
+
+GitHub Actions runs both offline suites on `main` pushes and pull requests.
 
 ## Proven Baseline
 

@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  offline-checks:
+    name: Offline Tool And Codec Checks
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show Rust toolchain
+        run: rustup show
+        shell: pwsh
+
+      - name: Run PowerShell tool tests
+        run: .\tools\Invoke-FanucToolTests.ps1
+        shell: pwsh
+
+      - name: Run SNPX codec tests
+        run: cargo test --manifest-path .\vendor\snpx-codec\Cargo.toml
+        shell: pwsh
