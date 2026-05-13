@@ -38,6 +38,7 @@ This project currently supports:
 - Reviewed cell resource map validation for register, IO, and future CALL targets
 - Robot FTP upload/readback evidence when configured locally
 - SNPX V2 per-connection ASG read/write planning and live proof tooling
+- PCDK read-only controller snapshot planning for richer evidence
 - No auto-run behavior
 
 ## Quick Start
@@ -79,6 +80,7 @@ config/cell-observations.psd1 Read-only status observation plan
 config/controller-inventory.sample.psd1 Sanitized controller/tool capability inventory
 config/snpx-readonly.psd1 SNPX V2 read-only ASG projection plan
 config/snpx-writes.psd1 SNPX V2 write allowlist and planning gates
+config/pcdk-snapshot.psd1 PCDK read-only snapshot plan
 config/template-catalog.psd1 Deterministic TP template catalog
 config/interface-strategy.psd1 FTP/SNPX/KAREL/PCDK/RoboGuide interface roles
 config/safety-rules.psd1  Blocked LS source patterns
@@ -326,6 +328,20 @@ Validate and emit the interface strategy before adding KAREL/PCDK bridge work:
 .\tools\Get-FanucInterfaceStrategy.ps1 -WriteMarkdown
 ```
 
+Validate and emit the PCDK read-only snapshot plan:
+
+```powershell
+.\tools\Test-FanucPcdkSnapshotConfig.ps1
+.\tools\New-FanucPcdkSnapshot.ps1
+.\tools\Test-FanucJsonSchema.ps1 -JsonPath .\examples\pcdk\controller-snapshot.plan.json -SchemaPath .\schemas\controller-snapshot.schema.json
+```
+
+Live PCDK reads require an explicit switch and remain read-only:
+
+```powershell
+.\tools\New-FanucPcdkSnapshot.ps1 -HostName 192.168.5.10 -ConnectReadOnly
+```
+
 Generate the offline/read-only project health summary:
 
 ```powershell
@@ -421,6 +437,7 @@ Planning docs for the next phase:
 - `docs/REAL_APPLICATION_WORKFLOW.md`
 - `docs/COMMUNICATION_STRATEGY.md`
 - `docs/KAREL_TCP_BRIDGE.md`
+- `docs/PCDK_STRATEGY.md`
 - `docs/PROGRAM_TEMPLATES.md`
 - `docs/TEMPLATE_ROADMAP.md`
 - `docs/CELL_RESOURCE_MAP.md`
@@ -439,6 +456,7 @@ Additional safe starter specs:
 - `examples/AI_SNAPSHOT.program-spec.json`
 - `examples/AI_CELLCHK.program-spec.json`
 - `examples/applications/AI_APP_PICK_PLACE.motion-application.json`
+- `examples/pcdk/controller-snapshot.plan.json`
 
 ## Tests
 

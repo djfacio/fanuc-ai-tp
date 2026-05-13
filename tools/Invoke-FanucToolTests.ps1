@@ -62,6 +62,8 @@ $roboguideEvidenceValidator = Join-Path $scriptRoot "Test-FanucRoboguideEvidence
 $roboguideEvidencePacketTool = Join-Path $scriptRoot "New-FanucRoboguideEvidencePacket.ps1"
 $interfaceStrategyValidator = Join-Path $scriptRoot "Test-FanucInterfaceStrategy.ps1"
 $interfaceStrategyTool = Join-Path $scriptRoot "Get-FanucInterfaceStrategy.ps1"
+$pcdkSnapshotConfigValidator = Join-Path $scriptRoot "Test-FanucPcdkSnapshotConfig.ps1"
+$pcdkSnapshotTool = Join-Path $scriptRoot "New-FanucPcdkSnapshot.ps1"
 $snpxReadonlyValidator = Join-Path $scriptRoot "Test-FanucSnpxReadonlyConfig.ps1"
 $snpxWriteValidator = Join-Path $scriptRoot "Test-FanucSnpxWriteConfig.ps1"
 $snpxMatrixTool = Join-Path $scriptRoot "Get-FanucSnpxCommissioningMatrix.ps1"
@@ -185,6 +187,32 @@ Invoke-ExpectPass -Name "KarelTcpMessageExamplesValid" -Command {
         "examples\karel\command.reviewed-write.response.json"
     )) {
         & $schemaValidator -JsonPath (Join-Path $projectRoot $example) -SchemaPath $karelSchemaPath -Quiet
+    }
+}
+Invoke-ExpectPass -Name "PcdkSnapshotConfigValid" -Command {
+    & $pcdkSnapshotConfigValidator -Quiet
+}
+Invoke-ExpectPass -Name "PcdkSnapshotExampleSchemaValid" -Command {
+    $pcdkSchemaPath = Join-Path $projectRoot "schemas\controller-snapshot.schema.json"
+    & $schemaValidator -JsonPath (Join-Path $projectRoot "examples\pcdk\controller-snapshot.plan.json") -SchemaPath $pcdkSchemaPath -Quiet
+}
+Invoke-ExpectPass -Name "PcdkSnapshotPlanValid" -Command {
+    $pcdkSchemaPath = Join-Path $projectRoot "schemas\controller-snapshot.schema.json"
+    $snapshotPath = Join-Path $projectRoot "generated\test-runs\pcdk-snapshot-plan.json"
+    $result = & $pcdkSnapshotTool -OutputPath $snapshotPath
+    if ($result.LiveRobotCommandsExecuted) {
+        throw "PCDK offline snapshot plan must not execute live robot commands."
+    }
+    if ($result.ControllerWritesExecuted) {
+        throw "PCDK snapshot plan must not execute controller writes."
+    }
+    & $schemaValidator -JsonPath $snapshotPath -SchemaPath $pcdkSchemaPath -Quiet
+    $snapshot = Get-Content -LiteralPath $snapshotPath -Raw | ConvertFrom-Json
+    if ($snapshot.collectionMode -ne "plan") {
+        throw "Expected PCDK snapshot default mode to be plan."
+    }
+    if ($snapshot.connection.requested -or $snapshot.connection.connected) {
+        throw "Expected PCDK snapshot plan not to request or establish a controller connection."
     }
 }
 Invoke-ExpectPass -Name "SnpxReadonlyConfigValid" -Command {

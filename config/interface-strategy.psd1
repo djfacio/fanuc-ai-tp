@@ -39,14 +39,14 @@
         },
         @{
             Name = "pcdk"
-            Enabled = $false
-            Role = "Future PC-side automation option for controller introspection and tooling integration."
+            Enabled = $true
+            Role = "PC-side read-only controller introspection and evidence collection when FANUC PCDK is installed."
             Direction = "pc-api"
-            CommandAuthority = "proposed-read-mostly"
+            CommandAuthority = "read-only-controller-introspection"
             AllowsProgramRun = $false
             AllowsRobotMotion = $false
             AllowsLiveWrites = $false
-            SafetyGates = @("capability-inventory", "read-only-default", "operator-approval")
+            SafetyGates = @("pcdk-snapshot-config", "read-only-default", "explicit-connect-readonly", "controllerWritesExecuted=false")
         },
         @{
             Name = "roboguide"

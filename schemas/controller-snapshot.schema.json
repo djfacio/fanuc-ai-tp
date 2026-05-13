@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.fanuc-ai-tp/schemas/controller-snapshot.schema.json",
+  "title": "FANUC Controller Snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "source",
+    "collectionMode",
+    "liveRobotCommandsExecuted",
+    "controllerWritesExecuted",
+    "pcdk",
+    "connection",
+    "sections",
+    "values",
+    "blockedCapabilities"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "generatedAt": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "string",
+      "enum": ["pcdk"]
+    },
+    "collectionMode": {
+      "type": "string",
+      "enum": ["plan", "live-read"]
+    },
+    "liveRobotCommandsExecuted": { "type": "boolean" },
+    "controllerWritesExecuted": { "type": "boolean" },
+    "pcdk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "installRoot", "installFound", "comProgId", "comObjectCreated", "documentationFound", "typeLibraryFound", "exampleRootFound"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "installRoot": { "type": "string" },
+        "installFound": { "type": "boolean" },
+        "comProgId": { "type": "string", "minLength": 1 },
+        "comObjectCreated": { "type": "boolean" },
+        "documentationFound": { "type": "boolean" },
+        "typeLibraryFound": { "type": "boolean" },
+        "exampleRootFound": { "type": "boolean" },
+        "versionNote": { "type": "string" }
+      }
+    },
+    "connection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hostName", "requested", "connected", "timeoutSeconds"],
+      "properties": {
+        "hostName": { "type": "string" },
+        "requested": { "type": "boolean" },
+        "connected": { "type": "boolean" },
+        "timeoutSeconds": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "enabled", "readOnly", "description"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "enabled": { "type": "boolean" },
+          "readOnly": { "type": "boolean" },
+          "description": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "values": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity", "programs", "tasks", "alarms", "registers", "positionRegisters", "frames", "currentPosition", "io", "features"],
+      "properties": {
+        "identity": { "type": "object" },
+        "programs": { "type": "array" },
+        "tasks": { "type": "array" },
+        "alarms": { "type": "array" },
+        "registers": { "type": "array" },
+        "positionRegisters": { "type": "array" },
+        "frames": { "type": "array" },
+        "currentPosition": { "type": "object" },
+        "io": { "type": "array" },
+        "features": { "type": "array" }
+      }
+    },
+    "blockedCapabilities": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

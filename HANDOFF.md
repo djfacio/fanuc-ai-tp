@@ -91,6 +91,15 @@ Phase 1 is closed. See `docs\PHASE_1_SUMMARY.md`.
 
 Phase 2 has started as a disabled KAREL/TCP bridge contract and richer status-planning track. See `docs\PHASE_2_PLAN.md`. KAREL bridge work is schema/examples only right now; do not deploy robot-resident KAREL or grant command authority without a separate review.
 
+PCDK is now a first-class read-only evidence track, not a generation or command path. See `docs\PCDK_STRATEGY.md`, `config\pcdk-snapshot.psd1`, `schemas\controller-snapshot.schema.json`, and `tools\New-FanucPcdkSnapshot.ps1`. The default PCDK command is offline plan mode:
+
+```powershell
+.\tools\Test-FanucPcdkSnapshotConfig.ps1
+.\tools\New-FanucPcdkSnapshot.ps1
+```
+
+Use `-ConnectReadOnly` only when a live controller read is intentionally in scope. The first PCDK track must record `controllerWritesExecuted=false` and must not use task control, program selection, IO writes, FTP upload/delete, frame updates, position record/update, or move-to behavior.
+
 The real application workflow, including future motion, now starts with `docs\REAL_APPLICATION_WORKFLOW.md`, `schemas\motion-application-spec.schema.json`, and `tools\Test-FanucMotionApplicationSpec.ps1`. The current example is planning-only and intentionally not generation-ready:
 
 ```powershell

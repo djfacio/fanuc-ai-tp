@@ -45,6 +45,7 @@ This repo is an AI-assisted FANUC TP workflow, not just a MakeTP/FTP script fold
 - `docs\MOTION_SAFETY.md`
 - `docs\INTERFACES.md`
 - `docs\COMMUNICATION_STRATEGY.md`
+- `docs\PCDK_STRATEGY.md`
 - `docs\KAREL_TCP_BRIDGE.md`
 - `docs\PROGRAM_TEMPLATES.md`
 - `docs\TEMPLATE_CATALOG.md`
@@ -64,6 +65,7 @@ Prefer structured specs and deterministic emitters. Use AI for planning, draftin
 
 Use `config\template-catalog.psd1` as the reviewed deterministic template list. Run `tools\Test-FanucTemplateCatalog.ps1` after adding or changing example specs/templates.
 Use `config\interface-strategy.psd1` and `tools\Test-FanucInterfaceStrategy.ps1` before adding KAREL, PCDK, or new bridge behavior. KAREL TCP must remain disabled until schemas, robot-resident code, deployment, rollback, and tests are reviewed.
+Use `config\pcdk-snapshot.psd1`, `docs\PCDK_STRATEGY.md`, and `tools\New-FanucPcdkSnapshot.ps1` for PCDK work. PCDK is allowed only as a read-only evidence/introspection layer by default. Do not use PCDK task control, program selection, FTP upload/delete, IO writes, frame/position updates, or motion-related methods without a separate reviewed policy.
 Use `tools\Invoke-FanucProjectHealthCheck.ps1 -WriteMarkdown` for an offline/read-only project preflight. It must not execute live robot reads or controller writes.
 Use `schemas\motion-application-spec.schema.json` and `tools\Test-FanucMotionApplicationSpec.ps1` before any real application or motion generation. `ReadyForGeneration=false` is acceptable during planning; motion TP generation starts only when the validator reports generation-ready and a reviewed motion template exists.
 

@@ -41,7 +41,18 @@ Rules:
 
 ## PCDK
 
-PCDK may become the richer integration layer for controller state, file transfer, and status. Keep it behind wrappers so safety gates remain project-owned.
+PCDK is the richer Windows-side integration layer for controller state and evidence when FANUC libraries are installed. Keep it behind wrappers so safety gates remain project-owned.
+
+The first project wrapper is `tools\New-FanucPcdkSnapshot.ps1`, configured by `config\pcdk-snapshot.psd1`. It is read-only by default and produces artifacts that conform to `schemas\controller-snapshot.schema.json`.
+
+Rules:
+
+- Default to offline plan mode.
+- Require explicit `-ConnectReadOnly` before contacting a controller.
+- Record `liveRobotCommandsExecuted=true` for live reads.
+- Always record `controllerWritesExecuted=false`.
+- Do not use PCDK to select/run programs, pause/continue/abort tasks, write IO, simulate IO, change IO config, update frames, record positions, move to positions, upload/delete files, or save/delete programs in the first PCDK track.
+- Use PCDK snapshots to support motion application specs, not bypass their readiness gates.
 
 ## KAREL and TCP Sockets
 

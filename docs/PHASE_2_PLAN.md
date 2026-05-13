@@ -9,6 +9,7 @@ Phase 2 starts with richer status and interface design while keeping command aut
 - Expand status snapshots toward richer cell state, alarms, active program, selected frames/tools, and controlled operator prompts.
 - Prepare RoboGuide evidence flow for future motion templates.
 - Establish the real application workflow for motion before any motion generator is implemented.
+- Establish PCDK as a read-only controller snapshot and evidence path.
 
 ## Track 1: KAREL/TCP Contract
 
@@ -46,6 +47,14 @@ Starter artifacts:
 - Use `tools\Test-FanucMotionApplicationSpec.ps1` to distinguish valid planning specs from generation-ready specs.
 - Keep motion generation disabled until a reviewed motion template exists.
 
+## Track 5: PCDK Read-Only Evidence
+
+- Use `docs\PCDK_STRATEGY.md` for the PCDK role and safety boundary.
+- Use `config\pcdk-snapshot.psd1` for the read-only snapshot plan.
+- Use `schemas\controller-snapshot.schema.json` for PCDK snapshot artifacts.
+- Use `tools\New-FanucPcdkSnapshot.ps1` in offline plan mode by default.
+- Require explicit `-ConnectReadOnly` for live controller reads and keep `controllerWritesExecuted=false`.
+
 ## Exit Criteria For Phase 2
 
 - KAREL/TCP message schema and examples validate.
@@ -53,3 +62,4 @@ Starter artifacts:
 - Health check is the standard preflight before live work.
 - A richer read-only status model exists independently from write policy.
 - Motion application specs can be validated, and generation-ready status is blocked until frame/tool/payload/point/safety/evidence gates pass.
+- PCDK snapshot config, schema, sample artifact, and offline plan generation validate without robot writes.

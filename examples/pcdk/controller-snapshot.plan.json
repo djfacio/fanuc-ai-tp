@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-13T00:00:00.0000000-07:00",
+  "source": "pcdk",
+  "collectionMode": "plan",
+  "liveRobotCommandsExecuted": false,
+  "controllerWritesExecuted": false,
+  "pcdk": {
+    "required": false,
+    "installRoot": "C:\\Program Files (x86)\\FANUC\\PC Developers Kit",
+    "installFound": true,
+    "comProgId": "FRRobot.FRCRobot",
+    "comObjectCreated": true,
+    "documentationFound": true,
+    "typeLibraryFound": true,
+    "exampleRootFound": true,
+    "versionNote": "PCDK V10.10 readme observed locally; exact local controller compatibility should be captured in generated snapshots."
+  },
+  "connection": {
+    "hostName": "",
+    "requested": false,
+    "connected": false,
+    "timeoutSeconds": 15
+  },
+  "sections": [
+    {
+      "name": "pcdk-install",
+      "enabled": true,
+      "readOnly": true,
+      "description": "Local PCDK install, documentation, type library, and example availability."
+    }
+  ],
+  "values": {
+    "identity": {},
+    "programs": [],
+    "tasks": [],
+    "alarms": [],
+    "registers": [],
+    "positionRegisters": [],
+    "frames": [],
+    "currentPosition": {},
+    "io": [],
+    "features": []
+  },
+  "blockedCapabilities": [
+    "Programs.Selected",
+    "Task.Abort",
+    "Tasks.AbortAll",
+    "Task.Pause",
+    "Tasks.PauseAll",
+    "Task.Continue",
+    "I/O.Value write",
+    "I/O.Config write",
+    "I/O.Simulate write",
+    "SysInfo.Clock write",
+    "Frame.Update",
+    "Position.Record",
+    "Position.Update",
+    "Position.MoveTo",
+    "FTP.PutFile",
+    "FTP.Delete",
+    "Program.Save",
+    "Program.Delete"
+  ],
+  "findings": []
+}

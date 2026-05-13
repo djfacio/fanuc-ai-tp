@@ -6,9 +6,10 @@ This project should keep TP generation deterministic, while using richer control
 
 1. FTP for file transfer and readback evidence.
 2. PrintTP/MakeTP for compile/decode round trips.
-3. SNPX or PCDK for structured read/write of registers, IO, position registers, alarms, and status.
-4. KAREL TCP sockets for project-owned higher-level services when the controller option set allows it.
-5. TP programs as the explicit robot-side execution artifacts, selected and verified by a human unless a later reviewed automation policy says otherwise.
+3. SNPX for project-owned runtime register/IO contracts.
+4. PCDK for Windows-side read-only controller introspection and evidence when FANUC libraries are installed.
+5. KAREL TCP sockets for project-owned higher-level services when the controller option set allows it.
+6. TP programs as the explicit robot-side execution artifacts, selected and verified by a human unless a later reviewed automation policy says otherwise.
 
 ## First Principles
 
@@ -44,12 +45,17 @@ Guardrails:
 Best use:
 
 - Richer Windows-side tooling where FANUC libraries are available.
-- Status dashboards and structured reads that are awkward through FTP.
+- Read-only controller snapshots for programs, alarms, tasks, frames, position registers, current position, IO, registers, and installed features.
+- Filling or checking motion application specs before generation.
+- RoboGuide vs physical controller comparison.
 
 Guardrails:
 
 - Keep PCDK-dependent tools isolated from the portable PowerShell-only workflow.
 - Record library/version assumptions.
+- Default to offline plan mode; require explicit `-ConnectReadOnly` before contacting a controller.
+- Keep first-phase PCDK wrappers read-only and record `controllerWritesExecuted=false`.
+- Do not use PCDK task control, program selection, FTP upload/delete, IO writes, frame updates, position records, or move-to behavior without a separate reviewed policy.
 
 ### KAREL TCP Socket Service
 
