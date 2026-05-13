@@ -31,7 +31,11 @@ function Resolve-ProjectPath {
 }
 
 $baseName = [System.IO.Path]::GetFileNameWithoutExtension($Program).ToUpperInvariant()
-$remoteName = $baseName + ".TP"
+$extension = [System.IO.Path]::GetExtension($Program).ToUpperInvariant()
+if (-not $extension) {
+    $extension = ".TP"
+}
+$remoteName = $baseName + $extension
 $tpDir = Join-Path $projectRoot "downloaded\tp"
 $lsDir = Join-Path $projectRoot "downloaded\ls"
 $tpPath = Join-Path $tpDir $remoteName

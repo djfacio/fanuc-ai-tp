@@ -32,7 +32,7 @@ cell map and write policy for each project/workcell.
 This project currently supports:
 
 - WinOLPC `MakeTP` to compile `.LS` source into `.TP`
-- A required `AI_` program-name prefix
+- A required `A_` program-name prefix for new generated programs. Existing `AI_` programs remain recognized as legacy generated programs.
 - A checked `/PROG` header that must match the `.LS` filename
 - Project-owned JSON schema and safety-rule validation
 - Reviewed cell resource map validation for register, IO, and future CALL targets
@@ -143,7 +143,7 @@ Run motion workflows against the pack:
 ```powershell
 .\tools\Invoke-FanucMotionWorkflow.ps1 `
   -ProjectPath "C:\Dev\AI-Fanuc Robot TP\TestProject" `
-  -SpecPath .\applications\AI_TEST_APR.motion-application.json `
+  -SpecPath .\applications\A_TEST_APR.motion-application.json `
   -Force
 ```
 
@@ -201,7 +201,7 @@ generated/jobs/AI_HELLO/AI_HELLO.LS
 From this folder:
 
 ```powershell
-.\tools\New-NoMotionProgram.ps1 -Name AI_HELLO -Message "AI FTP upload OK" -Register 99 -Value 123
+.\tools\New-NoMotionProgram.ps1 -Name A_HELLO -Message "A FTP upload OK" -Register 99 -Value 123
 ```
 
 ## Compile Only
@@ -296,7 +296,7 @@ The readback TP is stored as `generated/jobs/<PROGRAM>/upload-readback/<PROGRAM>
 List generated AI programs currently present on robot `MD:`:
 
 ```powershell
-.\tools\Get-FanucRobotDirectory.ps1 -Pattern "AI_*.TP"
+.\tools\Get-FanucRobotDirectory.ps1
 ```
 
 Summarize local manifests, readback evidence, upload status, and robot presence:
@@ -316,7 +316,7 @@ Save a timestamped read-only inventory snapshot of robot `MD:`:
 .\tools\Get-FanucJobSummary.ps1 -UseLatestRobotInventory
 ```
 
-Analyze existing TP programs from the saved inventory without modifying the robot. `AI_*` programs are included by default; add `-ExcludeAiPrograms` only when you intentionally want a non-AI view:
+Analyze existing TP programs from the saved inventory without modifying the robot. Generated-prefix programs (`A_*` and legacy `AI_*`) are included by default; add `-ExcludeGeneratedPrograms` only when you intentionally want a non-generated view:
 
 ```powershell
 .\tools\Invoke-FanucProductionProgramAnalysis.ps1 -FromInventory -Limit 3 -Force
@@ -345,8 +345,10 @@ Build a read-only dependency map for a production main program:
 
 This downloads/decodes the root program and direct `CALL`/`RUN` closure, lists missing
 or non-TP dependencies, and reports TP programs present on robot `MD:` that are
-not reachable from the root by static direct `CALL`/`RUN` analysis. `AI_*`
-programs are included in the report and backup/delete candidates by default.
+not reachable from the root by static direct `CALL`/`RUN` analysis. Generated-prefix programs (`A_*` and legacy `AI_*`) are included in the report and backup/delete candidates by default.
+KAREL `.PC` files are included as present, non-traversed dependencies. Macro TP
+programs are identified from the decoded `/PROG ... Macro` marker; see
+`docs/MACRO_PROGRAMS.md`.
 
 Validate a real application workflow spec before any motion generation:
 
@@ -472,7 +474,7 @@ downloaded/ls/
 
 ## Safety Rules
 
-- Program names must start with `AI_`.
+- New program names must start with `A_`. Legacy `AI_` program names are still accepted for existing examples, tests, and uploaded historical jobs.
 - The `.LS` filename and `/PROG` header must match exactly.
 - Register writes, IO writes, and generated CALL targets must be approved in `config\cell-map.psd1`.
 - Uploads do not run programs.

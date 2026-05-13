@@ -2,7 +2,7 @@ param(
     [switch]$IncludeRobot,
     [switch]$UseLatestRobotInventory,
     [string]$RobotInventoryPath,
-    [string]$Pattern = "AI_*.TP",
+    [string]$Pattern = "*.TP",
     [string]$ConfigPath = "..\config\robot.psd1"
 )
 

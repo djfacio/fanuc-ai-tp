@@ -123,6 +123,23 @@ function Get-AllowedCallEntry {
     return $null
 }
 
+function Get-AllowedProgramPrefixes {
+    param([object]$Config)
+
+    $prefixes = New-Object System.Collections.Generic.List[string]
+    if ($Config.ProgramPrefix) {
+        $prefixes.Add($Config.ProgramPrefix.ToUpperInvariant())
+    }
+    foreach ($prefix in @($Config.LegacyProgramPrefixes)) {
+        if ($prefix) {
+            $prefixes.Add($prefix.ToUpperInvariant())
+        }
+    }
+    return @($prefixes.ToArray() | Sort-Object -Unique)
+}
+
+$allowedProgramPrefixes = @(Get-AllowedProgramPrefixes -Config $config)
+
 $schemaPath = Join-Path $projectRoot "schemas\program-spec.schema.json"
 $schemaValidator = Join-Path $scriptRoot "Test-FanucJsonSchema.ps1"
 try {
@@ -135,8 +152,8 @@ if (-not $spec.programName) {
     Add-Finding -Rule "ProgramNameRequired" -Message "programName is required."
 } elseif ($spec.programName -cnotmatch '^[A-Z][A-Z0-9_]{0,31}$') {
     Add-Finding -Rule "ProgramNameFormat" -Message "programName must be uppercase FANUC-compatible text with 32 characters or fewer."
-} elseif (-not $spec.programName.StartsWith($config.ProgramPrefix.ToUpperInvariant())) {
-    Add-Finding -Rule "ProgramPrefix" -Message "programName must start with $($config.ProgramPrefix)."
+} elseif (-not @($allowedProgramPrefixes | Where-Object { $spec.programName.StartsWith($_) }).Count) {
+    Add-Finding -Rule "ProgramPrefix" -Message "programName must start with one of: $($allowedProgramPrefixes -join ', ')."
 }
 
 if (-not $spec.intent -or $spec.intent.Trim().Length -eq 0) {

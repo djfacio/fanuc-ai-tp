@@ -1,5 +1,5 @@
 param(
-    [string]$Pattern = "AI_*.TP",
+    [string]$Pattern = "*.TP",
     [string]$ConfigPath = "..\config\robot.psd1"
 )
 

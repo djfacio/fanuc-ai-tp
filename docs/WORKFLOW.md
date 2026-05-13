@@ -45,7 +45,7 @@ The generator writes both `generated/sources/<PROGRAM>.LS` and `generated/jobs/<
 Run:
 
 ```powershell
-.\tools\Test-FanucLsSafety.ps1 -LsPath .\generated\sources\AI_EXAMPLE.LS
+.\tools\Test-FanucLsSafety.ps1 -LsPath .\generated\sources\A_EXAMPLE.LS
 ```
 
 This checks the prefix, `/PROG` header, filename match, and blocked source patterns.
@@ -55,7 +55,7 @@ This checks the prefix, `/PROG` header, filename match, and blocked source patte
 Run:
 
 ```powershell
-.\tools\Invoke-FanucTpBuild.ps1 -LsPath .\generated\sources\AI_EXAMPLE.LS -Force
+.\tools\Invoke-FanucTpBuild.ps1 -LsPath .\generated\sources\A_EXAMPLE.LS -Force
 ```
 
 The build script runs LS safety validation before MakeTP.
@@ -67,7 +67,7 @@ Use PrintTP/readback tooling to decode compiled or robot-downloaded `.TP` files 
 Current compile/decode round-trip:
 
 ```powershell
-.\tools\Invoke-FanucTpRoundTrip.ps1 -LsPath .\generated\sources\AI_EXAMPLE.LS -Force
+.\tools\Invoke-FanucTpRoundTrip.ps1 -LsPath .\generated\sources\A_EXAMPLE.LS -Force
 ```
 
 This records `decoded.LS` and `roundtrip.json` in `generated/jobs/<PROGRAM>/`.
@@ -77,7 +77,7 @@ This records `decoded.LS` and `roundtrip.json` in `generated/jobs/<PROGRAM>/`.
 Collect validation and artifact evidence:
 
 ```powershell
-.\tools\Update-FanucJobManifest.ps1 -ProgramName AI_EXAMPLE
+.\tools\Update-FanucJobManifest.ps1 -ProgramName A_EXAMPLE
 ```
 
 This records `validation.json` and `manifest.json` in `generated/jobs/<PROGRAM>/`. The manifest tracks file hashes, tool paths, validation status, round-trip status, upload status, and human review status.
@@ -89,7 +89,7 @@ If the spec requires RoboGuide/simulation, `localEvidencePassed` also requires s
 After human review, record the decision:
 
 ```powershell
-.\tools\Set-FanucJobStatus.ps1 -ProgramName AI_EXAMPLE -HumanReviewStatus approved -Reviewer "Your Name" -HumanReviewNotes "Reviewed generated LS and evidence."
+.\tools\Set-FanucJobStatus.ps1 -ProgramName A_EXAMPLE -HumanReviewStatus approved -Reviewer "Your Name" -HumanReviewNotes "Reviewed generated LS and evidence."
 ```
 
 Robot-side setup, PR correctness, frame/tool/payload setup, and physical verification are operator-owned and are not tracked as separate manifest gates.
@@ -97,7 +97,7 @@ Robot-side setup, PR correctness, frame/tool/payload setup, and physical verific
 Create a human-readable packet:
 
 ```powershell
-.\tools\Get-FanucReviewPacket.ps1 -ProgramName AI_EXAMPLE
+.\tools\Get-FanucReviewPacket.ps1 -ProgramName A_EXAMPLE
 ```
 
 ## 8. Simulate
@@ -109,7 +109,7 @@ Use RoboGuide for motion, IO, and sequence verification. Record the test conditi
 Upload only after validation and review:
 
 ```powershell
-.\tools\Invoke-FanucTpBuild.ps1 -LsPath .\generated\sources\AI_EXAMPLE.LS -Force -Upload
+.\tools\Invoke-FanucTpBuild.ps1 -LsPath .\generated\sources\A_EXAMPLE.LS -Force -Upload
 ```
 
 Uploads do not run programs.
@@ -119,15 +119,15 @@ For jobs with `generated/jobs/<PROGRAM>/manifest.json`, upload is blocked until 
 After upload, read back and decode the robot copy:
 
 ```powershell
-.\tools\Invoke-FanucUploadReadback.ps1 -ProgramName AI_EXAMPLE -Force
+.\tools\Invoke-FanucUploadReadback.ps1 -ProgramName A_EXAMPLE -Force
 ```
 
 PrintTP expects the TP filename to match the internal program name. The readback tool downloads into `generated/jobs/<PROGRAM>/upload-readback/<PROGRAM>.TP` for that reason.
 
-To list generated AI programs on robot `MD:` without modifying anything:
+To list generated programs on robot `MD:` without modifying anything:
 
 ```powershell
-.\tools\Get-FanucRobotDirectory.ps1 -Pattern "AI_*.TP"
+.\tools\Get-FanucRobotDirectory.ps1
 ```
 
 To reconcile local manifest/readback status against the robot listing:

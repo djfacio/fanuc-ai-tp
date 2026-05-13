@@ -63,7 +63,7 @@ foreach ($template in @($catalog.Templates)) {
         $ids[$template.Id] = $true
     }
 
-    if (-not $template.ProgramName -or $template.ProgramName -cnotmatch '^AI_[A-Z0-9_]{1,29}$') {
+    if (-not $template.ProgramName -or $template.ProgramName -cnotmatch '^(?:A_[A-Z0-9_]{1,30}|AI_[A-Z0-9_]{1,29})$') {
         Add-Finding -Rule "ProgramNameInvalid" -Message "Template '$($template.Id)' has invalid ProgramName '$($template.ProgramName)'."
         continue
     }

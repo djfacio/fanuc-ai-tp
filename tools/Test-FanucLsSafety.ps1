@@ -62,8 +62,25 @@ function Add-Finding {
     $result.Findings += [pscustomobject]$finding
 }
 
-if (-not $expectedProgramName.StartsWith($config.ProgramPrefix.ToUpperInvariant())) {
-    Add-Finding -Rule "ProgramPrefix" -Message "Program name must start with $($config.ProgramPrefix)."
+function Get-AllowedProgramPrefixes {
+    param([object]$Config)
+
+    $prefixes = New-Object System.Collections.Generic.List[string]
+    if ($Config.ProgramPrefix) {
+        $prefixes.Add($Config.ProgramPrefix.ToUpperInvariant())
+    }
+    foreach ($prefix in @($Config.LegacyProgramPrefixes)) {
+        if ($prefix) {
+            $prefixes.Add($prefix.ToUpperInvariant())
+        }
+    }
+    return @($prefixes.ToArray() | Sort-Object -Unique)
+}
+
+$allowedProgramPrefixes = @(Get-AllowedProgramPrefixes -Config $config)
+
+if (-not @($allowedProgramPrefixes | Where-Object { $expectedProgramName.StartsWith($_) }).Count) {
+    Add-Finding -Rule "ProgramPrefix" -Message "Program name must start with one of: $($allowedProgramPrefixes -join ', ')."
 }
 
 $text = Get-Content -LiteralPath $lsItem.FullName -Raw

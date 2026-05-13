@@ -6,6 +6,7 @@ param(
     [int]$Limit = 10,
     [switch]$IncludeAiPrograms,
     [switch]$ExcludeAiPrograms,
+    [switch]$ExcludeGeneratedPrograms,
     [string]$OutputRoot = "generated\production-analysis",
     [string]$ConfigPath = "..\config\robot.psd1",
     [switch]$Force
@@ -13,8 +14,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if ($IncludeAiPrograms -and $ExcludeAiPrograms) {
-    throw "Use only one AI program policy switch. AI_* programs are included by default; use -ExcludeAiPrograms only for a deliberately non-AI view."
+if ($ExcludeAiPrograms) {
+    $ExcludeGeneratedPrograms = $true
+}
+if ($IncludeAiPrograms -and $ExcludeGeneratedPrograms) {
+    throw "Use only one generated-program policy switch. Generated programs are included by default; use -ExcludeGeneratedPrograms only for a deliberately non-generated view."
 }
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -28,6 +32,35 @@ function Resolve-ProjectPath {
     }
 
     return Join-Path $projectRoot $Path
+}
+
+function Get-GeneratedProgramPrefixes {
+    param([object]$Config)
+
+    $prefixes = New-Object System.Collections.Generic.List[string]
+    if ($Config.ProgramPrefix) {
+        $prefixes.Add($Config.ProgramPrefix.ToUpperInvariant())
+    }
+    foreach ($prefix in @($Config.LegacyProgramPrefixes)) {
+        if ($prefix) {
+            $prefixes.Add($prefix.ToUpperInvariant())
+        }
+    }
+    return @($prefixes.ToArray() | Sort-Object -Unique)
+}
+
+function Test-GeneratedProgramName {
+    param(
+        [string]$ProgramName,
+        [string[]]$Prefixes
+    )
+
+    foreach ($prefix in @($Prefixes)) {
+        if ($ProgramName.StartsWith($prefix)) {
+            return $true
+        }
+    }
+    return $false
 }
 
 function Get-LsSummary {
@@ -89,6 +122,14 @@ if (-not $ProgramName -and -not $FromInventory) {
     throw "Provide -ProgramName or use -FromInventory with an inventory snapshot."
 }
 
+$resolvedConfig = if ([System.IO.Path]::IsPathRooted($ConfigPath)) {
+    (Resolve-Path -LiteralPath $ConfigPath).Path
+} else {
+    (Resolve-Path -LiteralPath (Join-Path $scriptRoot $ConfigPath)).Path
+}
+$config = Import-PowerShellDataFile -LiteralPath $resolvedConfig
+$generatedProgramPrefixes = @(Get-GeneratedProgramPrefixes -Config $config)
+
 $programs = @()
 if ($ProgramName) {
     $programs += $ProgramName
@@ -103,7 +144,7 @@ if ($FromInventory) {
     $inventory = Get-Content -LiteralPath $resolvedInventoryPath -Raw | ConvertFrom-Json
     $candidates = @($inventory.entries |
         Where-Object { $_.Extension -eq ".TP" } |
-        Where-Object { -not $ExcludeAiPrograms -or $_.ProgramName -notlike "AI_*" } |
+        Where-Object { -not $ExcludeGeneratedPrograms -or -not (Test-GeneratedProgramName -ProgramName $_.ProgramName -Prefixes $generatedProgramPrefixes) } |
         Where-Object { $_.ProgramName -match '^[A-Z][A-Z0-9_]{0,31}$' } |
         Sort-Object ProgramName |
         Select-Object -First $Limit)
@@ -139,7 +180,7 @@ $results = foreach ($program in $programs) {
     $errorMessage = $null
     if ($PSCmdlet.ShouldProcess($program, "Download and decode robot TP for read-only analysis")) {
         try {
-            & $reader -Program $program -ConfigPath $ConfigPath -Force:$Force | Out-Null
+            & $reader -Program $program -ConfigPath $resolvedConfig -Force:$Force | Out-Null
             if (Test-Path -LiteralPath $downloadedTp) {
                 Copy-Item -LiteralPath $downloadedTp -Destination $copyTp -Force
             }
@@ -181,8 +222,11 @@ $indexPath = Join-Path $analysisRoot "index.json"
 @{
     timestamp = (Get-Date).ToString("o")
     inventoryPath = if ($FromInventory) { (Resolve-ProjectPath $InventoryPath) } else { $null }
-    includeAiPrograms = -not [bool]$ExcludeAiPrograms
-    excludeAiPrograms = [bool]$ExcludeAiPrograms
+    generatedProgramPrefixes = @($generatedProgramPrefixes)
+    includeGeneratedPrograms = -not [bool]$ExcludeGeneratedPrograms
+    excludeGeneratedPrograms = [bool]$ExcludeGeneratedPrograms
+    includeAiPrograms = -not [bool]$ExcludeGeneratedPrograms
+    excludeAiPrograms = [bool]$ExcludeGeneratedPrograms
     resultCount = @($results).Count
     results = @($results)
 } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $indexPath -Encoding ASCII

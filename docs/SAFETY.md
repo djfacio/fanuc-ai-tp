@@ -4,7 +4,7 @@ This project produces robot programs. Default behavior must be conservative, obs
 
 ## Default Rules
 
-- Generated program names must start with the configured prefix, currently `AI_`.
+- New generated program names must start with the configured prefix, currently `A_`. Legacy `AI_` programs are still recognized for existing artifacts and robot cleanup analysis.
 - The `.LS` filename and `/PROG` header must match exactly.
 - Uploading a program must not run it.
 - Do not overwrite production programs.

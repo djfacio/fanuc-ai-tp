@@ -49,7 +49,7 @@ $gitignorePath = Join-Path $projectPath ".gitignore"
 $readmePath = Join-Path $projectPath "README.md"
 $processNotesPath = Join-Path $projectPath "notes\process.md"
 $prMapPath = Join-Path $projectPath "notes\pr-map.md"
-$exampleSpecPath = Join-Path $projectPath "applications\AI_TEST_APR.motion-application.json"
+$exampleSpecPath = Join-Path $projectPath "applications\A_TEST_APR.motion-application.json"
 $robotIniSourcePath = Join-Path $toolchainRoot "config\robot.ini"
 $robotIniProjectPath = Join-Path $projectPath "config\robot.ini"
 
@@ -93,7 +93,9 @@ $robotConfig = @"
     RobotIniPath = "robot.ini"
     CellMapPath = "cell-map.psd1"
     WorkcellRobotPath = "REVIEW_AND_SET_ROBOGUIDE_WORKCELL_ROBOT_PATH"
-    ProgramPrefix = "AI_"
+    ProgramPrefix = "A_"
+    LegacyProgramPrefixes = @("AI_")
+    KnownMacroPrograms = @()
 }
 "@
 
@@ -168,7 +170,7 @@ From the toolchain folder:
 cd "$toolchainRoot"
 .\tools\Invoke-FanucMotionWorkflow.ps1 ``
   -ProjectPath "$projectPath" ``
-  -SpecPath .\applications\AI_TEST_APR.motion-application.json ``
+  -SpecPath .\applications\A_TEST_APR.motion-application.json ``
   -Force
 ```
 
@@ -203,7 +205,7 @@ $exampleSpec = @"
 {
   "schemaVersion": 1,
   "applicationName": "$ProjectName first APR path",
-  "programName": "AI_TEST_APR",
+  "programName": "A_TEST_APR",
   "phase": "generation-ready",
   "purpose": "Project-local starter motion through reviewed approach, process, and retract PR targets.",
   "cellContext": {

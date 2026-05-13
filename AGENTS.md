@@ -94,7 +94,7 @@ Manual equivalent:
 The older direct no-motion helper remains useful for quick checks:
 
 ```powershell
-.\tools\New-NoMotionProgram.ps1 -Name AI_TEST -Message "AI TEST OK" -Register 99 -Value 456
+.\tools\New-NoMotionProgram.ps1 -Name A_TEST -Message "A TEST OK" -Register 99 -Value 456
 ```
 
 To read an existing robot TP program without modifying the robot:
@@ -107,7 +107,7 @@ This downloads `F_MAIN.TP` from robot `MD:` into `downloaded\tp\` and decodes re
 
 ## Safety Rules
 
-- Keep generated program names prefixed with `AI_`.
+- Keep new generated program names prefixed with `A_`. Existing `AI_` programs are legacy generated programs and remain recognized by validation/reporting tools.
 - Keep the `.LS` filename and `/PROG` header identical. The build script checks both before compiling.
 - Keep generated register writes, IO writes, and CALL targets allowlisted in `config\cell-map.psd1`. The spec validator enforces this map.
 - This repo's current scratch write scope is for the local commissioning/test project only: `R[90]`-`R[99]` and `DO[1]`-`DO[80]`. Establish a separate policy per project/workcell. Do not write production/status values outside the active project's policy, including `R[103]`, `R[107]`, `R[110]`, or outputs above `DO[80]` in this test cell, without separate approval.
@@ -125,9 +125,10 @@ This downloads `F_MAIN.TP` from robot `MD:` into `downloaded\tp\` and decodes re
 - Run `tools\Update-FanucJobManifest.ps1` to collect local evidence. `localEvidencePassed=true` is not the same as robot upload approval.
 - Use `tools\Set-FanucJobStatus.ps1` to record human review and upload status. Use `-WhatIf` for dry runs.
 - `Invoke-FanucTpBuild.ps1 -Upload` blocks manifest-backed jobs until `readyForUpload=true`.
-- Use `tools\Get-FanucJobSummary.ps1` to review local job status, and `tools\Get-FanucJobSummary.ps1 -IncludeRobot` or `tools\Get-FanucRobotDirectory.ps1 -Pattern "AI_*.TP"` to reconcile against robot `MD:` without running programs.
+- Use `tools\Get-FanucJobSummary.ps1` to review local job status, and `tools\Get-FanucJobSummary.ps1 -IncludeRobot` or `tools\Get-FanucRobotDirectory.ps1` to reconcile against robot `MD:` without running programs.
 - Use `tools\Save-FanucRobotInventory.ps1` for read-only robot `MD:` snapshots, `tools\Invoke-FanucProductionProgramAnalysis.ps1` for controlled download/decode analysis of selected existing TP programs, `tools\Get-FanucProductionAnalysisSummary.ps1 -WriteMarkdown` for count summaries, and `tools\Get-FanucProductionResourceReport.ps1 -WriteMarkdown` for CALL/IO/register candidates.
-- Include `AI_*` programs by default in inventory analysis and dependency cleanup policies. Use `-ExcludeAiPrograms` only when a deliberately non-AI view is requested.
+- Include generated-prefix programs (`A_*` and legacy `AI_*`) by default in inventory analysis and dependency cleanup policies. Use `-ExcludeGeneratedPrograms` only when a deliberately non-generated view is requested.
+- Macro programs are normal `.TP` programs whose decoded `/PROG` line includes `Macro`, for example `/PROG  F_OPENG1    Macro`; do not treat `.MR` as a proven file extension. Keep notes in `docs\MACRO_PROGRAMS.md`.
 - RoboGuide/manual evidence is optional project evidence unless a future project policy explicitly makes it a gate.
 - Use `tools\New-FanucRoboguideEvidencePacket.ps1` to generate structured RoboGuide/manual evidence packets from specs. IO-sequence and motion packets require before/after snapshots.
 - Do not auto-run uploaded programs.

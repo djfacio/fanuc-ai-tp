@@ -3,7 +3,7 @@ param(
     [ValidatePattern('^[A-Za-z][A-Za-z0-9_]{0,31}$')]
     [string]$Name,
 
-    [string]$Message = "AI FTP upload OK",
+[string]$Message = "A FTP upload OK",
     [int]$Register = 99,
     [int]$Value = 123,
     [string]$ConfigPath = "..\config\robot.psd1"
@@ -22,7 +22,7 @@ $config = Import-PowerShellDataFile -LiteralPath $resolvedConfig
 
 $programName = $Name.ToUpperInvariant()
 if (-not $programName.StartsWith($config.ProgramPrefix.ToUpperInvariant())) {
-    throw "Program name must start with $($config.ProgramPrefix). Example: AI_HELLO"
+    throw "Program name must start with $($config.ProgramPrefix). Example: A_HELLO"
 }
 
 if ($Message.Length -gt 24) {

@@ -8,7 +8,7 @@
   "properties": {
     "programName": {
       "type": "string",
-      "pattern": "^AI_[A-Z0-9_]{1,29}$"
+      "pattern": "^(?:A_[A-Z0-9_]{1,30}|AI_[A-Z0-9_]{1,29})$"
     },
     "intent": {
       "type": "string",

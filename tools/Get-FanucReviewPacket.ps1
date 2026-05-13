@@ -90,7 +90,7 @@ $lines.Add((Format-FileLine -Label "RoboGuide evidence packet" -Record $manifest
 $lines.Add((Format-FileLine -Label "RoboGuide evidence notes" -Record $manifest.files.roboguideEvidencePacketMarkdown))
 $lines.Add("")
 $lines.Add("## Review Notes")
-$lines.Add("- Confirm program name and /PROG match the intended AI_ program.")
+$lines.Add("- Confirm program name and /PROG match the intended generated program.")
 $lines.Add("- Confirm operations match the spec intent.")
 if ($null -ne $motionSpec) {
     $lines.Add("- Confirm UFRAME, UTOOL, PAYLOAD, and each PR target match the reviewed application.")
