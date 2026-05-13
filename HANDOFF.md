@@ -220,7 +220,9 @@ robot `MD:`. The controller refused 17 remaining candidates: `AI_HELLO`, `ARC3`,
 were reported as protected. A post-cleanup dependency map at
 `generated\dependency-map\20260513-160748-F_MAIN\dependency-map.json` confirmed
 `F_MAIN` still has 35 required programs, zero missing dependencies, and 17
-remaining backup/delete candidates.
+remaining backup/delete candidates. Per operator instruction, `-BCKEDT-` is now
+listed in `config\robot.psd1` as `CleanupProtectedPrograms` and must never be
+attempted for deletion again.
 
 Controlled production analysis has been proven read-only with:
 

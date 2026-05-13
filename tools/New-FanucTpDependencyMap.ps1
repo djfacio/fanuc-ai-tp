@@ -266,6 +266,7 @@ $robotPrograms = @(Get-RobotProgramDirectory -Config $config)
 $robotTpPrograms = @($robotPrograms | Where-Object { $_.extension -eq ".TP" })
 $robotPcPrograms = @($robotPrograms | Where-Object { $_.extension -eq ".PC" })
 $knownMacroPrograms = @(@($config.KnownMacroPrograms) | ForEach-Object { [string]$_ } | Where-Object { $_ } | ForEach-Object { $_.ToUpperInvariant() } | Sort-Object -Unique)
+$cleanupProtectedPrograms = @(@($config.CleanupProtectedPrograms) | ForEach-Object { [string]$_ } | Where-Object { $_ } | ForEach-Object { $_.ToUpperInvariant() } | Sort-Object -Unique)
 $robotProgramMap = @{}
 foreach ($entry in $robotPrograms) {
     if (-not $robotProgramMap.ContainsKey($entry.programName) -or $entry.extension -eq ".TP") {
@@ -395,6 +396,7 @@ $knownMacroProgramsNotReachable = @($knownMacroProgramsOnRobot | Where-Object { 
 $unreachablePrograms = @($robotTpPrograms |
     Where-Object { $requiredPrograms -notcontains $_.programName } |
     Where-Object { $knownMacroPrograms -notcontains $_.programName } |
+    Where-Object { $cleanupProtectedPrograms -notcontains $_.programName } |
     Sort-Object programName)
 $generatedProgramsOnRobot = @($robotPrograms |
     Where-Object { Test-GeneratedProgramName -ProgramName $_.programName -Prefixes $generatedProgramPrefixes } |
@@ -441,6 +443,7 @@ $report = [ordered]@{
     robotTpProgramCount = $robotTpPrograms.Count
     robotPcProgramCount = $robotPcPrograms.Count
     knownMacroProgramCount = $knownMacroPrograms.Count
+    cleanupProtectedProgramCount = $cleanupProtectedPrograms.Count
     knownMacroProgramsOnRobotCount = $knownMacroProgramsOnRobot.Count
     knownMacroProgramsMissingCount = $knownMacroProgramsMissing.Count
     knownMacroProgramsNotReachableCount = $knownMacroProgramsNotReachable.Count
@@ -469,6 +472,17 @@ $report = [ordered]@{
         }
     })
     macroMarkerPrograms = @($macroMarkerPrograms)
+    cleanupProtectedPrograms = @($cleanupProtectedPrograms | ForEach-Object {
+        [ordered]@{
+            programName = $_
+            presentOnRobot = $robotProgramMap.ContainsKey($_)
+            reachableFromRoot = $requiredPrograms -contains $_
+            extension = if ($robotProgramMap.ContainsKey($_)) { $robotProgramMap[$_].extension } else { $null }
+            robotName = if ($robotProgramMap.ContainsKey($_)) { $robotProgramMap[$_].name } else { $null }
+            cleanupCandidate = $false
+            reason = "Configured cleanup-protected program. Never include in backup/delete candidates."
+        }
+    })
     generatedProgramsNotReachable = @($generatedProgramsNotReachable | ForEach-Object {
         [ordered]@{
             programName = $_.programName
@@ -506,6 +520,7 @@ $lines.Add("- Robot TP programs seen: $($robotTpPrograms.Count)")
 $lines.Add("- Robot KAREL .PC programs seen: $($robotPcPrograms.Count)")
 $lines.Add("- Known macro TP programs configured: $($knownMacroPrograms.Count)")
 $lines.Add("- Known macro TP programs present on robot: $($knownMacroProgramsOnRobot.Count)")
+$lines.Add("- Cleanup-protected programs configured: $($cleanupProtectedPrograms.Count)")
 $lines.Add("- Decoded ``/PROG ... Macro`` markers found in required closure: $($macroMarkerPrograms.Count)")
 $lines.Add("- Generated program prefixes: $($generatedProgramPrefixes -join ', ')")
 $lines.Add("- Generated-prefix programs seen: $($generatedProgramsOnRobot.Count)")
@@ -535,6 +550,17 @@ if ($knownMacroPrograms.Count -eq 0 -and $macroMarkerPrograms.Count -eq 0) {
     }
     foreach ($program in @($macroMarkerPrograms | Where-Object { $knownMacroPrograms -notcontains $_ } | Sort-Object)) {
         $lines.Add("- $($program): decoded ``/PROG ... Macro`` marker found")
+    }
+}
+$lines.Add("")
+$lines.Add("## Cleanup-Protected Programs")
+if ($cleanupProtectedPrograms.Count -eq 0) {
+    $lines.Add("- none configured")
+} else {
+    foreach ($program in @($cleanupProtectedPrograms | Sort-Object)) {
+        $present = if ($robotProgramMap.ContainsKey($program)) { "present" } else { "missing" }
+        $reachable = if ($requiredPrograms -contains $program) { "reachable" } else { "not reachable" }
+        $lines.Add("- $($program): configured, $present, $reachable, excluded from backup/delete candidates")
     }
 }
 $lines.Add("")

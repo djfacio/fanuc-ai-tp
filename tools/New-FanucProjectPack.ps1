@@ -96,6 +96,7 @@ $robotConfig = @"
     ProgramPrefix = "A_"
     LegacyProgramPrefixes = @("AI_")
     KnownMacroPrograms = @()
+    CleanupProtectedPrograms = @()
 }
 "@
 

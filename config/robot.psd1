@@ -16,4 +16,7 @@
         "F_PUSHER1"
         "F_PUSHER2"
     )
+    CleanupProtectedPrograms = @(
+        "-BCKEDT-"
+    )
 }

@@ -172,9 +172,25 @@ $candidates = @(
         Where-Object { [string]$_.robotName -match '(?i)\.tp$' } |
         Sort-Object programName
 )
+$sourceCandidateCount = $candidates.Count
+$cleanupProtectedSet = @{}
+foreach ($program in @($config.CleanupProtectedPrograms)) {
+    $programName = [string]$program
+    if ($programName) {
+        $cleanupProtectedSet[$programName.ToUpperInvariant()] = $true
+    }
+}
+$cleanupProtectedCandidates = @($candidates | Where-Object { $cleanupProtectedSet.ContainsKey(([string]$_.programName).ToUpperInvariant()) })
+$candidates = @($candidates | Where-Object { -not $cleanupProtectedSet.ContainsKey(([string]$_.programName).ToUpperInvariant()) })
 
 if ($candidates.Count -eq 0) {
-    Write-Host "No TP non-dependency candidates found."
+    Write-Host "No unprotected TP non-dependency candidates found."
+    [pscustomobject]@{
+        RootProgram = $rootProgram
+        OriginalCandidateCount = $sourceCandidateCount
+        CleanupProtectedSkippedCount = $cleanupProtectedCandidates.Count
+        Deleted = $false
+    }
     return
 }
 
@@ -195,7 +211,7 @@ foreach ($candidate in $candidates) {
     }
 }
 
-$originalCandidateCount = $candidates.Count
+$originalCandidateCount = $sourceCandidateCount
 $directoryTool = Join-Path $scriptRoot "Get-FanucRobotDirectory.ps1"
 $robotFiles = @(& $directoryTool -Pattern "*.TP" -ConfigPath $resolvedConfig)
 $robotNameSet = @{}
@@ -213,6 +229,7 @@ if ($candidates.Count -eq 0) {
         OriginalCandidateCount = $originalCandidateCount
         PresentCandidateCount = 0
         AlreadyMissingCount = $missingCandidates.Count
+        CleanupProtectedSkippedCount = $cleanupProtectedCandidates.Count
         Deleted = $false
     }
     return
@@ -253,6 +270,13 @@ $plan = [pscustomobject]@{
             reason = "Listed in source dependency map, but not present on robot during cleanup run."
         }
     })
+    cleanupProtectedCandidates = @($cleanupProtectedCandidates | ForEach-Object {
+        [pscustomobject]@{
+            programName = $_.programName
+            robotName = $_.robotName
+            reason = "Configured CleanupProtectedPrograms entry; skipped before backup/delete."
+        }
+    })
 }
 $plan | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $planPath -Encoding UTF8
 
@@ -264,12 +288,20 @@ $lines.Add("- Source dependency map: $resolvedDependencyMap")
 $lines.Add("- Source candidate count: $originalCandidateCount")
 $lines.Add("- Present candidate count: $($candidates.Count)")
 $lines.Add("- Already missing count: $($missingCandidates.Count)")
+$lines.Add("- Cleanup-protected skipped count: $($cleanupProtectedCandidates.Count)")
 $lines.Add("- Execute delete: $([bool]$Execute)")
 $lines.Add("- Backup folder: $backupRoot")
 $lines.Add("")
 $lines.Add("## Candidates")
 foreach ($candidate in $candidates) {
     $lines.Add("- $($candidate.programName) ($($candidate.robotName), size=$($candidate.size))")
+}
+if ($cleanupProtectedCandidates.Count -gt 0) {
+    $lines.Add("")
+    $lines.Add("## Cleanup-Protected Skipped")
+    foreach ($candidate in $cleanupProtectedCandidates) {
+        $lines.Add("- $($candidate.programName) ($($candidate.robotName)): configured cleanup protection")
+    }
 }
 $lines | Set-Content -LiteralPath $summaryPath -Encoding UTF8
 
@@ -309,6 +341,7 @@ if (-not $Execute) {
         OriginalCandidateCount = $originalCandidateCount
         PresentCandidateCount = $candidates.Count
         AlreadyMissingCount = $missingCandidates.Count
+        CleanupProtectedSkippedCount = $cleanupProtectedCandidates.Count
         Deleted = $false
         RunRoot = $runRoot
         PlanPath = $planPath
@@ -339,6 +372,7 @@ $failedCount = @($deleteResults | Where-Object { $_.status -eq "failed" }).Count
     OriginalCandidateCount = $originalCandidateCount
     PresentCandidateCount = $candidates.Count
     AlreadyMissingCount = $missingCandidates.Count
+    CleanupProtectedSkippedCount = $cleanupProtectedCandidates.Count
     DeletedCount = $deletedCount
     FailedDeleteCount = $failedCount
     Deleted = $true

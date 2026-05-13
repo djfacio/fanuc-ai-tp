@@ -359,7 +359,8 @@ map:
 ```
 
 The cleanup tool refuses maps with missing dependencies or dynamic references,
-skips candidates already gone from the robot, backs up every present candidate to
+skips candidates already gone from the robot, skips configured
+`CleanupProtectedPrograms`, backs up every present candidate to
 `generated\robot-cleanup\`, and records controller delete refusals per file.
 
 Validate a real application workflow spec before any motion generation:
