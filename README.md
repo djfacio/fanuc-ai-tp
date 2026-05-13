@@ -316,7 +316,7 @@ Save a timestamped read-only inventory snapshot of robot `MD:`:
 .\tools\Get-FanucJobSummary.ps1 -UseLatestRobotInventory
 ```
 
-Analyze existing non-`AI_` TP programs from the saved inventory without modifying the robot:
+Analyze existing TP programs from the saved inventory without modifying the robot. `AI_*` programs are included by default; add `-ExcludeAiPrograms` only when you intentionally want a non-AI view:
 
 ```powershell
 .\tools\Invoke-FanucProductionProgramAnalysis.ps1 -FromInventory -Limit 3 -Force
@@ -343,9 +343,10 @@ Build a read-only dependency map for a production main program:
 .\tools\New-FanucTpDependencyMap.ps1 -RootProgram F_MAIN -Force
 ```
 
-This downloads/decodes the root program and direct `CALL` closure, lists missing
+This downloads/decodes the root program and direct `CALL`/`RUN` closure, lists missing
 or non-TP dependencies, and reports TP programs present on robot `MD:` that are
-not reachable from the root by static direct-call analysis.
+not reachable from the root by static direct `CALL`/`RUN` analysis. `AI_*`
+programs are included in the report and backup/delete candidates by default.
 
 Validate a real application workflow spec before any motion generation:
 

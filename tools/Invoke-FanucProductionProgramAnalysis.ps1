@@ -5,12 +5,17 @@ param(
     [string]$InventoryPath = "generated\robot-inventory\latest.json",
     [int]$Limit = 10,
     [switch]$IncludeAiPrograms,
+    [switch]$ExcludeAiPrograms,
     [string]$OutputRoot = "generated\production-analysis",
     [string]$ConfigPath = "..\config\robot.psd1",
     [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($IncludeAiPrograms -and $ExcludeAiPrograms) {
+    throw "Use only one AI program policy switch. AI_* programs are included by default; use -ExcludeAiPrograms only for a deliberately non-AI view."
+}
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent $scriptRoot
@@ -98,7 +103,7 @@ if ($FromInventory) {
     $inventory = Get-Content -LiteralPath $resolvedInventoryPath -Raw | ConvertFrom-Json
     $candidates = @($inventory.entries |
         Where-Object { $_.Extension -eq ".TP" } |
-        Where-Object { $IncludeAiPrograms -or $_.ProgramName -notlike "AI_*" } |
+        Where-Object { -not $ExcludeAiPrograms -or $_.ProgramName -notlike "AI_*" } |
         Where-Object { $_.ProgramName -match '^[A-Z][A-Z0-9_]{0,31}$' } |
         Sort-Object ProgramName |
         Select-Object -First $Limit)
@@ -176,7 +181,8 @@ $indexPath = Join-Path $analysisRoot "index.json"
 @{
     timestamp = (Get-Date).ToString("o")
     inventoryPath = if ($FromInventory) { (Resolve-ProjectPath $InventoryPath) } else { $null }
-    includeAiPrograms = [bool]$IncludeAiPrograms
+    includeAiPrograms = -not [bool]$ExcludeAiPrograms
+    excludeAiPrograms = [bool]$ExcludeAiPrograms
     resultCount = @($results).Count
     results = @($results)
 } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $indexPath -Encoding ASCII

@@ -127,6 +127,7 @@ This downloads `F_MAIN.TP` from robot `MD:` into `downloaded\tp\` and decodes re
 - `Invoke-FanucTpBuild.ps1 -Upload` blocks manifest-backed jobs until `readyForUpload=true`.
 - Use `tools\Get-FanucJobSummary.ps1` to review local job status, and `tools\Get-FanucJobSummary.ps1 -IncludeRobot` or `tools\Get-FanucRobotDirectory.ps1 -Pattern "AI_*.TP"` to reconcile against robot `MD:` without running programs.
 - Use `tools\Save-FanucRobotInventory.ps1` for read-only robot `MD:` snapshots, `tools\Invoke-FanucProductionProgramAnalysis.ps1` for controlled download/decode analysis of selected existing TP programs, `tools\Get-FanucProductionAnalysisSummary.ps1 -WriteMarkdown` for count summaries, and `tools\Get-FanucProductionResourceReport.ps1 -WriteMarkdown` for CALL/IO/register candidates.
+- Include `AI_*` programs by default in inventory analysis and dependency cleanup policies. Use `-ExcludeAiPrograms` only when a deliberately non-AI view is requested.
 - RoboGuide/manual evidence is optional project evidence unless a future project policy explicitly makes it a gate.
 - Use `tools\New-FanucRoboguideEvidencePacket.ps1` to generate structured RoboGuide/manual evidence packets from specs. IO-sequence and motion packets require before/after snapshots.
 - Do not auto-run uploaded programs.

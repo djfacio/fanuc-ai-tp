@@ -4,10 +4,15 @@ param(
     [string]$ConfigPath = "..\config\robot.psd1",
     [string]$OutputRoot = "generated\dependency-map",
     [switch]$IncludeAiPrograms,
+    [switch]$ExcludeAiPrograms,
     [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($IncludeAiPrograms -and $ExcludeAiPrograms) {
+    throw "Use only one AI program policy switch. AI_* programs are included by default; use -ExcludeAiPrograms only for a deliberately non-AI view."
+}
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent $scriptRoot
@@ -305,9 +310,17 @@ while ($queue.Count -gt 0) {
 }
 
 $requiredPrograms = @($visited.Keys | Sort-Object)
-$backupDeleteCandidates = @($robotPrograms |
+$unreachablePrograms = @($robotPrograms |
     Where-Object { $requiredPrograms -notcontains $_.programName } |
-    Where-Object { $IncludeAiPrograms -or $_.programName -notlike "AI_*" } |
+    Sort-Object programName)
+$aiProgramsOnRobot = @($robotPrograms |
+    Where-Object { $_.programName -like "AI_*" } |
+    Sort-Object programName)
+$aiProgramsNotReachable = @($unreachablePrograms |
+    Where-Object { $_.programName -like "AI_*" } |
+    Sort-Object programName)
+$backupDeleteCandidates = @($unreachablePrograms |
+    Where-Object { -not $ExcludeAiPrograms -or $_.programName -notlike "AI_*" } |
     Sort-Object programName)
 
 $requiredRecords = @($requiredPrograms | ForEach-Object {
@@ -332,8 +345,12 @@ $report = [ordered]@{
     generatedAt = (Get-Date).ToString("o")
     rootProgram = $root
     robotIp = $config.RobotIp
+    includeAiPrograms = -not [bool]$ExcludeAiPrograms
+    excludeAiPrograms = [bool]$ExcludeAiPrograms
     robotProgramCount = $robotPrograms.Count
+    aiProgramCount = $aiProgramsOnRobot.Count
     requiredProgramCount = $requiredRecords.Count
+    aiProgramsNotReachableCount = $aiProgramsNotReachable.Count
     backupDeleteCandidateCount = $backupDeleteCandidates.Count
     analysisRoot = (Get-Item -LiteralPath $analysisRoot).FullName
     tpBackupRoot = (Get-Item -LiteralPath $tpBackupRoot).FullName
@@ -342,6 +359,15 @@ $report = [ordered]@{
     missingDependencies = @($missing.Keys | Sort-Object)
     dynamicReferences = @($dynamicReferences.ToArray())
     decodeFailures = @($decodeFailures.ToArray())
+    aiProgramsNotReachable = @($aiProgramsNotReachable | ForEach-Object {
+        [ordered]@{
+            programName = $_.programName
+            robotName = $_.name
+            size = $_.size
+            includedInBackupDeleteCandidates = -not [bool]$ExcludeAiPrograms
+            reason = "AI_* program is present on robot MD: but not reachable from $root by direct CALL/RUN analysis."
+        }
+    })
     backupDeleteCandidates = @($backupDeleteCandidates | ForEach-Object {
         [ordered]@{
             programName = $_.programName
@@ -367,8 +393,11 @@ $lines.Add("# FANUC TP Dependency Map: $root")
 $lines.Add("")
 $lines.Add("- Robot IP: $($config.RobotIp)")
 $lines.Add("- Robot TP programs seen: $($robotPrograms.Count)")
+$lines.Add("- AI_* TP programs seen: $($aiProgramsOnRobot.Count)")
 $lines.Add("- Required programs from direct CALL/RUN closure: $($requiredRecords.Count)")
+$lines.Add("- AI_* programs not reachable from direct CALL/RUN closure: $($aiProgramsNotReachable.Count)")
 $lines.Add("- Backup/delete candidates: $($backupDeleteCandidates.Count)")
+$lines.Add("- Include AI_* programs in backup/delete candidates: $(-not [bool]$ExcludeAiPrograms)")
 $lines.Add("- Analysis folder: $analysisRoot")
 $lines.Add("- TP backup folder for decoded dependency set: $tpBackupRoot")
 $lines.Add("")
@@ -405,6 +434,18 @@ if ($dynamicReferences.Count -eq 0) {
     }
 }
 $lines.Add("")
+$lines.Add("## AI Programs Not Reachable")
+if ($aiProgramsNotReachable.Count -eq 0) {
+    $lines.Add("- none")
+} else {
+    if ($ExcludeAiPrograms) {
+        $lines.Add("- These are listed separately and excluded from Backup/Delete Candidates because -ExcludeAiPrograms was used.")
+    }
+    foreach ($program in @($aiProgramsNotReachable | Sort-Object programName)) {
+        $lines.Add("- $($program.programName) ($($program.name), size=$($program.size)): not reachable from $root by direct CALL/RUN analysis")
+    }
+}
+$lines.Add("")
 $lines.Add("## Backup/Delete Candidates")
 if ($backupDeleteCandidates.Count -eq 0) {
     $lines.Add("- none")
@@ -423,6 +464,7 @@ $lines | Set-Content -LiteralPath $markdownPath -Encoding ASCII
 [pscustomobject]@{
     RootProgram = $root
     RequiredProgramCount = $requiredRecords.Count
+    AiProgramNotReachableCount = $aiProgramsNotReachable.Count
     BackupDeleteCandidateCount = $backupDeleteCandidates.Count
     MissingDependencyCount = $missing.Count
     DynamicReferenceCount = $dynamicReferences.Count
