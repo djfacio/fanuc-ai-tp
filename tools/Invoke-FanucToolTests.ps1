@@ -561,5 +561,6 @@ Invoke-ExpectFail -Name "LsBlockedPatternFails" -Command {
 $failed = @($tests | Where-Object { -not $_.Passed })
 $tests
 if ($failed.Count -gt 0) {
-    throw "$($failed.Count) tool test(s) failed."
+    $failedMessages = $failed | ForEach-Object { "- $($_.Name): $($_.Message)" }
+    throw "$($failed.Count) tool test(s) failed:`n$($failedMessages -join "`n")"
 }
