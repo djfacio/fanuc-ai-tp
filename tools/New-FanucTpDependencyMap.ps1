@@ -1,0 +1,400 @@
+[CmdletBinding()]
+param(
+    [string]$RootProgram = "F_MAIN",
+    [string]$ConfigPath = "..\config\robot.psd1",
+    [string]$OutputRoot = "generated\dependency-map",
+    [switch]$IncludeAiPrograms,
+    [switch]$Force
+)
+
+$ErrorActionPreference = "Stop"
+
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = Split-Path -Parent $scriptRoot
+
+function Resolve-ProjectPath {
+    param([string]$Path)
+
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return $Path
+    }
+    return Join-Path $projectRoot $Path
+}
+
+function Get-ProgramName {
+    param([string]$Name)
+
+    return ([System.IO.Path]::GetFileNameWithoutExtension($Name)).ToUpperInvariant()
+}
+
+function Get-CallTargets {
+    param([string]$LsPath)
+
+    if (-not (Test-Path -LiteralPath $LsPath)) {
+        return @()
+    }
+
+    $calls = New-Object System.Collections.Generic.List[object]
+    $lines = Get-Content -LiteralPath $LsPath
+    $inMn = $false
+    foreach ($line in $lines) {
+        if ($line -match '^\s*/MN') {
+            $inMn = $true
+            continue
+        }
+        if ($line -match '^\s*/POS') {
+            $inMn = $false
+        }
+        if (-not $inMn) {
+            continue
+        }
+
+        $normalizedLine = [regex]::Replace($line, '\s+', ' ').Trim()
+        $lineNumber = $null
+        if ($normalizedLine -match '^(\d+)\s*:') {
+            $lineNumber = [int]$Matches[1]
+        }
+
+        $directCalls = [regex]::Matches($normalizedLine, '(?i)\bCALL\s+([A-Z][A-Z0-9_]{0,31})\b')
+        foreach ($call in $directCalls) {
+            $target = $call.Groups[1].Value.ToUpperInvariant()
+            $calls.Add([pscustomobject]@{
+                type = "direct"
+                target = $target
+                lineNumber = $lineNumber
+                line = $normalizedLine
+            })
+        }
+
+        if ($normalizedLine -match '(?i)\bCALL\s+([A-Z]*\[[^\]]+\])') {
+            $calls.Add([pscustomobject]@{
+                type = "dynamic"
+                target = $Matches[1].ToUpperInvariant()
+                lineNumber = $lineNumber
+                line = $normalizedLine
+            })
+        }
+    }
+
+    return $calls.ToArray()
+}
+
+function Invoke-FtpScript {
+    param(
+        [string[]]$Commands,
+        [string]$RobotIp
+    )
+
+    $ftpScript = Join-Path $env:TEMP ("fanuc-deps-{0}.ftp" -f ([Guid]::NewGuid().ToString("N")))
+    try {
+        Set-Content -LiteralPath $ftpScript -Value $Commands -Encoding ASCII
+        $previousErrorActionPreference = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        try {
+            $output = & ftp.exe -n -s:$ftpScript $RobotIp 2>&1
+        }
+        finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
+        [pscustomobject]@{
+            ExitCode = $LASTEXITCODE
+            Output = @($output)
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $ftpScript) {
+            Remove-Item -LiteralPath $ftpScript -Force
+        }
+    }
+}
+
+function Get-RobotTpDirectory {
+    param([object]$Config)
+
+    $directory = Invoke-FtpScript -RobotIp $Config.RobotIp -Commands @(
+        "user $($Config.UserName) $($Config.Password)",
+        "binary",
+        "dir *.TP",
+        "quit"
+    )
+
+    $ftpText = $directory.Output -join "`n"
+    if (
+        $directory.ExitCode -ne 0 -or
+        $ftpText -match '(?i)connect\s*:' -or
+        $ftpText -match '(?i)not connected' -or
+        $ftpText -match '(?i)login failed' -or
+        $ftpText -match '(?i)unknown host' -or
+        ($ftpText -match '(?im)^5\d\d\s' -and $ftpText -notmatch '(?im)^226\s')
+    ) {
+        throw "FTP directory listing failed:`n$ftpText"
+    }
+
+    $records = foreach ($line in $directory.Output) {
+        $text = [string]$line
+        if ([string]::IsNullOrWhiteSpace($text)) {
+            continue
+        }
+
+        $name = $null
+        $size = $null
+        if ($text -match '^\S+\s+\d+\s+\S+\s+\S+\s+(\d+)\s+\S+\s+\d+\s+\d{4}\s+(.+)$') {
+            $size = [int64]$matches[1]
+            $name = $matches[2].Trim()
+        } elseif ($text -match '^\S+\s+\d+\s+\S+\s+\S+\s+(\d+)\s+\S+\s+\d+\s+\d{1,2}:\d{2}\s+(.+)$') {
+            $size = [int64]$matches[1]
+            $name = $matches[2].Trim()
+        }
+
+        if (-not $name -or [System.IO.Path]::GetExtension($name).ToUpperInvariant() -ne ".TP") {
+            continue
+        }
+
+        $programName = Get-ProgramName $name
+        [pscustomobject]@{
+            name = $name
+            programName = $programName
+            extension = ".TP"
+            size = $size
+            rawLine = $text
+        }
+    }
+
+    return @($records | Sort-Object programName, name)
+}
+
+$resolvedConfig = if ([System.IO.Path]::IsPathRooted($ConfigPath)) {
+    (Resolve-Path -LiteralPath $ConfigPath).Path
+} else {
+    (Resolve-Path -LiteralPath (Join-Path $scriptRoot $ConfigPath)).Path
+}
+$config = Import-PowerShellDataFile -LiteralPath $resolvedConfig
+$root = Get-ProgramName $RootProgram
+$resolvedOutputRoot = Resolve-ProjectPath $OutputRoot
+$stamp = (Get-Date).ToString("yyyyMMdd-HHmmss")
+$analysisRoot = Join-Path $resolvedOutputRoot ("$stamp-$root")
+$downloadsRoot = Join-Path $analysisRoot "programs"
+$tpBackupRoot = Join-Path $analysisRoot "backup-tp"
+foreach ($path in @($analysisRoot, $downloadsRoot, $tpBackupRoot)) {
+    if (-not (Test-Path -LiteralPath $path)) {
+        New-Item -ItemType Directory -Path $path -Force | Out-Null
+    }
+}
+
+$reader = Join-Path $scriptRoot "Read-FanucTpProgram.ps1"
+$robotPrograms = @(Get-RobotTpDirectory -Config $config)
+$robotProgramMap = @{}
+foreach ($entry in $robotPrograms) {
+    $robotProgramMap[$entry.programName] = $entry
+}
+
+$queue = New-Object System.Collections.Generic.Queue[string]
+$visited = @{}
+$missing = @{}
+$decodeFailures = New-Object System.Collections.Generic.List[object]
+$dependencyEdges = New-Object System.Collections.Generic.List[object]
+$dynamicCalls = New-Object System.Collections.Generic.List[object]
+$programRecords = @{}
+$queue.Enqueue($root)
+
+while ($queue.Count -gt 0) {
+    $program = $queue.Dequeue().ToUpperInvariant()
+    if ($visited.ContainsKey($program)) {
+        continue
+    }
+    $visited[$program] = $true
+
+    if (-not $robotProgramMap.ContainsKey($program)) {
+        $missing[$program] = $true
+        continue
+    }
+
+    $programDir = Join-Path $downloadsRoot $program
+    if (-not (Test-Path -LiteralPath $programDir)) {
+        New-Item -ItemType Directory -Path $programDir -Force | Out-Null
+    }
+
+    $downloadedTp = Join-Path (Join-Path $projectRoot "downloaded\tp") ($program + ".TP")
+    $decodedLs = Join-Path (Join-Path $projectRoot "downloaded\ls") ($program + ".LS")
+    $copyTp = Join-Path $programDir ($program + ".TP")
+    $copyLs = Join-Path $programDir ($program + ".LS")
+    $status = "decoded"
+    $errorMessage = $null
+
+    try {
+        & $reader -Program $program -ConfigPath $resolvedConfig -Force:$Force | Out-Null
+        if (Test-Path -LiteralPath $downloadedTp) {
+            Copy-Item -LiteralPath $downloadedTp -Destination $copyTp -Force
+            Copy-Item -LiteralPath $downloadedTp -Destination (Join-Path $tpBackupRoot ($program + ".TP")) -Force
+        }
+        if (Test-Path -LiteralPath $decodedLs) {
+            Copy-Item -LiteralPath $decodedLs -Destination $copyLs -Force
+        }
+    } catch {
+        $status = "failed"
+        $errorMessage = $_.Exception.Message
+        $decodeFailures.Add([pscustomobject]@{
+            programName = $program
+            error = $errorMessage
+        })
+    }
+
+    $calls = if ($status -eq "decoded") { @(Get-CallTargets -LsPath $copyLs) } else { @() }
+    foreach ($call in $calls) {
+        if ($call.type -eq "direct") {
+            $dependencyEdges.Add([pscustomobject]@{
+                caller = $program
+                callee = $call.target
+                lineNumber = $call.lineNumber
+                line = $call.line
+                calleePresentOnRobot = $robotProgramMap.ContainsKey($call.target)
+            })
+            if (-not $visited.ContainsKey($call.target)) {
+                $queue.Enqueue($call.target)
+            }
+        } else {
+            $dynamicCalls.Add([pscustomobject]@{
+                caller = $program
+                target = $call.target
+                lineNumber = $call.lineNumber
+                line = $call.line
+            })
+        }
+    }
+
+    $programRecords[$program] = [pscustomobject]@{
+        programName = $program
+        status = $status
+        tpPath = if (Test-Path -LiteralPath $copyTp) { (Get-Item -LiteralPath $copyTp).FullName } else { $null }
+        lsPath = if (Test-Path -LiteralPath $copyLs) { (Get-Item -LiteralPath $copyLs).FullName } else { $null }
+        error = $errorMessage
+        directCallCount = @($calls | Where-Object { $_.type -eq "direct" }).Count
+        dynamicCallCount = @($calls | Where-Object { $_.type -eq "dynamic" }).Count
+    }
+}
+
+$requiredPrograms = @($visited.Keys | Sort-Object)
+$backupDeleteCandidates = @($robotPrograms |
+    Where-Object { $requiredPrograms -notcontains $_.programName } |
+    Where-Object { $IncludeAiPrograms -or $_.programName -notlike "AI_*" } |
+    Sort-Object programName)
+
+$requiredRecords = @($requiredPrograms | ForEach-Object {
+    if ($programRecords.ContainsKey($_)) {
+        $programRecords[$_]
+    } else {
+        [pscustomobject]@{
+            programName = $_
+            status = "missing"
+            tpPath = $null
+            lsPath = $null
+            error = "Called program was not found on robot MD:"
+            directCallCount = 0
+            dynamicCallCount = 0
+        }
+    }
+})
+
+$report = [ordered]@{
+    schemaVersion = 1
+    generatedAt = (Get-Date).ToString("o")
+    rootProgram = $root
+    robotIp = $config.RobotIp
+    robotProgramCount = $robotPrograms.Count
+    requiredProgramCount = $requiredRecords.Count
+    backupDeleteCandidateCount = $backupDeleteCandidates.Count
+    analysisRoot = (Get-Item -LiteralPath $analysisRoot).FullName
+    tpBackupRoot = (Get-Item -LiteralPath $tpBackupRoot).FullName
+    requiredPrograms = @($requiredRecords)
+    dependencyEdges = @($dependencyEdges.ToArray())
+    missingDependencies = @($missing.Keys | Sort-Object)
+    dynamicCalls = @($dynamicCalls.ToArray())
+    decodeFailures = @($decodeFailures.ToArray())
+    backupDeleteCandidates = @($backupDeleteCandidates | ForEach-Object {
+        [ordered]@{
+            programName = $_.programName
+            robotName = $_.name
+            size = $_.size
+            reason = "Present on robot MD: but not reachable from $root by direct CALL analysis."
+            recommendedAction = "Back up before any deletion; confirm this program is not selected by schedules, macros, BG logic, PNS/RSR, UOP, KAREL, HMI, or operator procedures."
+        }
+    })
+    safetyNotes = @(
+        "This is a static direct CALL dependency map from decoded LS.",
+        "Dynamic CALLs, macros, BG logic, PNS/RSR selection, HMI/PLC starts, KAREL, and operator procedures can require programs not reachable from $root.",
+        "Do not delete from the robot until the backup is verified and the candidate list is reviewed at the controller/project level."
+    )
+}
+
+$jsonPath = Join-Path $analysisRoot "dependency-map.json"
+$markdownPath = Join-Path $analysisRoot "dependency-map.md"
+$report | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $jsonPath -Encoding ASCII
+
+$lines = New-Object System.Collections.Generic.List[string]
+$lines.Add("# FANUC TP Dependency Map: $root")
+$lines.Add("")
+$lines.Add("- Robot IP: $($config.RobotIp)")
+$lines.Add("- Robot TP programs seen: $($robotPrograms.Count)")
+$lines.Add("- Required programs from direct CALL closure: $($requiredRecords.Count)")
+$lines.Add("- Backup/delete candidates: $($backupDeleteCandidates.Count)")
+$lines.Add("- Analysis folder: $analysisRoot")
+$lines.Add("- TP backup folder for decoded dependency set: $tpBackupRoot")
+$lines.Add("")
+$lines.Add("## Required Programs")
+foreach ($program in $requiredRecords) {
+    $lines.Add("- $($program.programName): $($program.status), directCalls=$($program.directCallCount), dynamicCalls=$($program.dynamicCallCount)")
+}
+$lines.Add("")
+$lines.Add("## Dependency Edges")
+if ($dependencyEdges.Count -eq 0) {
+    $lines.Add("- none")
+} else {
+    foreach ($edge in @($dependencyEdges.ToArray() | Sort-Object caller, callee, lineNumber)) {
+        $present = if ($edge.calleePresentOnRobot) { "present" } else { "missing" }
+        $lines.Add("- $($edge.caller) -> $($edge.callee) at line $($edge.lineNumber) ($present): $($edge.line)")
+    }
+}
+$lines.Add("")
+$lines.Add("## Missing Dependencies")
+if ($missing.Count -eq 0) {
+    $lines.Add("- none")
+} else {
+    foreach ($program in @($missing.Keys | Sort-Object)) {
+        $lines.Add("- $program")
+    }
+}
+$lines.Add("")
+$lines.Add("## Dynamic Calls")
+if ($dynamicCalls.Count -eq 0) {
+    $lines.Add("- none found")
+} else {
+    foreach ($call in @($dynamicCalls.ToArray() | Sort-Object caller, lineNumber)) {
+        $lines.Add("- $($call.caller) line $($call.lineNumber): $($call.line)")
+    }
+}
+$lines.Add("")
+$lines.Add("## Backup/Delete Candidates")
+if ($backupDeleteCandidates.Count -eq 0) {
+    $lines.Add("- none")
+} else {
+    foreach ($candidate in @($backupDeleteCandidates | Sort-Object programName)) {
+        $lines.Add("- $($candidate.programName) ($($candidate.name), size=$($candidate.size)): not reachable from $root by direct CALL analysis")
+    }
+}
+$lines.Add("")
+$lines.Add("## Safety Notes")
+foreach ($note in @($report.safetyNotes)) {
+    $lines.Add("- $note")
+}
+$lines | Set-Content -LiteralPath $markdownPath -Encoding ASCII
+
+[pscustomobject]@{
+    RootProgram = $root
+    RequiredProgramCount = $requiredRecords.Count
+    BackupDeleteCandidateCount = $backupDeleteCandidates.Count
+    MissingDependencyCount = $missing.Count
+    DynamicCallCount = $dynamicCalls.Count
+    AnalysisRoot = (Get-Item -LiteralPath $analysisRoot).FullName
+    JsonPath = (Get-Item -LiteralPath $jsonPath).FullName
+    MarkdownPath = (Get-Item -LiteralPath $markdownPath).FullName
+}

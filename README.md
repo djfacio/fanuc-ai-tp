@@ -337,6 +337,16 @@ Generate a RoboGuide/manual evidence packet from a spec:
 .\tools\New-FanucRoboguideEvidencePacket.ps1 -SpecPath .\examples\AI_IODIAG.program-spec.json -WriteMarkdown -Force
 ```
 
+Build a read-only dependency map for a production main program:
+
+```powershell
+.\tools\New-FanucTpDependencyMap.ps1 -RootProgram F_MAIN -Force
+```
+
+This downloads/decodes the root program and direct `CALL` closure, lists missing
+or non-TP dependencies, and reports TP programs present on robot `MD:` that are
+not reachable from the root by static direct-call analysis.
+
 Validate a real application workflow spec before any motion generation:
 
 ```powershell
