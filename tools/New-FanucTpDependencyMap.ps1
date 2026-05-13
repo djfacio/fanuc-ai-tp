@@ -27,14 +27,14 @@ function Get-ProgramName {
     return ([System.IO.Path]::GetFileNameWithoutExtension($Name)).ToUpperInvariant()
 }
 
-function Get-CallTargets {
+function Get-ProgramReferences {
     param([string]$LsPath)
 
     if (-not (Test-Path -LiteralPath $LsPath)) {
         return @()
     }
 
-    $calls = New-Object System.Collections.Generic.List[object]
+    $references = New-Object System.Collections.Generic.List[object]
     $lines = Get-Content -LiteralPath $LsPath
     $inMn = $false
     foreach ($line in $lines) {
@@ -51,14 +51,20 @@ function Get-CallTargets {
 
         $normalizedLine = [regex]::Replace($line, '\s+', ' ').Trim()
         $lineNumber = $null
+        $statementText = $normalizedLine
         if ($normalizedLine -match '^(\d+)\s*:') {
             $lineNumber = [int]$Matches[1]
+            $statementText = $normalizedLine.Substring($Matches[0].Length).Trim()
+        }
+        if ($statementText -match '^(?:!|--|//)') {
+            continue
         }
 
-        $directCalls = [regex]::Matches($normalizedLine, '(?i)\bCALL\s+([A-Z][A-Z0-9_]{0,31})\b')
+        $directCalls = [regex]::Matches($statementText, '(?i)\bCALL\s+([A-Z][A-Z0-9_]{0,31})\b')
         foreach ($call in $directCalls) {
             $target = $call.Groups[1].Value.ToUpperInvariant()
-            $calls.Add([pscustomobject]@{
+            $references.Add([pscustomobject]@{
+                instruction = "CALL"
                 type = "direct"
                 target = $target
                 lineNumber = $lineNumber
@@ -66,8 +72,30 @@ function Get-CallTargets {
             })
         }
 
-        if ($normalizedLine -match '(?i)\bCALL\s+([A-Z]*\[[^\]]+\])') {
-            $calls.Add([pscustomobject]@{
+        if ($statementText -match '(?i)\bCALL\s+([A-Z]*\[[^\]]+\])') {
+            $references.Add([pscustomobject]@{
+                instruction = "CALL"
+                type = "dynamic"
+                target = $Matches[1].ToUpperInvariant()
+                lineNumber = $lineNumber
+                line = $normalizedLine
+            })
+        }
+        $directRuns = [regex]::Matches($statementText, '(?i)\bRUN\s+([A-Z][A-Z0-9_]{0,31})\b')
+        foreach ($run in $directRuns) {
+            $target = $run.Groups[1].Value.ToUpperInvariant()
+            $references.Add([pscustomobject]@{
+                instruction = "RUN"
+                type = "direct"
+                target = $target
+                lineNumber = $lineNumber
+                line = $normalizedLine
+            })
+        }
+
+        if ($statementText -match '(?i)\bRUN\s+([A-Z]*\[[^\]]+\])') {
+            $references.Add([pscustomobject]@{
+                instruction = "RUN"
                 type = "dynamic"
                 target = $Matches[1].ToUpperInvariant()
                 lineNumber = $lineNumber
@@ -76,7 +104,7 @@ function Get-CallTargets {
         }
     }
 
-    return $calls.ToArray()
+    return $references.ToArray()
 }
 
 function Invoke-FtpScript {
@@ -193,7 +221,7 @@ $visited = @{}
 $missing = @{}
 $decodeFailures = New-Object System.Collections.Generic.List[object]
 $dependencyEdges = New-Object System.Collections.Generic.List[object]
-$dynamicCalls = New-Object System.Collections.Generic.List[object]
+$dynamicReferences = New-Object System.Collections.Generic.List[object]
 $programRecords = @{}
 $queue.Enqueue($root)
 
@@ -239,25 +267,27 @@ while ($queue.Count -gt 0) {
         })
     }
 
-    $calls = if ($status -eq "decoded") { @(Get-CallTargets -LsPath $copyLs) } else { @() }
-    foreach ($call in $calls) {
-        if ($call.type -eq "direct") {
+    $references = if ($status -eq "decoded") { @(Get-ProgramReferences -LsPath $copyLs) } else { @() }
+    foreach ($reference in $references) {
+        if ($reference.type -eq "direct") {
             $dependencyEdges.Add([pscustomobject]@{
                 caller = $program
-                callee = $call.target
-                lineNumber = $call.lineNumber
-                line = $call.line
-                calleePresentOnRobot = $robotProgramMap.ContainsKey($call.target)
+                callee = $reference.target
+                instruction = $reference.instruction
+                lineNumber = $reference.lineNumber
+                line = $reference.line
+                calleePresentOnRobot = $robotProgramMap.ContainsKey($reference.target)
             })
-            if (-not $visited.ContainsKey($call.target)) {
-                $queue.Enqueue($call.target)
+            if (-not $visited.ContainsKey($reference.target)) {
+                $queue.Enqueue($reference.target)
             }
         } else {
-            $dynamicCalls.Add([pscustomobject]@{
+            $dynamicReferences.Add([pscustomobject]@{
                 caller = $program
-                target = $call.target
-                lineNumber = $call.lineNumber
-                line = $call.line
+                instruction = $reference.instruction
+                target = $reference.target
+                lineNumber = $reference.lineNumber
+                line = $reference.line
             })
         }
     }
@@ -268,8 +298,9 @@ while ($queue.Count -gt 0) {
         tpPath = if (Test-Path -LiteralPath $copyTp) { (Get-Item -LiteralPath $copyTp).FullName } else { $null }
         lsPath = if (Test-Path -LiteralPath $copyLs) { (Get-Item -LiteralPath $copyLs).FullName } else { $null }
         error = $errorMessage
-        directCallCount = @($calls | Where-Object { $_.type -eq "direct" }).Count
-        dynamicCallCount = @($calls | Where-Object { $_.type -eq "dynamic" }).Count
+        directCallCount = @($references | Where-Object { $_.instruction -eq "CALL" -and $_.type -eq "direct" }).Count
+        directRunCount = @($references | Where-Object { $_.instruction -eq "RUN" -and $_.type -eq "direct" }).Count
+        dynamicReferenceCount = @($references | Where-Object { $_.type -eq "dynamic" }).Count
     }
 }
 
@@ -288,9 +319,10 @@ $requiredRecords = @($requiredPrograms | ForEach-Object {
             status = "missing"
             tpPath = $null
             lsPath = $null
-            error = "Called program was not found on robot MD:"
+            error = "Referenced program was not found on robot MD:"
             directCallCount = 0
-            dynamicCallCount = 0
+            directRunCount = 0
+            dynamicReferenceCount = 0
         }
     }
 })
@@ -308,20 +340,20 @@ $report = [ordered]@{
     requiredPrograms = @($requiredRecords)
     dependencyEdges = @($dependencyEdges.ToArray())
     missingDependencies = @($missing.Keys | Sort-Object)
-    dynamicCalls = @($dynamicCalls.ToArray())
+    dynamicReferences = @($dynamicReferences.ToArray())
     decodeFailures = @($decodeFailures.ToArray())
     backupDeleteCandidates = @($backupDeleteCandidates | ForEach-Object {
         [ordered]@{
             programName = $_.programName
             robotName = $_.name
             size = $_.size
-            reason = "Present on robot MD: but not reachable from $root by direct CALL analysis."
+            reason = "Present on robot MD: but not reachable from $root by direct CALL/RUN analysis."
             recommendedAction = "Back up before any deletion; confirm this program is not selected by schedules, macros, BG logic, PNS/RSR, UOP, KAREL, HMI, or operator procedures."
         }
     })
     safetyNotes = @(
-        "This is a static direct CALL dependency map from decoded LS.",
-        "Dynamic CALLs, macros, BG logic, PNS/RSR selection, HMI/PLC starts, KAREL, and operator procedures can require programs not reachable from $root.",
+        "This is a static direct CALL/RUN dependency map from decoded LS.",
+        "Dynamic CALL/RUN references, macros, BG logic, PNS/RSR selection, HMI/PLC starts, KAREL, and operator procedures can require programs not reachable from $root.",
         "Do not delete from the robot until the backup is verified and the candidate list is reviewed at the controller/project level."
     )
 }
@@ -335,14 +367,14 @@ $lines.Add("# FANUC TP Dependency Map: $root")
 $lines.Add("")
 $lines.Add("- Robot IP: $($config.RobotIp)")
 $lines.Add("- Robot TP programs seen: $($robotPrograms.Count)")
-$lines.Add("- Required programs from direct CALL closure: $($requiredRecords.Count)")
+$lines.Add("- Required programs from direct CALL/RUN closure: $($requiredRecords.Count)")
 $lines.Add("- Backup/delete candidates: $($backupDeleteCandidates.Count)")
 $lines.Add("- Analysis folder: $analysisRoot")
 $lines.Add("- TP backup folder for decoded dependency set: $tpBackupRoot")
 $lines.Add("")
 $lines.Add("## Required Programs")
 foreach ($program in $requiredRecords) {
-    $lines.Add("- $($program.programName): $($program.status), directCalls=$($program.directCallCount), dynamicCalls=$($program.dynamicCallCount)")
+    $lines.Add("- $($program.programName): $($program.status), directCalls=$($program.directCallCount), directRuns=$($program.directRunCount), dynamicReferences=$($program.dynamicReferenceCount)")
 }
 $lines.Add("")
 $lines.Add("## Dependency Edges")
@@ -351,7 +383,7 @@ if ($dependencyEdges.Count -eq 0) {
 } else {
     foreach ($edge in @($dependencyEdges.ToArray() | Sort-Object caller, callee, lineNumber)) {
         $present = if ($edge.calleePresentOnRobot) { "present" } else { "missing" }
-        $lines.Add("- $($edge.caller) -> $($edge.callee) at line $($edge.lineNumber) ($present): $($edge.line)")
+        $lines.Add("- $($edge.caller) -[$($edge.instruction)]-> $($edge.callee) at line $($edge.lineNumber) ($present): $($edge.line)")
     }
 }
 $lines.Add("")
@@ -364,12 +396,12 @@ if ($missing.Count -eq 0) {
     }
 }
 $lines.Add("")
-$lines.Add("## Dynamic Calls")
-if ($dynamicCalls.Count -eq 0) {
+$lines.Add("## Dynamic References")
+if ($dynamicReferences.Count -eq 0) {
     $lines.Add("- none found")
 } else {
-    foreach ($call in @($dynamicCalls.ToArray() | Sort-Object caller, lineNumber)) {
-        $lines.Add("- $($call.caller) line $($call.lineNumber): $($call.line)")
+    foreach ($reference in @($dynamicReferences.ToArray() | Sort-Object caller, lineNumber)) {
+        $lines.Add("- $($reference.caller) $($reference.instruction) line $($reference.lineNumber): $($reference.line)")
     }
 }
 $lines.Add("")
@@ -378,7 +410,7 @@ if ($backupDeleteCandidates.Count -eq 0) {
     $lines.Add("- none")
 } else {
     foreach ($candidate in @($backupDeleteCandidates | Sort-Object programName)) {
-        $lines.Add("- $($candidate.programName) ($($candidate.name), size=$($candidate.size)): not reachable from $root by direct CALL analysis")
+        $lines.Add("- $($candidate.programName) ($($candidate.name), size=$($candidate.size)): not reachable from $root by direct CALL/RUN analysis")
     }
 }
 $lines.Add("")
@@ -393,7 +425,7 @@ $lines | Set-Content -LiteralPath $markdownPath -Encoding ASCII
     RequiredProgramCount = $requiredRecords.Count
     BackupDeleteCandidateCount = $backupDeleteCandidates.Count
     MissingDependencyCount = $missing.Count
-    DynamicCallCount = $dynamicCalls.Count
+    DynamicReferenceCount = $dynamicReferences.Count
     AnalysisRoot = (Get-Item -LiteralPath $analysisRoot).FullName
     JsonPath = (Get-Item -LiteralPath $jsonPath).FullName
     MarkdownPath = (Get-Item -LiteralPath $markdownPath).FullName
