@@ -199,7 +199,7 @@ Invoke-ExpectPass -Name "PcdkSnapshotExampleSchemaValid" -Command {
 Invoke-ExpectPass -Name "PcdkSnapshotPlanValid" -Command {
     $pcdkSchemaPath = Join-Path $projectRoot "schemas\controller-snapshot.schema.json"
     $snapshotPath = Join-Path $projectRoot "generated\test-runs\pcdk-snapshot-plan.json"
-    $result = & $pcdkSnapshotTool -OutputPath $snapshotPath
+    $result = & $pcdkSnapshotTool -OutputPath $snapshotPath -SkipComProbe
     if ($result.LiveRobotCommandsExecuted) {
         throw "PCDK offline snapshot plan must not execute live robot commands."
     }

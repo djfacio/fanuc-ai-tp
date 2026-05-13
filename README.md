@@ -336,6 +336,8 @@ Validate and emit the PCDK read-only snapshot plan:
 .\tools\Test-FanucJsonSchema.ps1 -JsonPath .\examples\pcdk\controller-snapshot.plan.json -SchemaPath .\schemas\controller-snapshot.schema.json
 ```
 
+Use `-SkipComProbe` when running on a machine without PCDK or COM support, such as public CI.
+
 Live PCDK reads require an explicit switch and remain read-only:
 
 ```powershell
