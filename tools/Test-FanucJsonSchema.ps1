@@ -46,7 +46,7 @@ function Test-JsonType {
     switch ($Type) {
         "object" { return ($null -ne $Value -and $Value -is [pscustomobject]) }
         "array" { return ($null -ne $Value -and ($Value -is [array] -or $Value -is [System.Collections.IEnumerable]) -and -not ($Value -is [string]) -and -not ($Value -is [pscustomobject])) }
-        "string" { return ($Value -is [string]) }
+        "string" { return ($Value -is [string] -or $Value -is [datetime]) }
         "integer" { return ($Value -is [int] -or $Value -is [long]) }
         "number" { return ($Value -is [int] -or $Value -is [long] -or $Value -is [double] -or $Value -is [decimal]) }
         "boolean" { return ($Value -is [bool]) }
