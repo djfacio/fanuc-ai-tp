@@ -28,7 +28,7 @@
             @{
                 Register = 97
                 Name = "AI_CELLCHK marker"
-                Notes = "Reviewed no-motion cell checklist marker."
+                Notes = "Reviewed no-motion cell preflight marker."
             },
             @{
                 Register = 98

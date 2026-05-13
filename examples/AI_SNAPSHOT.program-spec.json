@@ -1,10 +1,10 @@
 {
   "programName": "AI_SNAPSHOT",
-  "intent": "No-motion operator-guided snapshot checklist for basic robot state before future generated work.",
+  "intent": "No-motion operator-guided snapshot review for basic robot state before future generated work.",
   "safety": {
     "motionAllowed": false,
     "requiresHumanReview": true,
-    "notes": "No motion. No IO writes. Writes one marker register and displays/checklists state for manual review."
+    "notes": "No motion. No IO writes. Writes one marker register and displays state for manual review."
   },
   "operations": [
     {
@@ -19,7 +19,7 @@
     {
       "type": "diagnosticCheck",
       "name": "MODE",
-      "text": "Verify T1 manual"
+      "text": "Operator run decision"
     },
     {
       "type": "diagnosticCheck",
@@ -44,7 +44,7 @@
   ],
   "verification": {
     "roboguideRequired": false,
-    "manualT1Required": true,
-    "notes": "Verify message, R[98] marker, comments/checklist visibility, and no motion."
+    "operatorRunDecisionOwned": true,
+    "notes": "Verify message, R[98] marker, review comment visibility, and no motion."
   }
 }

@@ -1,6 +1,6 @@
 {
   "programName": "AI_PRCHECK",
-  "intent": "No-motion operator checklist program for position register review.",
+  "intent": "No-motion operator review program for position register review.",
   "safety": {
     "motionAllowed": false,
     "requiresHumanReview": true,
@@ -18,7 +18,7 @@
   ],
   "verification": {
     "roboguideRequired": false,
-    "manualT1Required": true,
+    "operatorRunDecisionOwned": true,
     "notes": "Operator reviews position registers manually."
   }
 }

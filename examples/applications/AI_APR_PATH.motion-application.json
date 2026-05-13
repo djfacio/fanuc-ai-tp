@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "applicationName": "Approach process retract motion template example",
+  "programName": "AI_APR_PATH",
+  "phase": "generation-ready",
+  "purpose": "Generate a constrained approach, process, and retract path through reviewed PR targets.",
+  "cellContext": {
+    "controller": "FANUC R-30iB Plus class",
+    "robot": "Local test robot",
+    "workcell": "Local commissioning/test cell",
+    "process": "Approach process retract template proof",
+    "payloadName": "Payload schedule 1"
+  },
+  "policy": {
+    "cellMapPolicy": "config/cell-map.psd1",
+    "motionAuthority": "reviewed-motion-template",
+    "humanReviewRequired": true,
+    "productionOverwriteAllowed": false
+  },
+  "resources": {
+    "userFrame": {
+      "number": 1,
+      "name": "UFRAME 1",
+      "source": "Operator-owned project frame",
+      "verified": true
+    },
+    "userTool": {
+      "number": 1,
+      "name": "UTOOL 1",
+      "source": "Operator-owned project tool",
+      "verified": true
+    },
+    "payload": {
+      "number": 1,
+      "name": "Payload schedule 1",
+      "source": "Operator-owned payload schedule",
+      "verified": true
+    },
+    "points": [
+      {
+        "name": "APPROACH",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      },
+      {
+        "name": "PROCESS",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      },
+      {
+        "name": "RETRACT",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      }
+    ],
+    "io": [],
+    "registers": [],
+    "calls": []
+  },
+  "motionPlan": {
+    "motionTypes": ["J", "L"],
+    "speedPolicy": "Approach with a low-speed joint move and use controlled linear process/retract moves.",
+    "terminationPolicy": "Use FINE for first-pass review.",
+    "approachRetract": "APPROACH establishes clearance, PROCESS is the work point, RETRACT exits to clearance.",
+    "clearancePolicy": "Operator owns PR, frame, tool, payload, and path clearance before any physical run.",
+    "recoveryPlan": "Stop, hold position, and recover manually if path or setup does not match expectation.",
+    "motionSequence": [
+      {
+        "stepName": "APPROACH",
+        "motionType": "J",
+        "target": {
+          "type": "position-register",
+          "number": 303,
+          "name": "APPROACH",
+          "source": "Operator-owned reviewed PR[303]",
+          "verified": true
+        },
+        "speed": {
+          "value": 10,
+          "unit": "%"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      },
+      {
+        "stepName": "PROCESS",
+        "motionType": "L",
+        "target": {
+          "type": "position-register",
+          "number": 304,
+          "name": "PROCESS",
+          "source": "Operator-owned reviewed PR[304]",
+          "verified": true
+        },
+        "speed": {
+          "value": 100,
+          "unit": "mm/sec"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      },
+      {
+        "stepName": "RETRACT",
+        "motionType": "L",
+        "target": {
+          "type": "position-register",
+          "number": 305,
+          "name": "RETRACT",
+          "source": "Operator-owned reviewed PR[305]",
+          "verified": true
+        },
+        "speed": {
+          "value": 100,
+          "unit": "mm/sec"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      }
+    ]
+  },
+  "safety": {
+    "dcsReviewed": true,
+    "interlocksReviewed": true,
+    "operatorLocationReviewed": true,
+    "faultHandlingReviewed": true,
+    "noControllerConfigWrites": true,
+    "notes": "Tool gates cover generation, compile, round-trip, upload, and readback only."
+  },
+  "evidence": {
+    "roboguideRequired": false,
+    "roboguidePlan": "Optional RoboGuide/manual notes can be recorded when useful.",
+    "operatorRunPlan": "Operator owns robot mode and physical run decisions.",
+    "snapshotPlan": "Optional before/after notes may be recorded for the project.",
+    "acceptanceCriteria": [
+      "Generated LS references only PR[303], PR[304], and PR[305].",
+      "Generated LS selects only the reviewed UFRAME, UTOOL, and PAYLOAD.",
+      "Generated LS contains no generated Cartesian /POS records."
+    ]
+  },
+  "generation": {
+    "allowed": true,
+    "mode": "reviewed-motion-template",
+    "templateId": "approach-process-retract-v1",
+    "notes": "Semantic APR template using reviewed PR waypoints only."
+  }
+}

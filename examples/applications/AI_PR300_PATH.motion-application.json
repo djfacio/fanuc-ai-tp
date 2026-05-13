@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "applicationName": "Local PR300 waypoint path test",
+  "programName": "AI_PR300_PATH",
+  "phase": "generation-ready",
+  "purpose": "Generate a constrained local motion test through reviewed PR[300]-PR[302] using UFRAME 1, UTOOL 1, and PAYLOAD[1].",
+  "cellContext": {
+    "controller": "FANUC R-30iB Plus class",
+    "robot": "Local test robot",
+    "workcell": "Local commissioning/test cell",
+    "process": "Reviewed PR waypoint motion test",
+    "payloadName": "Payload schedule 1"
+  },
+  "policy": {
+    "cellMapPolicy": "config/cell-map.psd1",
+    "motionAuthority": "reviewed-motion-template",
+    "humanReviewRequired": true,
+    "productionOverwriteAllowed": false
+  },
+  "resources": {
+    "userFrame": {
+      "number": 1,
+      "name": "UFRAME 1",
+      "source": "User-approved local test frame UF 1",
+      "verified": true
+    },
+    "userTool": {
+      "number": 1,
+      "name": "UTOOL 1",
+      "source": "User-approved local test tool TF 1",
+      "verified": true
+    },
+    "payload": {
+      "number": 1,
+      "name": "Payload schedule 1",
+      "source": "User-approved local test payload schedule 1",
+      "verified": true
+    },
+    "points": [
+      {
+        "name": "APPROACH",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      },
+      {
+        "name": "TESTPOINT",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      },
+      {
+        "name": "RETRACT",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      }
+    ],
+    "io": [],
+    "registers": [],
+    "calls": []
+  },
+  "motionPlan": {
+    "motionTypes": ["J", "L"],
+    "speedPolicy": "Initial local test uses low-speed joint approach and 100 mm/sec linear moves.",
+    "terminationPolicy": "Use FINE termination for each first-pass test waypoint.",
+    "approachRetract": "PR[300] is approach, PR[301] is the test point, and PR[302] is retract.",
+    "clearancePolicy": "Operator owns physical path clearance before upload/run.",
+    "recoveryPlan": "Stop, hold position, and manually jog/recover if the path or PRs do not match expectation.",
+    "motionSequence": [
+      {
+        "stepName": "APPROACH",
+        "motionType": "J",
+        "target": {
+          "type": "position-register",
+          "number": 300,
+          "name": "APPROACH",
+          "source": "User-approved PR[300] in local test range PR[300]-PR[310]",
+          "verified": true
+        },
+        "speed": {
+          "value": 10,
+          "unit": "%"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      },
+      {
+        "stepName": "TESTPOINT",
+        "motionType": "L",
+        "target": {
+          "type": "position-register",
+          "number": 301,
+          "name": "TESTPOINT",
+          "source": "User-approved PR[301] in local test range PR[300]-PR[310]",
+          "verified": true
+        },
+        "speed": {
+          "value": 100,
+          "unit": "mm/sec"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      },
+      {
+        "stepName": "RETRACT",
+        "motionType": "L",
+        "target": {
+          "type": "position-register",
+          "number": 302,
+          "name": "RETRACT",
+          "source": "User-approved PR[302] in local test range PR[300]-PR[310]",
+          "verified": true
+        },
+        "speed": {
+          "value": 100,
+          "unit": "mm/sec"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      }
+    ]
+  },
+  "safety": {
+    "dcsReviewed": true,
+    "interlocksReviewed": true,
+    "operatorLocationReviewed": true,
+    "faultHandlingReviewed": true,
+    "noControllerConfigWrites": true,
+    "notes": "User approved PR[300]-PR[310], UFRAME 1, UTOOL 1, and PAYLOAD[1] for local safe testing. Tool gates cover generation, compile, round-trip, upload, and readback only."
+  },
+  "evidence": {
+    "roboguideRequired": false,
+    "roboguidePlan": "Optional RoboGuide/manual notes can be recorded when useful.",
+    "operatorRunPlan": "Operator owns robot mode, setup, and physical run decisions.",
+    "snapshotPlan": "Record before/after state and confirm no unexpected IO/register/PR/frame/tool changes.",
+    "acceptanceCriteria": [
+      "Generated LS references only PR[300], PR[301], and PR[302].",
+      "Generated LS selects only UFRAME 1, UTOOL 1, and PAYLOAD[1].",
+      "Generated LS contains no generated Cartesian /POS records.",
+      "Path is reviewed before any upload/run."
+    ]
+  },
+  "generation": {
+    "allowed": true,
+    "mode": "reviewed-motion-template",
+    "templateId": "pr-waypoint-sequence-v1",
+    "notes": "Local test motion generation only. No upload or run is authorized by this spec alone."
+  }
+}

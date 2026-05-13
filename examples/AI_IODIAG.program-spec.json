@@ -28,7 +28,7 @@
   ],
   "verification": {
     "roboguideRequired": true,
-    "manualT1Required": true,
+    "operatorRunDecisionOwned": true,
     "notes": "Confirm DO[1] is safe before review approval."
   }
 }

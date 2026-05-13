@@ -49,5 +49,5 @@ Do not copy this test cell's scratch ranges into another project without review.
 - Establish a separate `config\cell-map.psd1` policy for each project/workcell.
 - Treat production/status registers such as `R[103]`, `R[107]`, and `R[110]`, and outputs above `DO[80]`, as read-only until separately approved.
 - Prefer named entries for generated templates even when they fall inside an approved scratch range.
-- Do not use the map to justify motion. Motion still requires RoboGuide evidence, frame/tool/payload assumptions, and T1 verification.
+- Do not use the map to justify motion. Motion still requires reviewed frame/tool/payload assumptions, reviewed PR targets, and operator-owned physical run decisions.
 - Do not add production program calls until the called program behavior is understood and documented.

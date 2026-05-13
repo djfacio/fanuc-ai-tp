@@ -66,7 +66,66 @@
     "terminationPolicy": "Use FINE/CNT only after path review.",
     "approachRetract": "Approach and retract points must be explicit and reviewed.",
     "clearancePolicy": "Clearance from fixtures, tooling, and operator space must be reviewed.",
-    "recoveryPlan": "Recovery must be described before generation."
+    "recoveryPlan": "Recovery must be described before generation.",
+    "motionSequence": [
+      {
+        "stepName": "APPROACH",
+        "motionType": "J",
+        "target": {
+          "type": "position-register",
+          "number": 90,
+          "name": "APPROACH",
+          "source": "Placeholder only; review actual PR before generation.",
+          "verified": false
+        },
+        "speed": {
+          "value": 10,
+          "unit": "%"
+        },
+        "termination": {
+          "type": "FINE"
+        },
+        "notes": "Planning-only placeholder. Do not generate until reviewed."
+      },
+      {
+        "stepName": "PICK",
+        "motionType": "L",
+        "target": {
+          "type": "position-register",
+          "number": 91,
+          "name": "PICK",
+          "source": "Placeholder only; review actual PR before generation.",
+          "verified": false
+        },
+        "speed": {
+          "value": 100,
+          "unit": "mm/sec"
+        },
+        "termination": {
+          "type": "FINE"
+        },
+        "notes": "Planning-only placeholder. Do not generate until reviewed."
+      },
+      {
+        "stepName": "RETRACT",
+        "motionType": "L",
+        "target": {
+          "type": "position-register",
+          "number": 92,
+          "name": "RETRACT",
+          "source": "Placeholder only; review actual PR before generation.",
+          "verified": false
+        },
+        "speed": {
+          "value": 100,
+          "unit": "mm/sec"
+        },
+        "termination": {
+          "type": "FINE"
+        },
+        "notes": "Planning-only placeholder. Do not generate until reviewed."
+      }
+    ]
   },
   "safety": {
     "dcsReviewed": false,
@@ -77,13 +136,13 @@
     "notes": "Planning example only. Not generation-ready."
   },
   "evidence": {
-    "roboguideRequired": true,
+    "roboguideRequired": false,
     "roboguidePlan": "Create RoboGuide evidence packet before generation-ready status.",
-    "t1Plan": "Create pendant/T1 verification checklist before upload.",
+    "operatorRunPlan": "Operator owns controller mode, setup, and physical path decisions before any run.",
     "snapshotPlan": "Capture before/after status snapshots for relevant registers, IO, and operator checks.",
     "acceptanceCriteria": [
       "Path clears fixtures in RoboGuide.",
-      "T1 verification plan has named stop/recovery points."
+      "Operator run plan has named stop/recovery points."
     ]
   },
   "generation": {

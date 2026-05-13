@@ -34,7 +34,7 @@
         "generation-ready",
         "generated",
         "uploaded",
-        "t1-verified",
+        "operator-released",
         "released"
       ]
     },
@@ -129,14 +129,128 @@
     "motionPlan": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["motionTypes", "speedPolicy", "terminationPolicy", "approachRetract", "clearancePolicy", "recoveryPlan"],
+      "required": ["motionTypes", "speedPolicy", "terminationPolicy", "approachRetract", "clearancePolicy", "recoveryPlan", "motionSequence"],
       "properties": {
         "motionTypes": { "type": "array", "minItems": 1 },
         "speedPolicy": { "type": "string", "minLength": 1 },
         "terminationPolicy": { "type": "string", "minLength": 1 },
         "approachRetract": { "type": "string", "minLength": 1 },
         "clearancePolicy": { "type": "string", "minLength": 1 },
-        "recoveryPlan": { "type": "string", "minLength": 1 }
+        "recoveryPlan": { "type": "string", "minLength": 1 },
+        "motionSequence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["stepName", "motionType", "target", "speed", "termination"],
+            "properties": {
+              "stepName": {
+                "type": "string",
+                "pattern": "^[A-Z][A-Z0-9_]{0,30}$"
+              },
+              "motionType": {
+                "type": "string",
+                "enum": ["J", "L"]
+              },
+              "target": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["type", "number", "name", "source", "verified"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["position-register"]
+                  },
+                  "number": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9999
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "verified": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "speed": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["value", "unit"],
+                "properties": {
+                  "value": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": ["%", "mm/sec", "cm/min", "deg/sec"]
+                  }
+                }
+              },
+              "termination": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["FINE", "CNT"]
+                  },
+                  "value": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                }
+              },
+              "notes": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "ioSequence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["stepName", "position", "signal", "state", "verified"],
+            "properties": {
+              "stepName": {
+                "type": "string",
+                "pattern": "^[A-Z][A-Z0-9_]{0,30}$"
+              },
+              "position": {
+                "type": "string",
+                "enum": ["before", "after"]
+              },
+              "signal": {
+                "type": "string",
+                "pattern": "^(DO|RO)\\[[1-9][0-9]*\\]$"
+              },
+              "state": {
+                "type": "boolean"
+              },
+              "source": {
+                "type": "string"
+              },
+              "verified": {
+                "type": "boolean"
+              },
+              "notes": {
+                "type": "string"
+              }
+            }
+          }
+        }
       }
     },
     "safety": {
@@ -155,11 +269,11 @@
     "evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["roboguideRequired", "roboguidePlan", "t1Plan", "snapshotPlan", "acceptanceCriteria"],
+      "required": ["roboguideRequired", "roboguidePlan", "operatorRunPlan", "snapshotPlan", "acceptanceCriteria"],
       "properties": {
         "roboguideRequired": { "type": "boolean" },
         "roboguidePlan": { "type": "string", "minLength": 1 },
-        "t1Plan": { "type": "string", "minLength": 1 },
+        "operatorRunPlan": { "type": "string", "minLength": 1 },
         "snapshotPlan": { "type": "string", "minLength": 1 },
         "acceptanceCriteria": {
           "type": "array",

@@ -8,7 +8,7 @@ This project produces robot programs. Default behavior must be conservative, obs
 - The `.LS` filename and `/PROG` header must match exactly.
 - Uploading a program must not run it.
 - Do not overwrite production programs.
-- Use T1/manual verification before production use.
+- Keep physical run decisions operator-owned and outside the code-generation gates.
 - Motion generation requires explicit frame, tool, point, speed, zone, payload, reach, collision, and verification assumptions.
 
 ## Blocked Unless Explicitly Reviewed
@@ -43,7 +43,7 @@ Update that file when adding reviewed safety rules, then run:
 - Position source and coordinate convention.
 - Speed, termination, and zone assumptions.
 - RoboGuide or equivalent simulation notes.
-- Manual pendant verification notes.
+- Operator-owned physical verification notes, when the operator chooses to record them.
 - Recovery and abort expectations.
 
 ## Human Review Boundary

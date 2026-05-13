@@ -13,7 +13,7 @@ software:
 
 - Run offline validation before compiling or uploading.
 - Review generated `.LS` source and evidence manually.
-- Test in RoboGuide or T1/manual mode before production use.
+- Treat physical run decisions as operator-owned robot-side decisions.
 - Keep robot IPs, credentials, packet captures, downloaded programs, and run
   evidence out of Git.
 - Do not use this workflow to overwrite production programs.
@@ -131,7 +131,7 @@ over automatically.
 
 ## Template Catalog
 
-Validate and emit the deterministic no-motion template catalog:
+Validate and emit the deterministic template catalog:
 
 ```powershell
 .\tools\Test-FanucTemplateCatalog.ps1
@@ -277,7 +277,7 @@ List generated AI programs currently present on robot `MD:`:
 .\tools\Get-FanucRobotDirectory.ps1 -Pattern "AI_*.TP"
 ```
 
-Summarize local manifests, readback evidence, pendant status, and robot presence:
+Summarize local manifests, readback evidence, upload status, and robot presence:
 
 ```powershell
 .\tools\Get-FanucJobSummary.ps1 -IncludeRobot
@@ -302,7 +302,7 @@ Analyze existing non-`AI_` TP programs from the saved inventory without modifyin
 .\tools\Get-FanucProductionResourceReport.ps1 -WriteMarkdown
 ```
 
-Generate a RoboGuide execution checklist from a manifested job:
+Generate a RoboGuide execution plan from a manifested job:
 
 ```powershell
 .\tools\New-FanucRoboguideTestPlan.ps1 -ProgramName AI_CELLCHK -Force
@@ -320,6 +320,31 @@ Validate a real application workflow spec before any motion generation:
 ```powershell
 .\tools\Test-FanucMotionApplicationSpec.ps1 -SpecPath .\examples\applications\AI_APP_PICK_PLACE.motion-application.json
 ```
+
+Generate offline LS from the first reviewed PR-waypoint motion template:
+
+```powershell
+.\tools\New-FanucMotionLsFromSpec.ps1 -SpecPath .\tests\fixtures\valid\AI_MOTION_PR_READY.motion-application.json -Force
+.\tools\Invoke-FanucTpBuild.ps1 -LsPath .\generated\sources\AI_MOTION_PR_READY.LS -Force
+.\tools\Test-FanucMotionGeneratedLs.ps1 -SpecPath .\generated\jobs\AI_MOTION_PR_READY\motion-application-spec.json -LsPath .\generated\sources\AI_MOTION_PR_READY.LS
+.\tools\New-FanucRoboguideEvidencePacket.ps1 -SpecPath .\generated\jobs\AI_MOTION_PR_READY\motion-application-spec.json -WriteMarkdown -Force
+```
+
+Or run the local motion workflow command:
+
+```powershell
+.\tools\Invoke-FanucMotionWorkflow.ps1 -SpecPath .\examples\applications\AI_PR300_PATH.motion-application.json -Force
+```
+
+The workflow state names are `planned`, `generationReady`, `generated`, `compiled`, `roundTripPassed`, `reviewed`, `uploaded`, and `readbackPassed`. Operator-owned robot setup and physical run decisions are intentionally not separate tool gates.
+
+The reviewed motion template IDs are:
+
+- `pr-waypoint-sequence-v1`
+- `approach-process-retract-v1`
+- `io-motion-sequence-v1`
+
+The generator emits reviewed `UFRAME_NUM`, `UTOOL_NUM`, `PAYLOAD[n]`, reviewed `J/L PR[n]` moves, and allowlisted IO actions only for the IO motion template. It does not run programs, write PRs, write frames/tools, or create Cartesian `/POS` records.
 
 Validate and emit the interface strategy before adding KAREL/PCDK bridge work:
 
@@ -419,7 +444,7 @@ downloaded/ls/
 - Register writes, IO writes, and generated CALL targets must be approved in `config\cell-map.psd1`.
 - Uploads do not run programs.
 - The build blocks obvious risky patterns such as system variable writes, DCS references, UOP references, `RUN`, and `ABORT`.
-- Use generated programs in T1/manual verification first.
+- Operator-owned robot setup and physical path decisions are outside the tracked code-generation gates.
 - Do not use this workflow to overwrite production programs.
 
 ## Portable Paths
@@ -428,7 +453,7 @@ Project-local config paths are repo-relative. In `config/robot.psd1`, `RobotIniP
 
 ## Project Direction
 
-Read `docs/STRATEGY.md`, `docs/SAFETY.md`, and `docs/WORKFLOW.md` before expanding generators. The intended architecture is plan/spec first, deterministic `.LS` generation second, then validation, MakeTP, PrintTP round-trip, RoboGuide testing, upload, and pendant verification.
+Read `docs/STRATEGY.md`, `docs/SAFETY.md`, and `docs/WORKFLOW.md` before expanding generators. The intended architecture is plan/spec first, deterministic `.LS` generation second, then validation, MakeTP, PrintTP round-trip, optional RoboGuide/manual evidence, upload, and readback.
 
 The first example spec is `examples/AI_HELLO.program-spec.json`.
 
@@ -458,6 +483,7 @@ Additional safe starter specs:
 - `examples/AI_SNAPSHOT.program-spec.json`
 - `examples/AI_CELLCHK.program-spec.json`
 - `examples/applications/AI_APP_PICK_PLACE.motion-application.json`
+- `examples/applications/AI_PR300_PATH.motion-application.json`
 - `examples/pcdk/controller-snapshot.plan.json`
 
 ## Tests

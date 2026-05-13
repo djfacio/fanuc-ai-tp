@@ -11,11 +11,7 @@ param(
 
     [ValidateSet("not-recorded", "uploaded", "failed")]
     [string]$UploadStatus,
-    [string]$UploadLogPath,
-
-    [ValidateSet("not-recorded", "passed", "failed")]
-    [string]$PendantVerificationStatus,
-    [string]$PendantVerificationNotes
+    [string]$UploadLogPath
 )
 
 $ErrorActionPreference = "Stop"
@@ -72,12 +68,6 @@ $humanReview = ConvertTo-OrderedSection -Section $manifest.humanReview -Defaults
     notes = $null
 }
 
-$pendantVerification = ConvertTo-OrderedSection -Section $manifest.pendantVerification -Defaults @{
-    status = "not-recorded"
-    verifiedAt = $null
-    notes = $null
-}
-
 if ($UploadStatus) {
     $upload.status = $UploadStatus
     if ($UploadStatus -eq "uploaded") {
@@ -105,21 +95,8 @@ if ($HumanReviewNotes) {
     $humanReview.notes = $HumanReviewNotes
 }
 
-if ($PendantVerificationStatus) {
-    $pendantVerification.status = $PendantVerificationStatus
-    if ($PendantVerificationStatus -eq "not-recorded") {
-        $pendantVerification.verifiedAt = $null
-    } else {
-        $pendantVerification.verifiedAt = (Get-Date).ToString("o")
-    }
-}
-if ($PendantVerificationNotes) {
-    $pendantVerification.notes = $PendantVerificationNotes
-}
-
 $manifest.upload = [pscustomobject]$upload
 $manifest.humanReview = [pscustomobject]$humanReview
-$manifest.pendantVerification = [pscustomobject]$pendantVerification
 
 $localEvidencePassed = if ($null -ne $manifest.gates -and $manifest.gates.PSObject.Properties.Name -contains "localEvidencePassed") {
     [bool]$manifest.gates.localEvidencePassed
@@ -140,6 +117,5 @@ if ($PSCmdlet.ShouldProcess($manifestPath, "Update FANUC job status")) {
     ReadyForUpload = [bool]$manifest.gates.readyForUpload
     HumanReviewStatus = $manifest.humanReview.status
     UploadStatus = $manifest.upload.status
-    PendantVerificationStatus = $manifest.pendantVerification.status
     ManifestPath = (Get-Item -LiteralPath $manifestPath).FullName
 }

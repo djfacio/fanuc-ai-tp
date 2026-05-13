@@ -115,6 +115,6 @@ For real motion applications, PCDK should help verify the resources in the motio
 - Position register values/comments used by the application.
 - Current robot position during manual evidence capture.
 - Existing program names to prevent accidental production overlap.
-- Alarm/task state before and after simulation or T1 checks.
+- Alarm/task state before and after optional simulation/manual notes.
 
 PCDK evidence can make `ReadyForGeneration` decisions better, but it must not bypass the validator or human review.

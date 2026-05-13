@@ -1,6 +1,6 @@
 # Motion Safety Model
 
-Motion generation is intentionally not supported by the current generator.
+Motion generation is supported only by narrow reviewed templates. The first supported path is `tools\New-FanucMotionLsFromSpec.ps1` with template `pr-waypoint-sequence-v1`.
 
 Before motion is added, a motion spec must capture and review:
 
@@ -15,13 +15,24 @@ Before motion is added, a motion spec must capture and review:
 - Collision assumptions, DCS boundaries, fixtures, tooling, and operator location.
 - IO interlocks, wait conditions, and failure handling.
 - RoboGuide verification evidence.
-- T1/manual pendant verification plan.
+- Operator-owned physical verification plan.
 
 Motion specs should be rejected by default unless every required field is explicit and reviewed.
 
 ## Generator Boundary
 
-The first motion generator should support only reviewed templates with known frames/tools and named taught points or reviewed PRs. It should not generate arbitrary Cartesian motion from natural language.
+The first motion generator supports only reviewed PR waypoints:
+
+- `UFRAME_NUM` is selected from the reviewed spec.
+- `UTOOL_NUM` is selected from the reviewed spec.
+- `PAYLOAD[n]` is selected from the reviewed spec.
+- Motion lines reference existing reviewed `PR[n]` targets only.
+- Supported moves are `J PR[n]` and `L PR[n]`.
+- Supported terminations are `FINE` and reviewed `CNT`.
+
+It must not generate arbitrary Cartesian motion from natural language.
+
+It must not emit `/POS` records for generated taught points in this first template. Position creation, PR writes, frame/tool writes, and CAD/CAM coordinate import require a separate reviewed template.
 
 ## Blocked Until Separate Review
 
@@ -29,6 +40,8 @@ The first motion generator should support only reviewed templates with known fra
 - Payload changes.
 - Mastering changes.
 - Frame/tool writes.
+- Position-register writes.
+- Generated Cartesian `/POS` records.
 - System variable writes.
 - Background tasks.
 - Production program calls.

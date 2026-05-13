@@ -1,10 +1,10 @@
 {
   "programName": "AI_CELLCHK",
-  "intent": "No-motion cell preflight checklist before future AI-assisted generated workflows.",
+  "intent": "No-motion cell preflight review before future AI-assisted generated workflows.",
   "safety": {
     "motionAllowed": false,
     "requiresHumanReview": true,
-    "notes": "No motion. No IO writes. Writes one marker register and displays operator checklist comments."
+    "notes": "No motion. No IO writes. Writes one marker register and displays operator review comments."
   },
   "operations": [
     {
@@ -44,7 +44,7 @@
   ],
   "verification": {
     "roboguideRequired": false,
-    "manualT1Required": true,
-    "notes": "Verify message, R[97] marker, checklist comments, and no motion."
+    "operatorRunDecisionOwned": true,
+    "notes": "Verify message, R[97] marker, review comments, and no motion."
   }
 }

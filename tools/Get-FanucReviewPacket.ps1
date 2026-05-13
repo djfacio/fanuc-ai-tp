@@ -17,6 +17,10 @@ if (-not (Test-Path -LiteralPath $manifestPath)) {
 }
 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+$motionSpec = $null
+if ($null -ne $manifest.files.motionApplicationSpec -and [bool]$manifest.files.motionApplicationSpec.exists) {
+    $motionSpec = Get-Content -LiteralPath $manifest.files.motionApplicationSpec.path -Raw | ConvertFrom-Json
+}
 
 function Format-FileLine {
     param(
@@ -37,14 +41,35 @@ $lines.Add("")
 $lines.Add("## Gates")
 $lines.Add("- Spec validation passed: $($manifest.gates.specValidationPassed)")
 $lines.Add("- LS safety passed: $($manifest.gates.lsSafetyPassed)")
+if ($manifest.gates.PSObject.Properties.Name -contains "motionGeneratedLsPassed") {
+$lines.Add("- Motion LS matches spec: $($manifest.gates.motionGeneratedLsPassed)")
+}
 $lines.Add("- Round-trip overall match: $($manifest.gates.roundTripOverallMatch)")
+$optionalEvidenceRecorded = (
+    ($manifest.files.PSObject.Properties.Name -contains "simulation" -and [bool]$manifest.files.simulation.exists) -or
+    ($manifest.files.PSObject.Properties.Name -contains "roboguideEvidencePacket" -and [bool]$manifest.files.roboguideEvidencePacket.exists)
+)
+$lines.Add("- Optional RoboGuide/manual evidence present: $optionalEvidenceRecorded")
 $lines.Add("- Local evidence passed: $($manifest.gates.localEvidencePassed)")
 $lines.Add("- Ready for upload: $($manifest.gates.readyForUpload)")
 $lines.Add("")
+if ($null -ne $motionSpec) {
+    $lines.Add("## Motion Application")
+    $lines.Add("- Template: $($motionSpec.generation.templateId)")
+    $lines.Add("- UFRAME[$($motionSpec.resources.userFrame.number)]: $($motionSpec.resources.userFrame.name)")
+    $lines.Add("- UTOOL[$($motionSpec.resources.userTool.number)]: $($motionSpec.resources.userTool.name)")
+    $lines.Add("- PAYLOAD[$($motionSpec.resources.payload.number)]: $($motionSpec.resources.payload.name)")
+    $lines.Add("")
+    $lines.Add("## Motion Sequence")
+    foreach ($step in @($motionSpec.motionPlan.motionSequence)) {
+        $termination = if ($step.termination.type -eq "CNT") { "CNT$([int]$step.termination.value)" } else { "FINE" }
+        $lines.Add("- $($step.stepName): $($step.motionType) PR[$([int]$step.target.number)] $($step.speed.value)$($step.speed.unit) $termination")
+    }
+    $lines.Add("")
+}
 $lines.Add("## Review Status")
 $lines.Add("- Human review: $($manifest.humanReview.status)")
 $lines.Add("- Upload: $($manifest.upload.status)")
-$lines.Add("- Pendant verification: $($manifest.pendantVerification.status)")
 $lines.Add("")
 $lines.Add("## Files To Inspect")
 $lines.Add((Format-FileLine -Label "Spec" -Record $manifest.files.spec))
@@ -54,13 +79,20 @@ $lines.Add((Format-FileLine -Label "Decoded LS" -Record $manifest.files.decoded)
 $lines.Add((Format-FileLine -Label "Validation" -Record $manifest.files.validation))
 $lines.Add((Format-FileLine -Label "Round-trip" -Record $manifest.files.roundTrip))
 $lines.Add((Format-FileLine -Label "Simulation" -Record $manifest.files.simulation))
+$lines.Add((Format-FileLine -Label "RoboGuide evidence packet" -Record $manifest.files.roboguideEvidencePacket))
+$lines.Add((Format-FileLine -Label "RoboGuide evidence notes" -Record $manifest.files.roboguideEvidencePacketMarkdown))
 $lines.Add("")
-$lines.Add("## Suggested Review Checklist")
+$lines.Add("## Review Notes")
 $lines.Add("- Confirm program name and /PROG match the intended AI_ program.")
 $lines.Add("- Confirm operations match the spec intent.")
-$lines.Add("- Confirm no motion or controller-side behavior appears unless explicitly reviewed.")
+if ($null -ne $motionSpec) {
+    $lines.Add("- Confirm UFRAME, UTOOL, PAYLOAD, and each PR target match the reviewed application.")
+    $lines.Add("- Confirm every motion line in the LS matches the motion sequence above.")
+} else {
+    $lines.Add("- Confirm no motion or controller-side behavior appears unless explicitly reviewed.")
+}
 $lines.Add("- Confirm round-trip evidence matches expectations.")
-$lines.Add("- Confirm RoboGuide/simulation evidence requirements are appropriate for the program risk.")
-$lines.Add("- Only then record human review with Set-FanucJobStatus.ps1.")
+$lines.Add("- Confirm whether optional RoboGuide/manual evidence is useful for the program risk.")
+$lines.Add("- Operator-owned robot setup and physical verification are not tracked as separate tool gates.")
 
 $lines -join "`r`n"

@@ -4,6 +4,7 @@ param(
 
     [string]$ConfigPath = "..\config\robot.psd1",
     [switch]$Upload,
+    [switch]$UploadOnlyStaging,
     [switch]$Force
 )
 
@@ -77,7 +78,29 @@ $manifestPath = Join-Path (Join-Path (Join-Path $projectRoot "generated\jobs") $
 if ($Upload -and (Test-Path -LiteralPath $manifestPath)) {
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
     if (-not [bool]$manifest.gates.readyForUpload) {
-        throw "Job manifest is not ready for upload: $manifestPath. Record human review with Set-FanucJobStatus.ps1 after local evidence is reviewed."
+        if (-not $UploadOnlyStaging) {
+            throw "Job manifest is not ready for upload: $manifestPath. Record human review with Set-FanucJobStatus.ps1 after local evidence is reviewed."
+        }
+
+        $requiredStageGatesPassed = (
+            [bool]$manifest.gates.specValidationPassed -and
+            [bool]$manifest.gates.lsSafetyPassed -and
+            [bool]$manifest.gates.roundTripOverallMatch
+        )
+
+        if ($manifest.gates.PSObject.Properties.Name -contains "motionGeneratedLsPassed") {
+            $requiredStageGatesPassed = ($requiredStageGatesPassed -and [bool]$manifest.gates.motionGeneratedLsPassed)
+        }
+
+        if (-not $requiredStageGatesPassed) {
+            throw "Upload-only staging requires spec validation, LS safety, motion LS/spec match when applicable, and round-trip evidence to pass: $manifestPath"
+        }
+
+        if ($manifest.humanReview.status -ne "approved") {
+            throw "Upload-only staging requires recorded human review approval: $manifestPath"
+        }
+
+        Write-Warning "Upload-only staging requested. Operator owns robot setup, path safety, and physical run decisions."
     }
 }
 
@@ -89,6 +112,10 @@ $robotIniPath = Resolve-ProjectPath $config.RobotIniPath
 $compiledDir = Join-Path $projectRoot "generated\compiled"
 $tpPath = Join-Path $compiledDir ($programName + ".TP")
 $workcellTpPath = Join-Path $config.WorkcellRobotPath ("output\" + $programName + ".TP")
+
+if (-not (Test-Path -LiteralPath $compiledDir)) {
+    New-Item -ItemType Directory -Path $compiledDir -Force | Out-Null
+}
 
 if ((Test-Path -LiteralPath $tpPath) -and -not $Force) {
     throw "Compiled output already exists: $tpPath. Use -Force to overwrite."
@@ -102,11 +129,32 @@ if (Test-Path -LiteralPath $workcellTpPath) {
     Remove-Item -LiteralPath $workcellTpPath -Force
 }
 
-Write-Host "Compiling $($lsItem.FullName)"
-if (Test-Path -LiteralPath $robotIniPath) {
-    & $config.MakeTpPath $lsItem.FullName $tpPath /config $robotIniPath /ver $config.WinOlpcVersion
-} else {
-    & $config.MakeTpPath $lsItem.FullName $tpPath /ver $config.WinOlpcVersion
+$makeTpLockPath = Join-Path $compiledDir ".maketp.lock"
+$makeTpLock = $null
+try {
+    $deadline = (Get-Date).AddMinutes(2)
+    while ($null -eq $makeTpLock) {
+        try {
+            $makeTpLock = [System.IO.File]::Open($makeTpLockPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+        } catch [System.IO.IOException] {
+            if ((Get-Date) -ge $deadline) {
+                throw "Timed out waiting for MakeTP compile lock: $makeTpLockPath"
+            }
+            Start-Sleep -Milliseconds 250
+        }
+    }
+
+    Write-Host "Compiling $($lsItem.FullName)"
+    if (Test-Path -LiteralPath $robotIniPath) {
+        & $config.MakeTpPath $lsItem.FullName $tpPath /config $robotIniPath /ver $config.WinOlpcVersion
+    } else {
+        & $config.MakeTpPath $lsItem.FullName $tpPath /ver $config.WinOlpcVersion
+    }
+}
+finally {
+    if ($null -ne $makeTpLock) {
+        $makeTpLock.Dispose()
+    }
 }
 
 if ($LASTEXITCODE -ne 0 -and -not (Test-Path -LiteralPath $workcellTpPath)) {
@@ -161,6 +209,19 @@ if (Test-Path -LiteralPath $statusTool) {
     } catch {
         Write-Warning "Upload succeeded, but job manifest upload status was not updated: $($_.Exception.Message)"
     }
+}
+
+if ($UploadOnlyStaging -and (Test-Path -LiteralPath $jobDir)) {
+    $stagingPath = Join-Path $jobDir "upload-staging.json"
+    [ordered]@{
+        updatedAt = (Get-Date).ToString("o")
+        programName = $programName
+        status = "uploaded-for-staging-only"
+        remoteName = $remoteName
+        robotIp = $config.RobotIp
+        uploadLogPath = $logPath
+        notes = "Program was uploaded for staging only. Operator owns robot setup, PR data, path safety, and any physical pendant-side decisions."
+    } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $stagingPath -Encoding ASCII
 }
 
 Write-Host "Uploaded $remoteName to $($config.RobotIp)"

@@ -22,7 +22,7 @@
     "F_FEEDER": true
   },
   "operatorChecks": {
-    "Mode": "T1 manual",
+    "Mode": "Manual",
     "Override": "Low",
     "Frames": "Verify active UFRAME/UTOOL on pendant",
     "Recovery": "Clear and recoverable"

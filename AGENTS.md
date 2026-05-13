@@ -67,7 +67,7 @@ Use `config\template-catalog.psd1` as the reviewed deterministic template list. 
 Use `config\interface-strategy.psd1` and `tools\Test-FanucInterfaceStrategy.ps1` before adding KAREL, PCDK, or new bridge behavior. KAREL TCP must remain disabled until schemas, robot-resident code, deployment, rollback, and tests are reviewed.
 Use `config\pcdk-snapshot.psd1`, `docs\PCDK_STRATEGY.md`, and `tools\New-FanucPcdkSnapshot.ps1` for PCDK work. PCDK is allowed only as a read-only evidence/introspection layer by default. Do not use PCDK task control, program selection, FTP upload/delete, IO writes, frame/position updates, or motion-related methods without a separate reviewed policy.
 Use `tools\Invoke-FanucProjectHealthCheck.ps1 -WriteMarkdown` for an offline/read-only project preflight. It must not execute live robot reads or controller writes.
-Use `schemas\motion-application-spec.schema.json` and `tools\Test-FanucMotionApplicationSpec.ps1` before any real application or motion generation. `ReadyForGeneration=false` is acceptable during planning; motion TP generation starts only when the validator reports generation-ready and a reviewed motion template exists.
+Use `schemas\motion-application-spec.schema.json` and `tools\Test-FanucMotionApplicationSpec.ps1` before any real application or motion generation. `ReadyForGeneration=false` is acceptable during planning. The reviewed offline motion generator is `tools\New-FanucMotionLsFromSpec.ps1` with templates `pr-waypoint-sequence-v1`, `approach-process-retract-v1`, and `io-motion-sequence-v1`; it emits only reviewed `UFRAME_NUM`, `UTOOL_NUM`, `PAYLOAD[n]`, reviewed `J/L PR[n]` moves, and allowlisted IO actions for the IO template. Use `tools\Invoke-FanucMotionWorkflow.ps1` for the one-command local motion generation/compile/round-trip/review-packet workflow. Use `tools\New-FanucRoboguideEvidencePacket.ps1` against the generated `motion-application-spec.json` when optional RoboGuide/manual evidence notes are useful.
 
 Run commands from this folder:
 
@@ -122,16 +122,16 @@ This downloads `F_MAIN.TP` from robot `MD:` into `downloaded\tp\` and decodes re
 - Run `tools\Invoke-FanucTpRoundTrip.ps1` before upload. It records PrintTP decode evidence in `generated\jobs\<PROGRAM>\roundtrip.json`.
 - Prefer `tools\Invoke-FanucLocalWorkflow.ps1` for local end-to-end evidence generation.
 - Run `tools\Update-FanucJobManifest.ps1` to collect local evidence. `localEvidencePassed=true` is not the same as robot upload approval.
-- Use `tools\Set-FanucJobStatus.ps1` to record human review, upload, and pendant verification status. Use `-WhatIf` for dry runs.
+- Use `tools\Set-FanucJobStatus.ps1` to record human review and upload status. Use `-WhatIf` for dry runs.
 - `Invoke-FanucTpBuild.ps1 -Upload` blocks manifest-backed jobs until `readyForUpload=true`.
 - Use `tools\Get-FanucJobSummary.ps1` to review local job status, and `tools\Get-FanucJobSummary.ps1 -IncludeRobot` or `tools\Get-FanucRobotDirectory.ps1 -Pattern "AI_*.TP"` to reconcile against robot `MD:` without running programs.
 - Use `tools\Save-FanucRobotInventory.ps1` for read-only robot `MD:` snapshots, `tools\Invoke-FanucProductionProgramAnalysis.ps1` for controlled download/decode analysis of selected existing TP programs, `tools\Get-FanucProductionAnalysisSummary.ps1 -WriteMarkdown` for count summaries, and `tools\Get-FanucProductionResourceReport.ps1 -WriteMarkdown` for CALL/IO/register candidates.
-- If a spec requires RoboGuide, `localEvidencePassed` stays false until simulation evidence is recorded as passed.
+- RoboGuide/manual evidence is optional project evidence unless a future project policy explicitly makes it a gate.
 - Use `tools\New-FanucRoboguideEvidencePacket.ps1` to generate structured RoboGuide/manual evidence packets from specs. IO-sequence and motion packets require before/after snapshots.
 - Do not auto-run uploaded programs.
 - Do not overwrite production robot programs.
 - Keep early/generated programs no-motion unless the user explicitly asks for motion and provides frames, tools, points, speeds, payload assumptions, and verification plan.
-- Use T1/manual verification first.
+- Operator-owned robot-side verification is outside the tracked code-generation gates.
 - Do not generate DCS edits, system variable writes, UOP changes, KAREL, `RUN`, or `ABORT` behavior unless explicitly requested and reviewed.
 - Run `tools\Invoke-FanucToolTests.ps1` after changing validators, schemas, or generators.
 

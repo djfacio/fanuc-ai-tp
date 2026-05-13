@@ -98,7 +98,6 @@ $records = foreach ($entry in $manifests) {
         ReadyForUpload = if ($manifest.gates) { [bool]$manifest.gates.readyForUpload } else { $false }
         HumanReviewStatus = if ($manifest.humanReview) { $manifest.humanReview.status } else { "not-recorded" }
         UploadStatus = if ($manifest.upload) { $manifest.upload.status } else { "not-recorded" }
-        PendantVerificationStatus = if ($manifest.pendantVerification) { $manifest.pendantVerification.status } else { "not-recorded" }
         ReadbackHashMatch = if ($null -ne $readback) { [bool]$readback.hashMatch } else { $false }
         ReadbackDecodeSucceeded = if ($null -ne $readback) { [bool]$readback.decodeSucceeded } else { $false }
         RobotLookupStatus = $robotLookupStatus

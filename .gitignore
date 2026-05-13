@@ -2,6 +2,8 @@
 /downloaded/
 /generated/
 /logs/
+/docs/fanuc-manuals/*
+!/docs/fanuc-manuals/README.md
 *.pcap
 *.pcapng
 

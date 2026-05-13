@@ -34,6 +34,8 @@ $templates = @($catalog.Templates | ForEach-Object {
     [ordered]@{
         id = $_.Id
         programName = $_.ProgramName
+        specType = if ($_.SpecType) { $_.SpecType } elseif ($_.ExampleSpec -like "*.motion-application.json") { "motion-application" } else { "program" }
+        templateId = $_.TemplateId
         exampleSpec = $_.ExampleSpec
         motionClass = $_.MotionClass
         purpose = $_.Purpose
@@ -41,6 +43,7 @@ $templates = @($catalog.Templates | ForEach-Object {
         registerWrites = @($_.RegisterWrites)
         ioWrites = @($_.IoWrites)
         callTargets = @($_.CallTargets)
+        positionRegisters = @($_.PositionRegisters)
         evidence = @($_.Evidence)
         status = $_.Status
     }
@@ -73,12 +76,12 @@ if ($WriteMarkdown) {
     $lines.Add("| --- | --- | --- | --- | --- | --- |")
     foreach ($template in $templates) {
         $operations = ($template.allowedOperationTypes -join ", ")
-        $resources = @($template.registerWrites + $template.ioWrites + $template.callTargets)
+        $resources = @($template.registerWrites + $template.ioWrites + $template.callTargets + $template.positionRegisters)
         $resourceText = if ($resources.Count -gt 0) { $resources -join ", " } else { "none" }
         $lines.Add("| $($template.id) | $($template.programName) | $($template.motionClass) | $operations | $resourceText | $($template.status) |")
     }
     $lines.Add("")
-    $lines.Add("All current templates are deterministic, spec-driven, and no-motion. Motion templates require a separate review model before being cataloged as usable.")
+    $lines.Add("Templates are deterministic and spec-driven. Motion templates remain gated by motion application validation, LS/spec matching, optional evidence, upload, and readback. Robot-side physical verification is operator-owned.")
     $lines | Set-Content -LiteralPath $markdownPath -Encoding ASCII
 }
 

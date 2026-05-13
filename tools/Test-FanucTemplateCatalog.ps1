@@ -27,6 +27,7 @@ $resolvedCatalogPath = $resolvedCatalog.Path
 
 $catalog = Import-PowerShellDataFile -LiteralPath $resolvedCatalogPath
 $findings = New-Object System.Collections.Generic.List[object]
+$motionSpecValidator = Join-Path $scriptRoot "Test-FanucMotionApplicationSpec.ps1"
 
 function Add-Finding {
     param(
@@ -76,6 +77,10 @@ foreach ($template in @($catalog.Templates)) {
     if ($template.MotionClass -notin @("no-motion", "motion-proposed", "motion-reviewed")) {
         Add-Finding -Rule "MotionClassInvalid" -Message "Template '$($template.Id)' has invalid MotionClass '$($template.MotionClass)'."
     }
+    $specType = if ($template.SpecType) { $template.SpecType } elseif ($template.ExampleSpec -like "*.motion-application.json") { "motion-application" } else { "program" }
+    if ($specType -notin @("program", "motion-application")) {
+        Add-Finding -Rule "SpecTypeInvalid" -Message "Template '$($template.Id)' has invalid SpecType '$specType'."
+    }
 
     if (-not $template.Purpose) {
         Add-Finding -Rule "PurposeMissing" -Message "Template '$($template.Id)' must include Purpose."
@@ -101,33 +106,49 @@ foreach ($template in @($catalog.Templates)) {
         Add-Finding -Rule "ExampleProgramMismatch" -Message "Template '$($template.Id)' ProgramName is '$($template.ProgramName)' but example uses '$($spec.programName)'."
     }
 
-    if ($template.MotionClass -eq "no-motion" -and [bool]$spec.safety.motionAllowed) {
+    if ($specType -eq "program" -and $template.MotionClass -eq "no-motion" -and [bool]$spec.safety.motionAllowed) {
         Add-Finding -Rule "NoMotionTemplateAllowsMotion" -Message "Template '$($template.Id)' is no-motion but example allows motion."
     }
 
-    foreach ($operation in @($spec.operations)) {
-        if (@($template.AllowedOperationTypes) -notcontains $operation.type) {
-            Add-Finding -Rule "OperationNotAllowedByTemplate" -Message "Template '$($template.Id)' example uses operation '$($operation.type)' not listed in AllowedOperationTypes."
-        }
+    if ($specType -eq "program") {
+        foreach ($operation in @($spec.operations)) {
+            if (@($template.AllowedOperationTypes) -notcontains $operation.type) {
+                Add-Finding -Rule "OperationNotAllowedByTemplate" -Message "Template '$($template.Id)' example uses operation '$($operation.type)' not listed in AllowedOperationTypes."
+            }
 
-        if ($operation.type -eq "registerWrite") {
-            $register = "R[$([int]$operation.register)]"
-            if (@($template.RegisterWrites) -notcontains $register) {
-                Add-Finding -Rule "RegisterWriteNotDeclared" -Message "Template '$($template.Id)' example writes $register but the template does not declare it."
+            if ($operation.type -eq "registerWrite") {
+                $register = "R[$([int]$operation.register)]"
+                if (@($template.RegisterWrites) -notcontains $register) {
+                    Add-Finding -Rule "RegisterWriteNotDeclared" -Message "Template '$($template.Id)' example writes $register but the template does not declare it."
+                }
+            }
+
+            if ($operation.type -eq "ioWrite") {
+                $signal = $operation.signal.ToUpperInvariant()
+                if (@($template.IoWrites) -notcontains $signal) {
+                    Add-Finding -Rule "IoWriteNotDeclared" -Message "Template '$($template.Id)' example writes $signal but the template does not declare it."
+                }
+            }
+
+            if ($operation.type -eq "callProgram") {
+                $target = $operation.program.ToUpperInvariant()
+                if (@($template.CallTargets) -notcontains $target) {
+                    Add-Finding -Rule "CallTargetNotDeclared" -Message "Template '$($template.Id)' example calls $target but the template does not declare it."
+                }
             }
         }
-
-        if ($operation.type -eq "ioWrite") {
-            $signal = $operation.signal.ToUpperInvariant()
-            if (@($template.IoWrites) -notcontains $signal) {
-                Add-Finding -Rule "IoWriteNotDeclared" -Message "Template '$($template.Id)' example writes $signal but the template does not declare it."
-            }
+    } else {
+        $motionValidation = & $motionSpecValidator -SpecPath $examplePath
+        if (-not $motionValidation.ReadyForGeneration) {
+            Add-Finding -Rule "MotionTemplateNotGenerationReady" -Message "Template '$($template.Id)' uses a motion application spec that is not generation-ready."
         }
-
-        if ($operation.type -eq "callProgram") {
-            $target = $operation.program.ToUpperInvariant()
-            if (@($template.CallTargets) -notcontains $target) {
-                Add-Finding -Rule "CallTargetNotDeclared" -Message "Template '$($template.Id)' example calls $target but the template does not declare it."
+        if ($template.TemplateId -and $template.TemplateId -ne $spec.generation.templateId) {
+            Add-Finding -Rule "MotionTemplateIdMismatch" -Message "Template '$($template.Id)' declares TemplateId '$($template.TemplateId)' but spec uses '$($spec.generation.templateId)'."
+        }
+        foreach ($step in @($spec.motionPlan.motionSequence)) {
+            $pr = "PR[$([int]$step.target.number)]"
+            if (@($template.PositionRegisters).Count -gt 0 -and @($template.PositionRegisters) -notcontains $pr) {
+                Add-Finding -Rule "PositionRegisterNotDeclared" -Message "Template '$($template.Id)' uses $pr but does not declare it in PositionRegisters."
             }
         }
     }

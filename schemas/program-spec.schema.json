@@ -68,7 +68,7 @@
       "additionalProperties": false,
       "properties": {
         "roboguideRequired": { "type": "boolean" },
-        "manualT1Required": { "type": "boolean" },
+        "operatorRunDecisionOwned": { "type": "boolean" },
         "notes": { "type": "string" }
       }
     }

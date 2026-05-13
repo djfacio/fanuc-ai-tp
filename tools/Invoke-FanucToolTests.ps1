@@ -50,6 +50,8 @@ function Invoke-ExpectFail {
 
 $specValidator = Join-Path $scriptRoot "Test-FanucProgramSpec.ps1"
 $motionApplicationValidator = Join-Path $scriptRoot "Test-FanucMotionApplicationSpec.ps1"
+$motionLsGenerator = Join-Path $scriptRoot "New-FanucMotionLsFromSpec.ps1"
+$motionGeneratedLsValidator = Join-Path $scriptRoot "Test-FanucMotionGeneratedLs.ps1"
 $lsValidator = Join-Path $scriptRoot "Test-FanucLsSafety.ps1"
 $schemaValidator = Join-Path $scriptRoot "Test-FanucJsonSchema.ps1"
 $cellMapValidator = Join-Path $scriptRoot "Test-FanucCellMap.ps1"
@@ -76,6 +78,7 @@ $healthCheckTool = Join-Path $scriptRoot "Invoke-FanucProjectHealthCheck.ps1"
 $statusPlanTool = Join-Path $scriptRoot "New-FanucCellStatusPlan.ps1"
 $statusSnapshotTool = Join-Path $scriptRoot "New-FanucCellStatusSnapshot.ps1"
 $statusCompareTool = Join-Path $scriptRoot "Compare-FanucCellStatusSnapshot.ps1"
+$simulationEvidenceTool = Join-Path $scriptRoot "Set-FanucSimulationEvidence.ps1"
 $schemaPath = Join-Path $projectRoot "schemas\program-spec.schema.json"
 
 Invoke-ExpectPass -Name "CellMapValid" -Command {
@@ -119,12 +122,17 @@ Invoke-ExpectPass -Name "TemplateCatalogArtifactValid" -Command {
     $catalogPath = Join-Path $projectRoot "generated\test-runs\template-catalog.json"
     & $templateCatalogTool -OutputPath $catalogPath -WriteMarkdown | Out-Null
     $catalog = Get-Content -LiteralPath $catalogPath -Raw | ConvertFrom-Json
-    if ([int]$catalog.templateCount -ne 7) {
-        throw "Expected template catalog artifact to contain 7 templates."
+    if ([int]$catalog.templateCount -ne 10) {
+        throw "Expected template catalog artifact to contain 10 templates."
     }
     $motionTemplates = @($catalog.templates | Where-Object { $_.motionClass -ne "no-motion" })
-    if ($motionTemplates.Count -ne 0) {
-        throw "Expected current template catalog to remain no-motion only."
+    if ($motionTemplates.Count -ne 3) {
+        throw "Expected current template catalog to contain three motion templates."
+    }
+    foreach ($templateId in @("pr-waypoint-sequence-v1", "approach-process-retract-v1", "io-motion-sequence-v1")) {
+        if (@($motionTemplates | ForEach-Object { $_.templateId }) -notcontains $templateId) {
+            throw "Expected motion template catalog to include $templateId."
+        }
     }
 }
 Invoke-ExpectPass -Name "RoboguideEvidenceConfigValid" -Command {
@@ -151,12 +159,35 @@ Invoke-ExpectPass -Name "RoboguideEvidencePacketIoValid" -Command {
     if ($packet.evidenceClass -ne "io-sequence") {
         throw "Expected AI_IODIAG evidence class to be io-sequence."
     }
-    if (-not $packet.roboguideRequired -or -not $packet.requiresBeforeAfterSnapshot) {
-        throw "Expected AI_IODIAG to require RoboGuide and before/after snapshots."
+    if ($packet.roboguideRequired -or -not $packet.operatorRunDecisionOwned -or $packet.requiresBeforeAfterSnapshot) {
+        throw "Expected AI_IODIAG evidence to remain optional."
     }
     $states = @($packet.expectedWrites.ioSignals | ForEach-Object { "$($_.signal)=$($_.state)" })
     if ($states -notcontains "DO[1]=ON" -or $states -notcontains "DO[1]=OFF") {
         throw "Expected AI_IODIAG packet to include DO[1] ON and OFF writes."
+    }
+}
+Invoke-ExpectPass -Name "RoboguideEvidencePacketMotionValid" -Command {
+    $packetPath = Join-Path $projectRoot "generated\test-runs\roboguide-ai-motion.json"
+    & $roboguideEvidencePacketTool -SpecPath (Join-Path $projectRoot "tests\fixtures\valid\AI_MOTION_PR_READY.motion-application.json") -OutputPath $packetPath -WriteMarkdown -Force | Out-Null
+    $packet = Get-Content -LiteralPath $packetPath -Raw | ConvertFrom-Json
+    if ($packet.evidenceClass -ne "motion") {
+        throw "Expected motion application evidence class to be motion."
+    }
+    if ($packet.specType -ne "motion-application") {
+        throw "Expected motion application spec type."
+    }
+    if ($packet.roboguideRequired -or -not $packet.operatorRunDecisionOwned -or $packet.requiresBeforeAfterSnapshot) {
+        throw "Expected motion evidence to remain optional."
+    }
+    if ([int]$packet.motionResources.userFrame.number -ne 1 -or [int]$packet.motionResources.userTool.number -ne 1 -or [int]$packet.motionResources.payload.number -ne 1) {
+        throw "Expected motion packet to include reviewed frame/tool/payload."
+    }
+    $moves = @($packet.motionPlan.sequence | ForEach-Object { $_.expectedLs })
+    foreach ($expected in @("J PR[90] 10% FINE", "L PR[91] 100mm/sec FINE", "L PR[92] 100mm/sec FINE")) {
+        if ($moves -notcontains $expected) {
+            throw "Motion evidence packet missing expected move: $expected"
+        }
     }
 }
 Invoke-ExpectPass -Name "InterfaceStrategyValid" -Command {
@@ -480,6 +511,86 @@ Invoke-ExpectPass -Name "MotionApplicationPlanningSpecValid" -Command {
 }
 Invoke-ExpectFail -Name "MotionApplicationBadGenerationFails" -Command {
     & $motionApplicationValidator -SpecPath (Join-Path $projectRoot "tests\fixtures\invalid\AI_APP_BAD.motion-application.json") -Quiet
+}
+Invoke-ExpectPass -Name "MotionApplicationReadyFixtureValid" -Command {
+    $result = & $motionApplicationValidator -SpecPath (Join-Path $projectRoot "tests\fixtures\valid\AI_MOTION_PR_READY.motion-application.json")
+    if (-not $result.ReadyForGeneration) {
+        throw "Expected motion fixture to be ready for generation."
+    }
+}
+Invoke-ExpectPass -Name "MotionApplicationPr300Valid" -Command {
+    $result = & $motionApplicationValidator -SpecPath (Join-Path $projectRoot "examples\applications\AI_PR300_PATH.motion-application.json")
+    if (-not $result.ReadyForGeneration) {
+        throw "Expected PR300 local application spec to be ready for offline generation."
+    }
+}
+Invoke-ExpectPass -Name "MotionApplicationAprValid" -Command {
+    $result = & $motionApplicationValidator -SpecPath (Join-Path $projectRoot "examples\applications\AI_APR_PATH.motion-application.json")
+    if (-not $result.ReadyForGeneration) {
+        throw "Expected APR application spec to be ready for offline generation."
+    }
+}
+Invoke-ExpectPass -Name "MotionApplicationIoPathValid" -Command {
+    $result = & $motionApplicationValidator -SpecPath (Join-Path $projectRoot "examples\applications\AI_IOPATH.motion-application.json")
+    if (-not $result.ReadyForGeneration) {
+        throw "Expected IO motion application spec to be ready for offline generation."
+    }
+}
+Invoke-ExpectPass -Name "MotionPrWaypointGenerator" -Command {
+    $outputRoot = Join-Path $projectRoot "generated\test-runs\motion"
+    $result = & $motionLsGenerator -SpecPath (Join-Path $projectRoot "tests\fixtures\valid\AI_MOTION_PR_READY.motion-application.json") -OutputRoot $outputRoot -Force
+    if ($result.ControllerWritesExecuted -or $result.LiveRobotCommandsExecuted) {
+        throw "Motion LS generator must remain offline."
+    }
+    $text = Get-Content -LiteralPath $result.SourcePath -Raw
+    foreach ($expected in @("UFRAME_NUM=1", "UTOOL_NUM=1", "J PR[90] 10% FINE", "L PR[91] 100mm/sec FINE", "L PR[92] 100mm/sec FINE")) {
+        if ($text -notmatch [regex]::Escape($expected)) {
+            throw "Generated motion LS missing expected text: $expected"
+        }
+    }
+    if ($text -match '(?m)^\s*P\[') {
+        throw "First motion generator should not emit taught-position records."
+    }
+}
+Invoke-ExpectPass -Name "MotionGeneratedLsMatchesSpec" -Command {
+    $outputRoot = Join-Path $projectRoot "generated\test-runs\motion"
+    $result = & $motionLsGenerator -SpecPath (Join-Path $projectRoot "tests\fixtures\valid\AI_MOTION_PR_READY.motion-application.json") -OutputRoot $outputRoot -Force
+    $validation = & $motionGeneratedLsValidator -SpecPath (Join-Path $projectRoot "tests\fixtures\valid\AI_MOTION_PR_READY.motion-application.json") -LsPath $result.SourcePath
+    if (-not $validation.IsValid) {
+        throw "Expected generated motion LS to match its motion application spec."
+    }
+}
+Invoke-ExpectPass -Name "MotionIoGeneratedLsMatchesSpec" -Command {
+    $outputRoot = Join-Path $projectRoot "generated\test-runs\motion-io"
+    $result = & $motionLsGenerator -SpecPath (Join-Path $projectRoot "examples\applications\AI_IOPATH.motion-application.json") -OutputRoot $outputRoot -Force
+    $validation = & $motionGeneratedLsValidator -SpecPath (Join-Path $projectRoot "examples\applications\AI_IOPATH.motion-application.json") -LsPath $result.SourcePath
+    if (-not $validation.IsValid) {
+        throw "Expected generated IO motion LS to match its motion application spec."
+    }
+    $text = Get-Content -LiteralPath $result.SourcePath -Raw
+    foreach ($expected in @("DO[2]=ON", "DO[2]=OFF")) {
+        if ($text -notmatch [regex]::Escape($expected)) {
+            throw "Generated IO motion LS missing expected text: $expected"
+        }
+    }
+}
+Invoke-ExpectPass -Name "MotionSimulationEvidenceNotesOnly" -Command {
+    $packetPath = Join-Path $projectRoot "generated\test-runs\roboguide-ai-motion.json"
+    if (-not (Test-Path -LiteralPath $packetPath)) {
+        & $roboguideEvidencePacketTool -SpecPath (Join-Path $projectRoot "tests\fixtures\valid\AI_MOTION_PR_READY.motion-application.json") -OutputPath $packetPath -WriteMarkdown -Force | Out-Null
+    }
+    $result = & $simulationEvidenceTool `
+        -ProgramName AI_SIMCHK `
+        -Status passed `
+        -MotionInvolved $true `
+        -WorkcellPath "fixture-workcell" `
+        -EvidencePacketPath $packetPath `
+        -Reviewer "offline-test" `
+        -Notes "Offline fixture evidence shape only; motion resource correctness is operator-owned."
+    $record = Get-Content -LiteralPath $result.EvidencePath -Raw | ConvertFrom-Json
+    if ($record.status -ne "passed" -or -not [bool]$record.motionInvolved) {
+        throw "Expected motion simulation evidence to record passed motion status."
+    }
 }
 Invoke-ExpectPass -Name "SpecScratchRangePasses" -Command {
     $specPath = Join-Path $projectRoot "generated\test-runs\AI_RANGE_OK.program-spec.json"

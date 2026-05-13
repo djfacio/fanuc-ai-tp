@@ -18,7 +18,7 @@ The durable source of truth is not a raw `.LS` file. The durable source of truth
 ```text
 intent -> spec -> static validation -> LS generation -> LS validation
        -> MakeTP compile -> PrintTP round-trip -> RoboGuide test
-       -> FTP upload -> pendant/T1 verification -> release notes
+       -> FTP upload -> readback evidence -> operator-owned release decision
 ```
 
 ## Tooling Roles
@@ -45,5 +45,5 @@ intent -> spec -> static validation -> LS generation -> LS validation
 2. Define the first program spec schema.
 3. Generate no-motion and IO/register utilities from specs.
 4. Expand round-trip comparison beyond `/MN` instructions as more program features are supported.
-5. Add RoboGuide test checklists and, later, automation hooks.
-6. Add RoboGuide/simulation evidence records and expand status commands around simulation and pendant verification.
+5. Add RoboGuide evidence notes and, later, automation hooks.
+6. Add optional RoboGuide/manual evidence records while keeping robot-side physical verification operator-owned.

@@ -27,7 +27,7 @@ Best early use:
 
 - Read registers and IO around generated-program tests.
 - Verify marker registers such as `R[98]` or `R[99]`.
-- Capture pre/post snapshots for pendant verification evidence.
+- Capture pre/post snapshots when useful for operator-owned verification evidence.
 
 Guardrails:
 

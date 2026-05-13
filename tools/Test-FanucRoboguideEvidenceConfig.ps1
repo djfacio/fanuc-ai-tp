@@ -49,7 +49,7 @@ foreach ($entry in @($config.EvidenceClasses)) {
     }
     $classes[$entry.Name] = $true
 
-    foreach ($key in @("RoboguideRequired", "ManualT1Required", "RequiresBeforeAfterSnapshot")) {
+    foreach ($key in @("RoboguideRequired", "OperatorRunDecisionOwned", "RequiresBeforeAfterSnapshot")) {
         if ($null -eq $entry[$key] -or $entry[$key] -isnot [bool]) {
             Add-Finding -Rule "EvidenceClassBoolInvalid" -Message "$($entry.Name).$key must be true or false."
         }

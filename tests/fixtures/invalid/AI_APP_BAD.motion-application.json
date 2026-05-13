@@ -54,7 +54,27 @@
     "terminationPolicy": "missing review",
     "approachRetract": "missing review",
     "clearancePolicy": "missing review",
-    "recoveryPlan": "missing review"
+    "recoveryPlan": "missing review",
+    "motionSequence": [
+      {
+        "stepName": "P1",
+        "motionType": "J",
+        "target": {
+          "type": "position-register",
+          "number": 90,
+          "name": "P1",
+          "source": "unknown",
+          "verified": false
+        },
+        "speed": {
+          "value": 10,
+          "unit": "%"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      }
+    ]
   },
   "safety": {
     "dcsReviewed": false,
@@ -66,7 +86,7 @@
   "evidence": {
     "roboguideRequired": true,
     "roboguidePlan": "missing",
-    "t1Plan": "missing",
+    "operatorRunPlan": "missing",
     "snapshotPlan": "missing",
     "acceptanceCriteria": ["missing"]
   },

@@ -24,7 +24,7 @@
   ],
   "verification": {
     "roboguideRequired": false,
-    "manualT1Required": true,
+    "operatorRunDecisionOwned": true,
     "notes": "Select on pendant and verify message plus R[99] value before treating the workflow as proven."
   }
 }

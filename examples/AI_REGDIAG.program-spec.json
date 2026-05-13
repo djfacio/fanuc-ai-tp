@@ -24,7 +24,7 @@
   ],
   "verification": {
     "roboguideRequired": false,
-    "manualT1Required": true,
+    "operatorRunDecisionOwned": true,
     "notes": "Verify R[90] and R[91] after running."
   }
 }

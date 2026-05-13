@@ -7,7 +7,7 @@ Phase 1 is complete: this project now has a reviewed, evidence-producing workflo
 - Spec-driven no-motion TP generation.
 - `.LS` safety validation with `AI_` prefix enforcement and `/PROG` name matching.
 - WinOLPC MakeTP compile and PrintTP round-trip evidence.
-- Manifest-backed human review, upload gating, robot readback, and pendant verification.
+- Manifest-backed human review, upload gating, and robot readback.
 - Public GitHub repository with offline CI.
 - Read-only robot inventory and controlled production-program analysis.
 - Project-scoped cell policy with a no-write sample policy for new workcells.
@@ -20,7 +20,7 @@ Phase 1 is complete: this project now has a reviewed, evidence-producing workflo
 
 - Automatic program start from PC tooling.
 - Production program overwrite behavior.
-- Motion generation without a separate frame/tool/point/payload and RoboGuide/T1 verification model.
+- Motion generation without a separate frame/tool/point/payload and operator-owned run-decision model.
 - KAREL deployment or robot-resident bridge code.
 - PCDK automation.
 - DCS, UOP/SOP, system variable, or controller configuration writes.

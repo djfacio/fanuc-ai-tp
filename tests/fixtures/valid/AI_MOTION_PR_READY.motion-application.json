@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "applicationName": "Fixture reviewed PR waypoint motion",
+  "programName": "AI_MOTION_PR_READY",
+  "phase": "generation-ready",
+  "purpose": "Validate the first constrained motion generator using reviewed PR waypoints only.",
+  "cellContext": {
+    "controller": "FANUC R-30iB Plus class",
+    "robot": "Fixture robot",
+    "workcell": "Offline validator fixture",
+    "process": "PR waypoint sequence",
+    "payloadName": "Fixture payload"
+  },
+  "policy": {
+    "cellMapPolicy": "config/cell-map.psd1",
+    "motionAuthority": "reviewed-motion-template",
+    "humanReviewRequired": true,
+    "productionOverwriteAllowed": false
+  },
+  "resources": {
+    "userFrame": {
+      "number": 1,
+      "name": "Fixture UFRAME",
+      "source": "Fixture reviewed source",
+      "verified": true
+    },
+    "userTool": {
+      "number": 1,
+      "name": "Fixture UTOOL",
+      "source": "Fixture reviewed source",
+      "verified": true
+    },
+    "payload": {
+      "number": 1,
+      "name": "Fixture payload",
+      "source": "Fixture reviewed source",
+      "verified": true
+    },
+    "points": [
+      {
+        "name": "APPROACH",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      },
+      {
+        "name": "WORK",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      },
+      {
+        "name": "RETRACT",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      }
+    ],
+    "io": [],
+    "registers": [],
+    "calls": []
+  },
+  "motionPlan": {
+    "motionTypes": ["J", "L"],
+    "speedPolicy": "Fixture uses reduced speed values for deterministic offline generation.",
+    "terminationPolicy": "Fixture uses FINE termination at each reviewed waypoint.",
+    "approachRetract": "Approach, work, and retract are explicit reviewed PR targets.",
+    "clearancePolicy": "Fixture assumes offline-only clearance evidence.",
+    "recoveryPlan": "Fixture recovery is stop and manual review.",
+    "motionSequence": [
+      {
+        "stepName": "APPROACH",
+        "motionType": "J",
+        "target": {
+          "type": "position-register",
+          "number": 90,
+          "name": "APPROACH",
+          "source": "Fixture PR[90]",
+          "verified": true
+        },
+        "speed": {
+          "value": 10,
+          "unit": "%"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      },
+      {
+        "stepName": "WORK",
+        "motionType": "L",
+        "target": {
+          "type": "position-register",
+          "number": 91,
+          "name": "WORK",
+          "source": "Fixture PR[91]",
+          "verified": true
+        },
+        "speed": {
+          "value": 100,
+          "unit": "mm/sec"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      },
+      {
+        "stepName": "RETRACT",
+        "motionType": "L",
+        "target": {
+          "type": "position-register",
+          "number": 92,
+          "name": "RETRACT",
+          "source": "Fixture PR[92]",
+          "verified": true
+        },
+        "speed": {
+          "value": 100,
+          "unit": "mm/sec"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      }
+    ]
+  },
+  "safety": {
+    "dcsReviewed": true,
+    "interlocksReviewed": true,
+    "operatorLocationReviewed": true,
+    "faultHandlingReviewed": true,
+    "noControllerConfigWrites": true,
+    "notes": "Offline fixture only; not a live cell approval."
+  },
+  "evidence": {
+    "roboguideRequired": false,
+    "roboguidePlan": "Fixture requires generated RoboGuide evidence before live use.",
+    "operatorRunPlan": "Operator owns robot setup and physical run decisions.",
+    "snapshotPlan": "Fixture requires before/after status snapshots before live use.",
+    "acceptanceCriteria": [
+      "Generated LS references only reviewed PR targets.",
+      "Generated LS contains no position data or frame/tool writes."
+    ]
+  },
+  "generation": {
+    "allowed": true,
+    "mode": "reviewed-motion-template",
+    "templateId": "pr-waypoint-sequence-v1",
+    "notes": "Offline generator fixture."
+  }
+}

@@ -15,14 +15,14 @@ Each simulation run should record:
 - Actual observations.
 - Pass/fail status and reviewer.
 
-The existing `tools\Set-FanucSimulationEvidence.ps1` records the current status. `tools\New-FanucRoboguideEvidencePacket.ps1` generates a structured evidence packet and optional Markdown checklist from a program spec.
+The existing `tools\Set-FanucSimulationEvidence.ps1` records optional evidence status. `tools\New-FanucRoboguideEvidencePacket.ps1` generates a structured evidence packet and optional Markdown notes from either a no-motion `program-spec.json` or a motion `motion-application-spec.json`.
 
 ## Gate Policy
 
 - No-motion diagnostics may use `not-required`.
 - IO checks can be `not-required` only when manually reviewed and explicitly approved.
 - Motion programs require `passed` simulation evidence before upload.
-- Simulation evidence does not replace T1/manual physical verification.
+- Simulation evidence is optional project evidence and does not replace operator-owned robot-side decisions.
 
 ## Next Tooling Target
 
@@ -40,13 +40,28 @@ Generate an evidence packet from an example spec:
 
 ```powershell
 .\tools\New-FanucRoboguideEvidencePacket.ps1 `
-  -SpecPath .\examples\AI_IODIAG.program-spec.json `
-  -WriteMarkdown `
-  -Force
+    -SpecPath .\examples\AI_IODIAG.program-spec.json `
+    -WriteMarkdown `
+    -Force
 ```
+
+For the first PR-waypoint motion template:
+
+```powershell
+.\tools\New-FanucMotionLsFromSpec.ps1 `
+    -SpecPath .\tests\fixtures\valid\AI_MOTION_PR_READY.motion-application.json `
+    -Force
+
+.\tools\New-FanucRoboguideEvidencePacket.ps1 `
+    -SpecPath .\generated\jobs\AI_MOTION_PR_READY\motion-application-spec.json `
+    -WriteMarkdown `
+    -Force
+```
+
+The motion evidence packet records reviewed UFRAME, UTOOL, payload, each `J/L PR[n]` line, speed, termination, path review expectations, and before/after snapshot requirements.
 
 Evidence classes:
 
-- `no-motion`: RoboGuide optional, manual T1 required, no before/after snapshot required.
-- `io-sequence`: RoboGuide and manual T1 required, before/after snapshot required.
-- `motion`: RoboGuide and manual T1 required, before/after snapshot required.
+- `no-motion`: optional RoboGuide/manual notes, no before/after snapshot required.
+- `io-sequence`: optional RoboGuide/manual notes, before/after snapshots only when the project wants them.
+- `motion`: optional RoboGuide/manual notes, with operator-owned robot setup and physical run decisions.

@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "applicationName": "IO motion sequence template example",
+  "programName": "AI_IOPATH",
+  "phase": "generation-ready",
+  "purpose": "Generate a constrained PR path with reviewed allowlisted digital output actions.",
+  "cellContext": {
+    "controller": "FANUC R-30iB Plus class",
+    "robot": "Local test robot",
+    "workcell": "Local commissioning/test cell",
+    "process": "IO and motion template proof",
+    "payloadName": "Payload schedule 1"
+  },
+  "policy": {
+    "cellMapPolicy": "config/cell-map.psd1",
+    "motionAuthority": "reviewed-motion-template",
+    "humanReviewRequired": true,
+    "productionOverwriteAllowed": false
+  },
+  "resources": {
+    "userFrame": {
+      "number": 1,
+      "name": "UFRAME 1",
+      "source": "Operator-owned project frame",
+      "verified": true
+    },
+    "userTool": {
+      "number": 1,
+      "name": "UTOOL 1",
+      "source": "Operator-owned project tool",
+      "verified": true
+    },
+    "payload": {
+      "number": 1,
+      "name": "Payload schedule 1",
+      "source": "Operator-owned payload schedule",
+      "verified": true
+    },
+    "points": [
+      {
+        "name": "APPROACH",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      },
+      {
+        "name": "WORK",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      },
+      {
+        "name": "RETRACT",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      }
+    ],
+    "io": [
+      {
+        "signal": "DO[2]",
+        "name": "Reviewed local test output",
+        "source": "config/cell-map.psd1"
+      }
+    ],
+    "registers": [],
+    "calls": []
+  },
+  "motionPlan": {
+    "motionTypes": ["J", "L"],
+    "speedPolicy": "Approach with a low-speed joint move and use controlled linear work/retract moves.",
+    "terminationPolicy": "Use FINE for first-pass review.",
+    "approachRetract": "APPROACH establishes clearance, WORK is the process point, RETRACT exits to clearance.",
+    "clearancePolicy": "Operator owns PR, frame, tool, payload, IO meaning, and path clearance before any physical run.",
+    "recoveryPlan": "Stop, restore reviewed outputs as needed, and recover manually if path or setup does not match expectation.",
+    "motionSequence": [
+      {
+        "stepName": "APPROACH",
+        "motionType": "J",
+        "target": {
+          "type": "position-register",
+          "number": 306,
+          "name": "APPROACH",
+          "source": "Operator-owned reviewed PR[306]",
+          "verified": true
+        },
+        "speed": {
+          "value": 10,
+          "unit": "%"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      },
+      {
+        "stepName": "WORK",
+        "motionType": "L",
+        "target": {
+          "type": "position-register",
+          "number": 307,
+          "name": "WORK",
+          "source": "Operator-owned reviewed PR[307]",
+          "verified": true
+        },
+        "speed": {
+          "value": 100,
+          "unit": "mm/sec"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      },
+      {
+        "stepName": "RETRACT",
+        "motionType": "L",
+        "target": {
+          "type": "position-register",
+          "number": 308,
+          "name": "RETRACT",
+          "source": "Operator-owned reviewed PR[308]",
+          "verified": true
+        },
+        "speed": {
+          "value": 100,
+          "unit": "mm/sec"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      }
+    ],
+    "ioSequence": [
+      {
+        "stepName": "WORK",
+        "position": "before",
+        "signal": "DO[2]",
+        "state": true,
+        "source": "Reviewed local scratch output",
+        "verified": true
+      },
+      {
+        "stepName": "RETRACT",
+        "position": "after",
+        "signal": "DO[2]",
+        "state": false,
+        "source": "Reviewed local scratch output restore",
+        "verified": true
+      }
+    ]
+  },
+  "safety": {
+    "dcsReviewed": true,
+    "interlocksReviewed": true,
+    "operatorLocationReviewed": true,
+    "faultHandlingReviewed": true,
+    "noControllerConfigWrites": true,
+    "notes": "Tool gates cover generation, compile, round-trip, upload, and readback only."
+  },
+  "evidence": {
+    "roboguideRequired": false,
+    "roboguidePlan": "Optional RoboGuide/manual notes can be recorded when useful.",
+    "operatorRunPlan": "Operator owns robot mode and physical run decisions.",
+    "snapshotPlan": "Optional before/after notes may be recorded for the project.",
+    "acceptanceCriteria": [
+      "Generated LS references only PR[306], PR[307], and PR[308].",
+      "Generated LS writes only reviewed DO[2] ON and OFF.",
+      "Generated LS contains no generated Cartesian /POS records."
+    ]
+  },
+  "generation": {
+    "allowed": true,
+    "mode": "reviewed-motion-template",
+    "templateId": "io-motion-sequence-v1",
+    "notes": "Motion plus allowlisted IO template using reviewed PR waypoints only."
+  }
+}

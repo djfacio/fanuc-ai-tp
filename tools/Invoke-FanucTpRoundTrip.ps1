@@ -49,6 +49,7 @@ function Get-FanucMnInstructions {
         $normalized = [regex]::Replace($normalized, '^\d+\s*:\s*', '')
         $normalized = [regex]::Replace($normalized, '\s+', ' ')
         $normalized = [regex]::Replace($normalized, '(?i)\b(DO|RO)\[(\d+)\s*:\s*\*\s*\]', '$1[$2]')
+        $normalized = [regex]::Replace($normalized, '(?i)\bPR\[(\d+)\s*:\s*[^\]]+\]', 'PR[$1]')
         $normalized = [regex]::Replace($normalized, '(?i)\bWAIT\s+\.([0-9]+)\(SEC\)', 'WAIT 0.$1(SEC)')
         $normalized = [regex]::Replace($normalized, '\s*=\s*', '=')
         $normalized = [regex]::Replace($normalized, '\s*;\s*$', ' ;')
@@ -96,33 +97,59 @@ foreach ($path in @($decodedPath, $reportPath)) {
     }
 }
 
-$buildTool = Join-Path $scriptRoot "Invoke-FanucTpBuild.ps1"
-& $buildTool -LsPath $lsItem.FullName -ConfigPath $resolvedConfig -Force
-
-if (-not (Test-Path -LiteralPath $compiledPath)) {
-    throw "Compile completed but TP file was not found: $compiledPath"
+$winOlpcLockDir = Join-Path $projectRoot "generated\compiled"
+if (-not (Test-Path -LiteralPath $winOlpcLockDir)) {
+    New-Item -ItemType Directory -Path $winOlpcLockDir -Force | Out-Null
 }
+$winOlpcLockPath = Join-Path $winOlpcLockDir ".winolpc.lock"
+$winOlpcLock = $null
+$printTpOutput = @()
+try {
+    $deadline = (Get-Date).AddMinutes(2)
+    while ($null -eq $winOlpcLock) {
+        try {
+            $winOlpcLock = [System.IO.File]::Open($winOlpcLockPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+        } catch [System.IO.IOException] {
+            if ((Get-Date) -ge $deadline) {
+                throw "Timed out waiting for WinOLPC round-trip lock: $winOlpcLockPath"
+            }
+            Start-Sleep -Milliseconds 250
+        }
+    }
 
-Copy-Item -LiteralPath $compiledPath -Destination $jobCompiledPath -Force
+    $buildTool = Join-Path $scriptRoot "Invoke-FanucTpBuild.ps1"
+    & $buildTool -LsPath $lsItem.FullName -ConfigPath $resolvedConfig -Force
 
-$robotIniPath = Resolve-ProjectPath $config.RobotIniPath
-$printTpPath = Join-Path (Split-Path -Parent $config.MakeTpPath) "printtp.exe"
-if (-not (Test-Path -LiteralPath $printTpPath)) {
-    throw "PrintTP not found: $printTpPath"
+    if (-not (Test-Path -LiteralPath $compiledPath)) {
+        throw "Compile completed but TP file was not found: $compiledPath"
+    }
+
+    Copy-Item -LiteralPath $compiledPath -Destination $jobCompiledPath -Force
+
+    $robotIniPath = Resolve-ProjectPath $config.RobotIniPath
+    $printTpPath = Join-Path (Split-Path -Parent $config.MakeTpPath) "printtp.exe"
+    if (-not (Test-Path -LiteralPath $printTpPath)) {
+        throw "PrintTP not found: $printTpPath"
+    }
+
+    if (Test-Path -LiteralPath $decodedPath) {
+        Remove-Item -LiteralPath $decodedPath -Force
+    }
+
+    Write-Host "Decoding $compiledPath"
+    $printTpOutput = & $printTpPath $compiledPath $decodedPath /config $robotIniPath /ver $config.WinOlpcVersion 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "PrintTP failed with exit code $LASTEXITCODE`n$($printTpOutput -join "`n")"
+    }
+
+    if (-not (Test-Path -LiteralPath $decodedPath)) {
+        throw "PrintTP completed but decoded LS was not created: $decodedPath"
+    }
 }
-
-if (Test-Path -LiteralPath $decodedPath) {
-    Remove-Item -LiteralPath $decodedPath -Force
-}
-
-Write-Host "Decoding $compiledPath"
-$printTpOutput = & $printTpPath $compiledPath $decodedPath /config $robotIniPath /ver $config.WinOlpcVersion 2>&1
-if ($LASTEXITCODE -ne 0) {
-    throw "PrintTP failed with exit code $LASTEXITCODE`n$($printTpOutput -join "`n")"
-}
-
-if (-not (Test-Path -LiteralPath $decodedPath)) {
-    throw "PrintTP completed but decoded LS was not created: $decodedPath"
+finally {
+    if ($null -ne $winOlpcLock) {
+        $winOlpcLock.Dispose()
+    }
 }
 
 $sourceInstructions = Get-FanucMnInstructions -Path $lsItem.FullName

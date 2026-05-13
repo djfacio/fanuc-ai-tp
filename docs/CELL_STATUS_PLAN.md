@@ -15,7 +15,7 @@ Validate the observation map:
 .\tools\Test-FanucCellObservations.ps1
 ```
 
-Generate the current read-only checklist:
+Generate the current read-only status plan:
 
 ```powershell
 .\tools\New-FanucCellStatusPlan.ps1 -Force

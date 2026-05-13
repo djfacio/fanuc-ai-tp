@@ -12,11 +12,7 @@ param(
 
     [ValidateSet("not-recorded", "uploaded", "failed")]
     [string]$UploadStatus,
-    [string]$UploadLogPath,
-
-    [ValidateSet("not-recorded", "passed", "failed")]
-    [string]$PendantVerificationStatus,
-    [string]$PendantVerificationNotes
+    [string]$UploadLogPath
 )
 
 $ErrorActionPreference = "Stop"
@@ -37,7 +33,9 @@ $sourcePath = Join-Path (Join-Path $projectRoot "generated\sources") ($program +
 $jobSourcePath = Join-Path $jobDir ($program + ".LS")
 $compiledPath = Join-Path (Join-Path $projectRoot "generated\compiled") ($program + ".TP")
 $jobCompiledPath = Join-Path $jobDir ($program + ".TP")
-$specPath = Join-Path $jobDir "spec.json"
+$programSpecPath = Join-Path $jobDir "spec.json"
+$motionSpecPath = Join-Path $jobDir "motion-application-spec.json"
+$specPath = if (Test-Path -LiteralPath $programSpecPath) { $programSpecPath } else { $motionSpecPath }
 $decodedPath = Join-Path $jobDir "decoded.LS"
 $roundTripPath = Join-Path $jobDir "roundtrip.json"
 $uploadReadbackDir = Join-Path $jobDir "upload-readback"
@@ -47,6 +45,8 @@ $uploadReadbackPath = Join-Path $jobDir "upload-readback.json"
 $simulationPath = Join-Path $jobDir "simulation.json"
 $reviewPacketPath = Join-Path $jobDir "review-packet.md"
 $roboguideTestPlanPath = Join-Path $jobDir "roboguide-test-plan.md"
+$roboguideEvidencePacketPath = Join-Path $jobDir "roboguide-evidence-packet.json"
+$roboguideEvidencePacketMarkdownPath = Join-Path $jobDir "roboguide-evidence-packet.md"
 $validationPath = Join-Path $jobDir "validation.json"
 $manifestPath = Join-Path $jobDir "manifest.json"
 
@@ -109,21 +109,29 @@ function Invoke-Validator {
 }
 
 $specValidator = Join-Path $scriptRoot "Test-FanucProgramSpec.ps1"
+$motionSpecValidator = Join-Path $scriptRoot "Test-FanucMotionApplicationSpec.ps1"
+$motionGeneratedLsValidator = Join-Path $scriptRoot "Test-FanucMotionGeneratedLs.ps1"
 $lsValidator = Join-Path $scriptRoot "Test-FanucLsSafety.ps1"
+$specValidationName = if (Test-Path -LiteralPath $programSpecPath) { "ProgramSpec" } else { "MotionApplicationSpec" }
+$isMotionApplicationJob = (-not (Test-Path -LiteralPath $programSpecPath) -and (Test-Path -LiteralPath $motionSpecPath))
 
 $validations = [ordered]@{
     timestamp = (Get-Date).ToString("o")
     programName = $program
     spec = if (Test-Path -LiteralPath $specPath) {
-        Invoke-Validator -Name "ProgramSpec" -Command {
-            & $specValidator -SpecPath $specPath -ConfigPath $resolvedConfig
+        Invoke-Validator -Name $specValidationName -Command {
+            if (Test-Path -LiteralPath $programSpecPath) {
+                & $specValidator -SpecPath $specPath -ConfigPath $resolvedConfig
+            } else {
+                & $motionSpecValidator -SpecPath $specPath
+            }
         }
     } else {
         [ordered]@{
-            name = "ProgramSpec"
+            name = $specValidationName
             passed = $false
             result = $null
-            error = "Spec not found: $specPath"
+            error = "Spec not found: $programSpecPath or $motionSpecPath"
         }
     }
     lsSafety = if (Test-Path -LiteralPath $sourcePath) {
@@ -136,6 +144,25 @@ $validations = [ordered]@{
             passed = $false
             result = $null
             error = "LS source not found: $sourcePath"
+        }
+    }
+    motionGeneratedLs = if ($isMotionApplicationJob -and (Test-Path -LiteralPath $sourcePath)) {
+        Invoke-Validator -Name "MotionGeneratedLs" -Command {
+            & $motionGeneratedLsValidator -SpecPath $motionSpecPath -LsPath $sourcePath
+        }
+    } elseif ($isMotionApplicationJob) {
+        [ordered]@{
+            name = "MotionGeneratedLs"
+            passed = $false
+            result = $null
+            error = "Motion generated LS not found: $sourcePath"
+        }
+    } else {
+        [ordered]@{
+            name = "MotionGeneratedLs"
+            passed = $true
+            result = $null
+            error = "not applicable"
         }
     }
 }
@@ -181,16 +208,6 @@ $previousHumanReview = if ($null -ne $previousManifest -and $null -ne $previousM
     }
 }
 
-$previousPendantVerification = if ($null -ne $previousManifest -and $null -ne $previousManifest.pendantVerification) {
-    $previousManifest.pendantVerification
-} else {
-    [pscustomobject]@{
-        status = "not-recorded"
-        verifiedAt = $null
-        notes = $null
-    }
-}
-
 $upload = [ordered]@{
     status = if ($UploadStatus) { $UploadStatus } else { $previousUpload.status }
     logPath = if ($UploadLogPath) { $UploadLogPath } else { $previousUpload.logPath }
@@ -204,12 +221,6 @@ $humanReview = [ordered]@{
     notes = if ($HumanReviewNotes) { $HumanReviewNotes } else { $previousHumanReview.notes }
 }
 
-$pendantVerification = [ordered]@{
-    status = if ($PendantVerificationStatus) { $PendantVerificationStatus } else { $previousPendantVerification.status }
-    verifiedAt = if ($PendantVerificationStatus) { (Get-Date).ToString("o") } else { $previousPendantVerification.verifiedAt }
-    notes = if ($PendantVerificationNotes) { $PendantVerificationNotes } else { $previousPendantVerification.notes }
-}
-
 $roundTripPassed = if ($null -ne $roundTrip -and $roundTrip.PSObject.Properties.Name -contains "overallMatch") {
     [bool]$roundTrip.overallMatch
 } elseif ($null -ne $roundTrip) {
@@ -217,13 +228,13 @@ $roundTripPassed = if ($null -ne $roundTrip -and $roundTrip.PSObject.Properties.
 } else {
     $false
 }
-$simulationRequired = ($null -ne $spec -and $null -ne $spec.verification -and [bool]$spec.verification.roboguideRequired)
-$simulationPassed = if ($simulationRequired) {
-    ($null -ne $simulation -and $simulation.status -eq "passed")
-} else {
-    ($null -eq $simulation -or $simulation.status -in @("not-required", "passed"))
-}
-$localEvidencePassed = ([bool]$validations.spec.passed -and [bool]$validations.lsSafety.passed -and $roundTripPassed -and $simulationPassed)
+$simulationRequired = (
+    ($null -ne $spec -and $null -ne $spec.verification -and [bool]$spec.verification.roboguideRequired) -or
+    ($null -ne $spec -and $null -ne $spec.evidence -and [bool]$spec.evidence.roboguideRequired)
+)
+$simulationPassed = ($null -ne $simulation -and $simulation.status -in @("not-required", "passed"))
+$motionGeneratedLsPassed = [bool]$validations.motionGeneratedLs.passed
+$localEvidencePassed = ([bool]$validations.spec.passed -and [bool]$validations.lsSafety.passed -and $motionGeneratedLsPassed -and $roundTripPassed)
 $readyForUpload = ($localEvidencePassed -and $humanReview.status -eq "approved")
 
 $manifest = [ordered]@{
@@ -242,6 +253,8 @@ $manifest = [ordered]@{
     }
     files = [ordered]@{
         spec = Get-FileRecord $specPath
+        programSpec = Get-FileRecord $programSpecPath
+        motionApplicationSpec = Get-FileRecord $motionSpecPath
         generatedSource = Get-FileRecord $sourcePath
         jobSource = Get-FileRecord $jobSourcePath
         compiled = Get-FileRecord $compiledPath
@@ -255,10 +268,13 @@ $manifest = [ordered]@{
         simulation = Get-FileRecord $simulationPath
         reviewPacket = Get-FileRecord $reviewPacketPath
         roboguideTestPlan = Get-FileRecord $roboguideTestPlanPath
+        roboguideEvidencePacket = Get-FileRecord $roboguideEvidencePacketPath
+        roboguideEvidencePacketMarkdown = Get-FileRecord $roboguideEvidencePacketMarkdownPath
     }
     gates = [ordered]@{
         specValidationPassed = [bool]$validations.spec.passed
         lsSafetyPassed = [bool]$validations.lsSafety.passed
+        motionGeneratedLsPassed = $motionGeneratedLsPassed
         roundTripInstructionMatch = if ($null -ne $roundTrip) { [bool]$roundTrip.instructionMatch } else { $false }
         roundTripOverallMatch = $roundTripPassed
         simulationRequired = $simulationRequired
@@ -268,7 +284,6 @@ $manifest = [ordered]@{
     }
     upload = $upload
     humanReview = $humanReview
-    pendantVerification = $pendantVerification
 }
 
 $manifest | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $manifestPath -Encoding ASCII

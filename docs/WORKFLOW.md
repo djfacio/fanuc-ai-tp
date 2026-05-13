@@ -80,7 +80,7 @@ Collect validation and artifact evidence:
 .\tools\Update-FanucJobManifest.ps1 -ProgramName AI_EXAMPLE
 ```
 
-This records `validation.json` and `manifest.json` in `generated/jobs/<PROGRAM>/`. The manifest tracks file hashes, tool paths, validation status, round-trip status, upload status, human review status, and pendant verification status.
+This records `validation.json` and `manifest.json` in `generated/jobs/<PROGRAM>/`. The manifest tracks file hashes, tool paths, validation status, round-trip status, upload status, and human review status.
 
 `localEvidencePassed=true` means the local spec, LS safety, and round-trip gates passed. It does not mean the program is approved for robot upload.
 
@@ -92,11 +92,7 @@ After human review, record the decision:
 .\tools\Set-FanucJobStatus.ps1 -ProgramName AI_EXAMPLE -HumanReviewStatus approved -Reviewer "Your Name" -HumanReviewNotes "Reviewed generated LS and evidence."
 ```
 
-After pendant verification, record the result:
-
-```powershell
-.\tools\Set-FanucJobStatus.ps1 -ProgramName AI_EXAMPLE -PendantVerificationStatus passed -PendantVerificationNotes "Verified in T1/manual mode."
-```
+Robot-side setup, PR correctness, frame/tool/payload setup, and physical verification are operator-owned and are not tracked as separate manifest gates.
 
 Create a human-readable packet:
 
@@ -167,4 +163,4 @@ To decode selected existing non-`AI_` programs for analysis without modifying th
 
 ## 10. Verify
 
-Select and verify on the pendant in the appropriate mode. For early work and generated motion, use T1/manual verification first.
+Select and run from the controller only when the operator decides the robot-side setup and path are appropriate. This decision is outside the tracked code-generation gates.

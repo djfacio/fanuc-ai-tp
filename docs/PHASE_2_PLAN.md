@@ -37,8 +37,8 @@ Starter artifacts:
 
 ## Track 3: RoboGuide Evidence
 
-- Promote evidence packets from checklists to repeatable RoboGuide run records.
-- Keep physical motion disabled until virtual evidence and T1/manual criteria are defined.
+- Promote evidence packets into repeatable RoboGuide run records.
+- Keep physical motion decisions operator-owned while tool gates focus on generation, compile, round-trip, upload, and readback evidence.
 
 ## Track 4: Real Application Motion Workflow
 

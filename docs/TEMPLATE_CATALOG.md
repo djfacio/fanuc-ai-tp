@@ -15,16 +15,20 @@ Each catalog entry declares:
 
 - template id
 - generated/example program name
+- spec type
+- reviewed motion template id, when applicable
 - example spec path
 - motion class
 - allowed operation types
-- declared register, IO, and call resources
+- declared register, IO, call, and position-register resources
 - required evidence
 - current status
 
-All current templates are no-motion. Motion templates should not be added as
-usable catalog entries until the motion review, RoboGuide/T1 validation, frame,
-tool, speed, payload, and recovery requirements are explicit.
+Most proven-live templates are no-motion. The first motion catalog entry is
+`pr-waypoint-sequence-v1`, which is offline validated only. It references
+reviewed PR targets and remains gated by motion application validation,
+generated LS/spec matching, MakeTP, PrintTP round-trip, RoboGuide evidence, and
+operator-owned physical verification before any run/release decision.
 
 ## Commands
 
@@ -40,6 +44,7 @@ Generate JSON and Markdown catalog artifacts:
 .\tools\Get-FanucTemplateCatalog.ps1 -WriteMarkdown
 ```
 
-The validator also checks that every example spec is cataloged, every cataloged
-example exists, the program names match, no-motion examples do not allow motion,
-and example operations/resources stay within the declared template contract.
+The validator also checks that every example program spec is cataloged, every
+cataloged example exists, program names match, no-motion examples do not allow
+motion, motion examples are generation-ready, and example operations/resources
+stay within the declared template contract.

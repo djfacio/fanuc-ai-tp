@@ -100,11 +100,33 @@ PCDK is now a first-class read-only evidence track, not a generation or command 
 
 Use `-ConnectReadOnly` only when a live controller read is intentionally in scope. The first PCDK track must record `controllerWritesExecuted=false` and must not use task control, program selection, IO writes, FTP upload/delete, frame updates, position record/update, or move-to behavior.
 
-The real application workflow, including future motion, now starts with `docs\REAL_APPLICATION_WORKFLOW.md`, `schemas\motion-application-spec.schema.json`, and `tools\Test-FanucMotionApplicationSpec.ps1`. The current example is planning-only and intentionally not generation-ready:
+The real application workflow, including motion, now starts with `docs\REAL_APPLICATION_WORKFLOW.md`, `schemas\motion-application-spec.schema.json`, and `tools\Test-FanucMotionApplicationSpec.ps1`. The current application example is planning-only and intentionally not generation-ready:
 
 ```powershell
 .\tools\Test-FanucMotionApplicationSpec.ps1 -SpecPath .\examples\applications\AI_APP_PICK_PLACE.motion-application.json
 ```
+
+The first offline motion generator is:
+
+```powershell
+.\tools\New-FanucMotionLsFromSpec.ps1 -SpecPath .\tests\fixtures\valid\AI_MOTION_PR_READY.motion-application.json -Force
+.\tools\Invoke-FanucTpBuild.ps1 -LsPath .\generated\sources\AI_MOTION_PR_READY.LS -Force
+.\tools\Test-FanucMotionGeneratedLs.ps1 -SpecPath .\generated\jobs\AI_MOTION_PR_READY\motion-application-spec.json -LsPath .\generated\sources\AI_MOTION_PR_READY.LS
+.\tools\New-FanucRoboguideEvidencePacket.ps1 -SpecPath .\generated\jobs\AI_MOTION_PR_READY\motion-application-spec.json -WriteMarkdown -Force
+```
+
+It supports only template `pr-waypoint-sequence-v1`: reviewed `UFRAME_NUM`, `UTOOL_NUM`, `PAYLOAD[n]`, and `J/L PR[n]` moves. It does not upload, run, write PRs, write frames/tools, or emit generated Cartesian `/POS` records.
+
+The first local PR300-310 test application is:
+
+```powershell
+.\tools\New-FanucMotionLsFromSpec.ps1 -SpecPath .\examples\applications\AI_PR300_PATH.motion-application.json -Force
+.\tools\Invoke-FanucTpRoundTrip.ps1 -LsPath .\generated\sources\AI_PR300_PATH.LS -Force
+.\tools\New-FanucRoboguideEvidencePacket.ps1 -SpecPath .\generated\jobs\AI_PR300_PATH\motion-application-spec.json -WriteMarkdown -Force
+.\tools\Update-FanucJobManifest.ps1 -ProgramName AI_PR300_PATH
+```
+
+`AI_PR300_PATH` uses UFRAME 1, UTOOL 1, PAYLOAD[1], and moves through PR[300], PR[301], and PR[302]. It is offline generated, round-trip verified, human reviewed, uploaded, and read back successfully. Operator-owned PR correctness, robot setup, and physical path decisions are outside the tracked code-generation gates.
 
 Run the project health check before new work:
 
@@ -112,9 +134,9 @@ Run the project health check before new work:
 .\tools\Invoke-FanucProjectHealthCheck.ps1 -WriteMarkdown
 ```
 
-Continue building spec-driven generators around constrained templates, starting with no-motion diagnostics and simple IO/register utilities. Keep motion generation behind explicit review and manual verification. Use `docs\STRATEGY.md`, `docs\SAFETY.md`, `docs\WORKFLOW.md`, and `schemas\program-spec.schema.json` as the starting architecture.
+Continue building spec-driven generators around constrained templates. Motion generation is now allowed only through reviewed motion application specs and the narrow PR-waypoint template. Operator-owned robot setup, PR correctness, frame/tool/payload setup, and physical path verification are outside the tracked code-generation gates.
 
-The deterministic no-motion template catalog is now explicit in `config\template-catalog.psd1`. Validate it with `tools\Test-FanucTemplateCatalog.ps1` and emit review artifacts with `tools\Get-FanucTemplateCatalog.ps1 -WriteMarkdown`.
+The deterministic template catalog is explicit in `config\template-catalog.psd1`. It includes the proven no-motion templates plus the offline-validated `pr-waypoint-sequence-v1` motion template. Validate it with `tools\Test-FanucTemplateCatalog.ps1` and emit review artifacts with `tools\Get-FanucTemplateCatalog.ps1 -WriteMarkdown`.
 
 RoboGuide/manual evidence packet generation is available for specs:
 
@@ -143,7 +165,7 @@ The latest proven local evidence is in `generated\jobs\AI_HELLO\manifest.json`. 
 
 ## Current Generated Job Status
 
-As of the latest manifest summary, these jobs have local evidence passed, human review approved, upload recorded, robot readback hash/decode passed, and pendant verification passed:
+As of the latest manifest summary, these jobs have local evidence passed, human review approved, upload recorded, and robot readback hash/decode passed:
 
 - `AI_HELLO`
 - `AI_REGDIAG`
@@ -169,7 +191,7 @@ To check what generated programs are actually present on robot `MD:`:
 .\tools\Get-FanucRobotDirectory.ps1 -Pattern "AI_*.TP"
 ```
 
-To see all local jobs with review, upload, readback, pendant, and optional robot-presence status:
+To see all local jobs with review, upload, readback, and optional robot-presence status:
 
 ```powershell
 .\tools\Get-FanucJobSummary.ps1
@@ -207,7 +229,7 @@ generated\production-analysis\20260512-132906\resource-report.md
 
 It found 14 distinct `CALL` targets, 25 IO write states, and 25 register references in the decoded sample. Treat these as candidates only; do not add them to `config\cell-map.psd1` without review.
 
-`AI_CELLCHK` is the next generated no-motion template. It was user-approved, uploaded, read back from robot `MD:`, hash verified, decoded successfully, and pendant verified as passed.
+`AI_CELLCHK` is the next generated no-motion template. It was user-approved, uploaded, read back from robot `MD:`, hash verified, and decoded successfully.
 
 ## Cell Resource Map
 

@@ -1,6 +1,6 @@
 {
   "programName": "AI_FRMTOOL",
-  "intent": "No-motion checklist program for frame and tool review.",
+  "intent": "No-motion review program for frame and tool review.",
   "safety": {
     "motionAllowed": false,
     "requiresHumanReview": true,
@@ -18,7 +18,7 @@
   ],
   "verification": {
     "roboguideRequired": false,
-    "manualT1Required": true,
+    "operatorRunDecisionOwned": true,
     "notes": "Operator confirms frame/tool setup from pendant or controlled docs."
   }
 }

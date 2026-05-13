@@ -23,7 +23,7 @@
         @{
             Register = 97
             Name = "AI_CELLCHK marker"
-            Source = "Generated AI cell checklist"
+            Source = "Generated AI cell preflight"
             ExpectedUse = "Confirm AI_CELLCHK ran as reviewed."
         },
         @{
@@ -93,7 +93,7 @@
         },
         @{
             Program = "AI_CELLCHK"
-            Source = "Generated AI cell checklist"
+            Source = "Generated AI cell preflight"
             ExpectedUse = "Confirm generated program remains present on MD:."
         },
         @{
@@ -111,7 +111,7 @@
     OperatorChecks = @(
         @{
             Name = "Mode"
-            Prompt = "Record controller mode and whether verification is manual/T1."
+            Prompt = "Record controller mode and operator-owned run decision notes."
         },
         @{
             Name = "Override"

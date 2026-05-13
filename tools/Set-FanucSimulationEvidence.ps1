@@ -8,6 +8,8 @@ param(
 
     [string]$WorkcellPath,
     [bool]$MotionInvolved = $false,
+    [string]$EvidencePacketPath,
+    [string]$Reviewer,
     [string]$Notes
 )
 
@@ -18,6 +20,16 @@ $projectRoot = Split-Path -Parent $scriptRoot
 $program = $ProgramName.ToUpperInvariant()
 $jobDir = Join-Path (Join-Path $projectRoot "generated\jobs") $program
 $evidencePath = Join-Path $jobDir "simulation.json"
+
+if ($EvidencePacketPath) {
+    if ([System.IO.Path]::IsPathRooted($EvidencePacketPath)) {
+        $resolvedEvidencePacketPath = Resolve-Path -LiteralPath $EvidencePacketPath
+    } else {
+        $resolvedEvidencePacketPath = Resolve-Path -LiteralPath (Join-Path $projectRoot $EvidencePacketPath)
+    }
+} else {
+    $resolvedEvidencePacketPath = $null
+}
 
 if (-not (Test-Path -LiteralPath $jobDir)) {
     New-Item -ItemType Directory -Path $jobDir -Force | Out-Null
@@ -35,6 +47,8 @@ $record = [ordered]@{
     status = $Status
     workcellPath = if ($WorkcellPath) { $WorkcellPath } elseif ($null -ne $previous) { $previous.workcellPath } else { $null }
     motionInvolved = $MotionInvolved
+    evidencePacketPath = if ($resolvedEvidencePacketPath) { $resolvedEvidencePacketPath.Path } elseif ($null -ne $previous) { $previous.evidencePacketPath } else { $null }
+    reviewer = if ($Reviewer) { $Reviewer } elseif ($null -ne $previous) { $previous.reviewer } else { $null }
     notes = if ($Notes) { $Notes } elseif ($null -ne $previous) { $previous.notes } else { $null }
 }
 

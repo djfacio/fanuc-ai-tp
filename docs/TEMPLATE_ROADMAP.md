@@ -41,7 +41,7 @@ Template direction:
 
 - Do not generate free-form motion yet.
 - First template should reference existing named PRs or taught points only.
-- Require RoboGuide evidence, frame/tool/payload assumptions, and T1 verification.
+- Keep optional RoboGuide evidence separate from operator-owned frame/tool/payload and physical run decisions.
 
 ### Calculation Helpers
 
