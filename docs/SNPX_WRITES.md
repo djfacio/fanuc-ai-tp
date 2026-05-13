@@ -9,6 +9,7 @@ config\snpx-writes.psd1
 tools\Test-FanucSnpxWriteConfig.ps1
 tools\New-FanucSnpxWritePlan.ps1
 tools\Invoke-FanucSnpxLiveWrite.ps1
+tools\Invoke-FanucSnpxScratchProof.ps1
 tools\Get-FanucSnpxCommissioningMatrix.ps1
 ```
 
@@ -71,7 +72,37 @@ Create a dynamic write plan for a reviewed scratch target in this local test pol
 .\tools\New-FanucSnpxWritePlan.ps1 -Fanuc "DO[2]" -State ON
 ```
 
-These commands do not write to the robot. They generate a JSON execution plan with the FANUC item, SNPX projection address, encoded word value, and live execution gates.
+The plan commands do not write to the robot. They generate a JSON execution plan with the FANUC item, SNPX projection address, encoded word value, and live execution gates.
+
+Run the scratch proof wrapper in dry-run mode. This creates an approved plan,
+dry-run live-write evidence, and a small summary bundle:
+
+```powershell
+.\tools\Invoke-FanucSnpxScratchProof.ps1 -Fanuc "R[95]" -Value 9501
+.\tools\Invoke-FanucSnpxScratchProof.ps1 -Fanuc "DO[2]" -State ON
+```
+
+To execute a live proof, first run dry mode and review the exact
+`ApprovalPhrase`, then rerun with `-Execute` and that phrase:
+
+```powershell
+.\tools\Invoke-FanucSnpxScratchProof.ps1 `
+  -Fanuc "R[95]" `
+  -Value 9501 `
+  -Execute `
+  -ApprovalPhrase "I approve live SNPX write: R[95]=9501 via %R00079 dynamic ASG"
+```
+
+For outputs, the wrapper automatically requests restore after write when the
+plan requires it:
+
+```powershell
+.\tools\Invoke-FanucSnpxScratchProof.ps1 `
+  -Fanuc "DO[2]" `
+  -State ON `
+  -Execute `
+  -ApprovalPhrase "I approve live SNPX write: DO[2]=ON via %R00079 dynamic ASG"
+```
 
 Approved plans also include exact operator approval text. A live execution must supply that phrase with `-ApprovalPhrase` so the command line records the reviewed target, value, and SNPX projection:
 

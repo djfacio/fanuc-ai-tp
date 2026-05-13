@@ -338,6 +338,13 @@ Validate and emit an SNPX write plan:
 .\tools\New-FanucSnpxWritePlan.ps1 -Fanuc "R[99]" -Value 123
 ```
 
+Create a dry-run scratch proof bundle for this local commissioning/test policy:
+
+```powershell
+.\tools\Invoke-FanucSnpxScratchProof.ps1 -Fanuc "R[95]" -Value 9501
+.\tools\Invoke-FanucSnpxScratchProof.ps1 -Fanuc "DO[2]" -State ON
+```
+
 Dry-run a live SNPX write plan before any robot write:
 
 ```powershell

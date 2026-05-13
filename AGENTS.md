@@ -109,6 +109,7 @@ This downloads `F_MAIN.TP` from robot `MD:` into `downloaded\tp\` and decodes re
 - Use `tools\Get-FanucSnpxCommissioningMatrix.ps1` before expanding SNPX mappings. The matrix must show no `%R` projection collisions and must make write/restoration gates visible.
 - Live SNPX writes must use an approved `New-FanucSnpxWritePlan.ps1` plan, exact `operatorApproval.requiredPhrase`, and `-AcceptLiveWrite`. Output writes that require restoration must use `-RestoreAfterWrite` so evidence includes post-restore readback.
 - Dynamic SNPX scratch writes use one temporary private ASG projection from `config\snpx-writes.psd1` and must still pass the project cell-map policy and live-write approval gates.
+- Prefer `tools\Invoke-FanucSnpxScratchProof.ps1` for repeatable scratch write proofs. Run it once in dry mode to get the exact approval phrase, then execute only with `-Execute` and that phrase.
 - Use `config\controller-inventory.sample.psd1` as the publishable capability model and `config\controller-inventory.local.psd1` for real local cell/tool details. Validate with `tools\Test-FanucControllerInventory.ps1` and summarize with `tools\Get-FanucControllerCapability.ps1`.
 - Run `tools\Test-FanucLsSafety.ps1` before compiling or uploading generated `.LS` files. `Invoke-FanucTpBuild.ps1` also runs this gate automatically.
 - Run `tools\Invoke-FanucTpRoundTrip.ps1` before upload. It records PrintTP decode evidence in `generated\jobs\<PROGRAM>\roundtrip.json`.

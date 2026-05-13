@@ -261,6 +261,14 @@ SNPX writes are planned separately in `config\snpx-writes.psd1`. This is intenti
 
 Dynamic SNPX scratch write planning is available for this local commissioning/test policy. `R[95]` and `DO[2]` style targets inside `R[90]`-`R[99]` and `DO[1]`-`DO[80]` use a temporary private ASG projection at `%R00079` for the current connection instead of expanding the read snapshot map. Outputs written `ON` still require restoration to `OFF`.
 
+Use the wrapper for repeatable scratch proofs:
+
+```powershell
+.\tools\Invoke-FanucSnpxScratchProof.ps1 -Fanuc "R[95]" -Value 9501
+.\tools\Invoke-FanucSnpxScratchProof.ps1 -Fanuc "R[95]" -Value 9501 -Execute -ApprovalPhrase "I approve live SNPX write: R[95]=9501 via %R00079 dynamic ASG"
+.\tools\Invoke-FanucSnpxScratchProof.ps1 -Fanuc "DO[2]" -State ON -Execute -ApprovalPhrase "I approve live SNPX write: DO[2]=ON via %R00079 dynamic ASG"
+```
+
 Live SNPX writes now require exact approval text from the generated plan. Output writes that request `ON` include a restoration section and require `-RestoreAfterWrite`; evidence records write and restore readbacks separately.
 
 Useful commands:

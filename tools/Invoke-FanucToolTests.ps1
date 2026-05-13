@@ -68,6 +68,7 @@ $snpxSnapshotTool = Join-Path $scriptRoot "Invoke-FanucSnpxReadSnapshot.ps1"
 $snpxWritePlanTool = Join-Path $scriptRoot "New-FanucSnpxWritePlan.ps1"
 $snpxLiveReadTool = Join-Path $scriptRoot "Invoke-FanucSnpxLiveRead.ps1"
 $snpxLiveWriteTool = Join-Path $scriptRoot "Invoke-FanucSnpxLiveWrite.ps1"
+$snpxScratchProofTool = Join-Path $scriptRoot "Invoke-FanucSnpxScratchProof.ps1"
 $statusPlanTool = Join-Path $scriptRoot "New-FanucCellStatusPlan.ps1"
 $statusSnapshotTool = Join-Path $scriptRoot "New-FanucCellStatusSnapshot.ps1"
 $statusCompareTool = Join-Path $scriptRoot "Compare-FanucCellStatusSnapshot.ps1"
@@ -268,6 +269,51 @@ Invoke-ExpectPass -Name "SnpxDynamicOutputWritePlanValid" -Command {
     if (@($evidence.commands.setasg | Where-Object { $_ -eq "SETASG 79 2 DO[2] 1" }).Count -ne 1) {
         throw "Expected dry-run evidence to include dynamic SETASG for DO[2]."
     }
+}
+Invoke-ExpectPass -Name "SnpxScratchProofRegisterDryRunValid" -Command {
+    $outputRoot = Join-Path $projectRoot "generated\test-runs\scratch-proofs-register"
+    $result = & $snpxScratchProofTool -Fanuc "R[95]" -Value 9501 -OutputRoot $outputRoot
+    if ($result.Executed) {
+        throw "Scratch proof register dry-run should not execute."
+    }
+    if (-not $result.DynamicProjection -or $result.SnpxAddress -ne "%R00079") {
+        throw "Expected scratch proof register to use dynamic %R00079 projection."
+    }
+    if ($result.ApprovalPhrase -ne "I approve live SNPX write: R[95]=9501 via %R00079 dynamic ASG") {
+        throw "Unexpected scratch proof R[95] approval phrase."
+    }
+    if (-not (Test-Path -LiteralPath $result.SummaryPath)) {
+        throw "Scratch proof register dry-run did not write summary."
+    }
+}
+Invoke-ExpectPass -Name "SnpxScratchProofOutputDryRunValid" -Command {
+    $outputRoot = Join-Path $projectRoot "generated\test-runs\scratch-proofs-output"
+    $result = & $snpxScratchProofTool -Fanuc "DO[2]" -State ON -OutputRoot $outputRoot
+    if ($result.Executed) {
+        throw "Scratch proof output dry-run should not execute."
+    }
+    if (-not $result.RequiresRestoration) {
+        throw "Expected scratch proof DO[2]=ON to require restoration."
+    }
+    if ($result.ApprovalPhrase -ne "I approve live SNPX write: DO[2]=ON via %R00079 dynamic ASG") {
+        throw "Unexpected scratch proof DO[2] approval phrase."
+    }
+    $summary = Get-Content -LiteralPath $result.SummaryPath -Raw | ConvertFrom-Json
+    if (-not $summary.restorationRequired) {
+        throw "Scratch proof output summary should record restorationRequired=true."
+    }
+}
+Invoke-ExpectFail -Name "SnpxScratchProofRequiresExactApprovalPhrase" -Command {
+    $outputRoot = Join-Path $projectRoot "generated\test-runs\scratch-proofs-approval"
+    & $snpxScratchProofTool -Fanuc "R[95]" -Value 9501 -OutputRoot $outputRoot -Execute -ApprovalPhrase "wrong phrase" | Out-Null
+}
+Invoke-ExpectFail -Name "SnpxScratchProofRegisterOutsideRangeFails" -Command {
+    $outputRoot = Join-Path $projectRoot "generated\test-runs\scratch-proofs-r100"
+    & $snpxScratchProofTool -Fanuc "R[100]" -Value 100 -OutputRoot $outputRoot | Out-Null
+}
+Invoke-ExpectFail -Name "SnpxScratchProofOutputOutsideRangeFails" -Command {
+    $outputRoot = Join-Path $projectRoot "generated\test-runs\scratch-proofs-do81"
+    & $snpxScratchProofTool -Fanuc "DO[81]" -State ON -OutputRoot $outputRoot | Out-Null
 }
 Invoke-ExpectFail -Name "SnpxDynamicRegisterOutsideRangeFails" -Command {
     $planPath = Join-Path $projectRoot "generated\test-runs\snpx-write-plan-r100-dynamic.json"
