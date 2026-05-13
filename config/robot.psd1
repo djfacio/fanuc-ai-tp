@@ -18,5 +18,19 @@
     )
     CleanupProtectedPrograms = @(
         "-BCKEDT-"
+        "FS_CLB_HND"
+        "FS_CLB_WRK"
+        "FS_GET_F"
+        "FS_MEAS_WRK1"
+        "FS_MEAS_WRK2"
+        "FS_MOV_15DEG"
+        "FS_MOV_30DEG"
+        "FS_MOV_45DEG"
+        "FS_MOV_5DEG"
+        "GETDATA"
+        "REQMENU"
+        "SENDDATA"
+        "SENDEVNT"
+        "SENDSYSV"
     )
 }
