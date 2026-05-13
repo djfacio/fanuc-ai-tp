@@ -4,6 +4,9 @@ param(
     [ValidatePattern('^[A-Za-z][A-Za-z0-9_]{0,31}$')]
     [string]$ProgramName,
 
+    [string]$OutputRoot = "generated",
+    [string]$ConfigPath = "..\config\robot.psd1",
+
     [ValidateSet("not-recorded", "approved", "rejected", "needs-changes")]
     [string]$HumanReviewStatus,
     [string]$Reviewer,
@@ -18,8 +21,13 @@ $ErrorActionPreference = "Stop"
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent $scriptRoot
+if ([System.IO.Path]::IsPathRooted($OutputRoot)) {
+    $resolvedOutputRoot = $OutputRoot
+} else {
+    $resolvedOutputRoot = Join-Path $projectRoot $OutputRoot
+}
 $program = $ProgramName.ToUpperInvariant()
-$jobDir = Join-Path (Join-Path $projectRoot "generated\jobs") $program
+$jobDir = Join-Path (Join-Path $resolvedOutputRoot "jobs") $program
 $manifestPath = Join-Path $jobDir "manifest.json"
 
 if (-not (Test-Path -LiteralPath $manifestPath)) {

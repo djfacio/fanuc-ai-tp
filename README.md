@@ -129,6 +129,28 @@ Copy it to the project config, set `PolicyScope`, `ProjectName`, and
 that workcell. The local commissioning/test policy in this repo does not carry
 over automatically.
 
+## Project Packs
+
+Keep real TP generation projects outside this public toolchain repo. Create a
+local project pack:
+
+```powershell
+.\tools\New-FanucProjectPack.ps1 -Path "C:\Dev\AI-Fanuc Robot TP\TestProject" -ProjectName TestProject
+```
+
+Run motion workflows against the pack:
+
+```powershell
+.\tools\Invoke-FanucMotionWorkflow.ps1 `
+  -ProjectPath "C:\Dev\AI-Fanuc Robot TP\TestProject" `
+  -SpecPath .\applications\AI_TEST_APR.motion-application.json `
+  -Force
+```
+
+The project pack owns application specs, project-local config, generated
+outputs, evidence, and notes. The toolchain repo owns schemas, validators,
+generators, and shared docs.
+
 ## Template Catalog
 
 Validate and emit the deterministic template catalog:

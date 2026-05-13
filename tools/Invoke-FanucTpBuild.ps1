@@ -3,6 +3,7 @@ param(
     [string]$LsPath,
 
     [string]$ConfigPath = "..\config\robot.psd1",
+    [string]$OutputRoot = "generated",
     [switch]$Upload,
     [switch]$UploadOnlyStaging,
     [switch]$Force
@@ -18,6 +19,7 @@ if ([System.IO.Path]::IsPathRooted($ConfigPath)) {
     $resolvedConfig = Resolve-Path -LiteralPath (Join-Path $scriptRoot $ConfigPath)
 }
 $config = Import-PowerShellDataFile -LiteralPath $resolvedConfig
+$configRoot = Split-Path -Parent $resolvedConfig
 
 function Resolve-ProjectPath {
     param(
@@ -29,6 +31,27 @@ function Resolve-ProjectPath {
     }
 
     return Join-Path $projectRoot $Path
+}
+
+function Resolve-ConfigOrProjectPath {
+    param([string]$Path)
+
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return $Path
+    }
+
+    $projectCandidate = Join-Path $projectRoot $Path
+    if (Test-Path -LiteralPath $projectCandidate) {
+        return $projectCandidate
+    }
+
+    return Join-Path $configRoot $Path
+}
+
+if ([System.IO.Path]::IsPathRooted($OutputRoot)) {
+    $resolvedOutputRoot = $OutputRoot
+} else {
+    $resolvedOutputRoot = Join-Path $projectRoot $OutputRoot
 }
 
 function Invoke-FtpScript {
@@ -74,7 +97,7 @@ $programName = $lsItem.BaseName.ToUpperInvariant()
 $safetyTool = Join-Path $scriptRoot "Test-FanucLsSafety.ps1"
 & $safetyTool -LsPath $lsItem.FullName -ProgramName $programName -ConfigPath $resolvedConfig -Quiet
 
-$manifestPath = Join-Path (Join-Path (Join-Path $projectRoot "generated\jobs") $programName) "manifest.json"
+$manifestPath = Join-Path (Join-Path $resolvedOutputRoot "jobs") (Join-Path $programName "manifest.json")
 if ($Upload -and (Test-Path -LiteralPath $manifestPath)) {
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
     if (-not [bool]$manifest.gates.readyForUpload) {
@@ -108,8 +131,8 @@ if (-not (Test-Path -LiteralPath $config.MakeTpPath)) {
     throw "MakeTP not found: $($config.MakeTpPath)"
 }
 
-$robotIniPath = Resolve-ProjectPath $config.RobotIniPath
-$compiledDir = Join-Path $projectRoot "generated\compiled"
+$robotIniPath = Resolve-ConfigOrProjectPath $config.RobotIniPath
+$compiledDir = Join-Path $resolvedOutputRoot "compiled"
 $tpPath = Join-Path $compiledDir ($programName + ".TP")
 $workcellTpPath = Join-Path $config.WorkcellRobotPath ("output\" + $programName + ".TP")
 
@@ -169,7 +192,7 @@ if (-not (Test-Path -LiteralPath $tpPath)) {
     throw "MakeTP completed but TP file was not created: $tpPath"
 }
 
-$jobDir = Join-Path (Join-Path $projectRoot "generated\jobs") $programName
+$jobDir = Join-Path (Join-Path $resolvedOutputRoot "jobs") $programName
 if (Test-Path -LiteralPath $jobDir) {
     Copy-Item -LiteralPath $tpPath -Destination (Join-Path $jobDir ($programName + ".TP")) -Force
 }
@@ -195,7 +218,11 @@ $uploadResult = Invoke-FtpScript -RobotIp $config.RobotIp -Commands @(
 )
 
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$logPath = Join-Path $projectRoot ("logs\upload-$programName-$timestamp.log")
+$logsDir = Join-Path $resolvedOutputRoot "logs"
+if (-not (Test-Path -LiteralPath $logsDir)) {
+    New-Item -ItemType Directory -Path $logsDir -Force | Out-Null
+}
+$logPath = Join-Path $logsDir ("upload-$programName-$timestamp.log")
 Set-Content -LiteralPath $logPath -Value $uploadResult.Output -Encoding ASCII
 
 if ($uploadResult.ExitCode -ne 0) {
@@ -205,7 +232,7 @@ if ($uploadResult.ExitCode -ne 0) {
 $statusTool = Join-Path $scriptRoot "Set-FanucJobStatus.ps1"
 if (Test-Path -LiteralPath $statusTool) {
     try {
-        & $statusTool -ProgramName $programName -UploadStatus uploaded -UploadLogPath $logPath | Out-Null
+        & $statusTool -ProgramName $programName -ConfigPath $resolvedConfig -OutputRoot $resolvedOutputRoot -UploadStatus uploaded -UploadLogPath $logPath | Out-Null
     } catch {
         Write-Warning "Upload succeeded, but job manifest upload status was not updated: $($_.Exception.Message)"
     }

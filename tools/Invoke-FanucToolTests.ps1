@@ -52,6 +52,7 @@ $specValidator = Join-Path $scriptRoot "Test-FanucProgramSpec.ps1"
 $motionApplicationValidator = Join-Path $scriptRoot "Test-FanucMotionApplicationSpec.ps1"
 $motionLsGenerator = Join-Path $scriptRoot "New-FanucMotionLsFromSpec.ps1"
 $motionGeneratedLsValidator = Join-Path $scriptRoot "Test-FanucMotionGeneratedLs.ps1"
+$projectPackTool = Join-Path $scriptRoot "New-FanucProjectPack.ps1"
 $lsValidator = Join-Path $scriptRoot "Test-FanucLsSafety.ps1"
 $schemaValidator = Join-Path $scriptRoot "Test-FanucJsonSchema.ps1"
 $cellMapValidator = Join-Path $scriptRoot "Test-FanucCellMap.ps1"
@@ -495,6 +496,18 @@ Invoke-ExpectPass -Name "ProjectHealthCheckValid" -Command {
     $health = Get-Content -LiteralPath $healthPath -Raw | ConvertFrom-Json
     if ($health.liveRobotCommandsExecuted -or $health.controllerWritesExecuted) {
         throw "Health artifact must record no live robot commands and no controller writes."
+    }
+}
+Invoke-ExpectPass -Name "ProjectPackStarterValid" -Command {
+    $packPath = Join-Path $projectRoot "generated\test-runs\TestProject"
+    $pack = & $projectPackTool -Path $packPath -ProjectName TestProject -WorkcellName "Offline test cell" -Force
+    if (-not (Test-Path -LiteralPath $pack.ManifestPath)) {
+        throw "Expected project pack manifest to exist."
+    }
+    $cellMapPath = Join-Path $pack.ProjectPath "config\cell-map.psd1"
+    $result = & $motionApplicationValidator -SpecPath $pack.StarterSpecPath -CellMapPath $cellMapPath
+    if (-not $result.ReadyForGeneration) {
+        throw "Expected starter project-pack motion spec to be generation-ready."
     }
 }
 Invoke-ExpectPass -Name "SchemaValidSpec" -Command {

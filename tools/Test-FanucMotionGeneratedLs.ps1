@@ -5,6 +5,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$LsPath,
 
+    [string]$CellMapPath = "..\config\cell-map.psd1",
     [switch]$Quiet
 )
 
@@ -83,7 +84,7 @@ $resolvedSpecPath = Resolve-InputPath -Path $SpecPath
 $resolvedLsPath = Resolve-InputPath -Path $LsPath
 $specValidator = Join-Path $scriptRoot "Test-FanucMotionApplicationSpec.ps1"
 
-& $specValidator -SpecPath $resolvedSpecPath -Quiet
+& $specValidator -SpecPath $resolvedSpecPath -CellMapPath $CellMapPath -Quiet
 
 $spec = Get-Content -LiteralPath $resolvedSpecPath -Raw | ConvertFrom-Json
 $lsText = Get-Content -LiteralPath $resolvedLsPath -Raw

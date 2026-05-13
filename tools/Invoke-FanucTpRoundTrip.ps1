@@ -3,6 +3,7 @@ param(
     [string]$LsPath,
 
     [string]$ConfigPath = "..\config\robot.psd1",
+    [string]$OutputRoot = "generated",
     [switch]$Force
 )
 
@@ -18,6 +19,7 @@ if ([System.IO.Path]::IsPathRooted($ConfigPath)) {
 }
 
 $config = Import-PowerShellDataFile -LiteralPath $resolvedConfig
+$configRoot = Split-Path -Parent $resolvedConfig
 
 function Resolve-ProjectPath {
     param([string]$Path)
@@ -27,6 +29,27 @@ function Resolve-ProjectPath {
     }
 
     return Join-Path $projectRoot $Path
+}
+
+function Resolve-ConfigOrProjectPath {
+    param([string]$Path)
+
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return $Path
+    }
+
+    $projectCandidate = Join-Path $projectRoot $Path
+    if (Test-Path -LiteralPath $projectCandidate) {
+        return $projectCandidate
+    }
+
+    return Join-Path $configRoot $Path
+}
+
+if ([System.IO.Path]::IsPathRooted($OutputRoot)) {
+    $resolvedOutputRoot = $OutputRoot
+} else {
+    $resolvedOutputRoot = Join-Path $projectRoot $OutputRoot
 }
 
 function Get-FanucMnInstructions {
@@ -79,8 +102,8 @@ function Get-FanucProgramSummary {
 $resolvedLs = Resolve-Path -LiteralPath $LsPath
 $lsItem = Get-Item -LiteralPath $resolvedLs
 $programName = $lsItem.BaseName.ToUpperInvariant()
-$jobDir = Join-Path (Join-Path $projectRoot "generated\jobs") $programName
-$compiledPath = Join-Path (Join-Path $projectRoot "generated\compiled") ($programName + ".TP")
+$jobDir = Join-Path (Join-Path $resolvedOutputRoot "jobs") $programName
+$compiledPath = Join-Path (Join-Path $resolvedOutputRoot "compiled") ($programName + ".TP")
 $jobCompiledPath = Join-Path $jobDir ($programName + ".TP")
 $decodedPath = Join-Path $jobDir "decoded.LS"
 $reportPath = Join-Path $jobDir "roundtrip.json"
@@ -97,7 +120,7 @@ foreach ($path in @($decodedPath, $reportPath)) {
     }
 }
 
-$winOlpcLockDir = Join-Path $projectRoot "generated\compiled"
+$winOlpcLockDir = Join-Path $resolvedOutputRoot "compiled"
 if (-not (Test-Path -LiteralPath $winOlpcLockDir)) {
     New-Item -ItemType Directory -Path $winOlpcLockDir -Force | Out-Null
 }
@@ -118,7 +141,7 @@ try {
     }
 
     $buildTool = Join-Path $scriptRoot "Invoke-FanucTpBuild.ps1"
-    & $buildTool -LsPath $lsItem.FullName -ConfigPath $resolvedConfig -Force
+    & $buildTool -LsPath $lsItem.FullName -ConfigPath $resolvedConfig -OutputRoot $resolvedOutputRoot -Force
 
     if (-not (Test-Path -LiteralPath $compiledPath)) {
         throw "Compile completed but TP file was not found: $compiledPath"
@@ -126,7 +149,7 @@ try {
 
     Copy-Item -LiteralPath $compiledPath -Destination $jobCompiledPath -Force
 
-    $robotIniPath = Resolve-ProjectPath $config.RobotIniPath
+    $robotIniPath = Resolve-ConfigOrProjectPath $config.RobotIniPath
     $printTpPath = Join-Path (Split-Path -Parent $config.MakeTpPath) "printtp.exe"
     if (-not (Test-Path -LiteralPath $printTpPath)) {
         throw "PrintTP not found: $printTpPath"

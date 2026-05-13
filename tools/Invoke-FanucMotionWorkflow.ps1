@@ -2,7 +2,10 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$SpecPath,
 
+    [string]$ProjectPath,
     [string]$ConfigPath = "..\config\robot.psd1",
+    [string]$CellMapPath = "..\config\cell-map.psd1",
+    [string]$OutputRoot = "generated",
     [switch]$SkipOptionalEvidence,
     [switch]$Force
 )
@@ -11,6 +14,28 @@ $ErrorActionPreference = "Stop"
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent $scriptRoot
+
+if ($ProjectPath) {
+    $resolvedProjectPath = Resolve-Path -LiteralPath $ProjectPath
+    $projectPackPath = Join-Path $resolvedProjectPath "project.psd1"
+    if (-not (Test-Path -LiteralPath $projectPackPath)) {
+        throw "Project pack manifest not found: $projectPackPath"
+    }
+
+    $projectPack = Import-PowerShellDataFile -LiteralPath $projectPackPath
+    if (-not [System.IO.Path]::IsPathRooted($ConfigPath) -and $ConfigPath -eq "..\config\robot.psd1") {
+        $ConfigPath = Join-Path $resolvedProjectPath $projectPack.Config.Robot
+    }
+    if (-not [System.IO.Path]::IsPathRooted($CellMapPath) -and $CellMapPath -eq "..\config\cell-map.psd1") {
+        $CellMapPath = Join-Path $resolvedProjectPath $projectPack.Config.CellMap
+    }
+    if (-not [System.IO.Path]::IsPathRooted($OutputRoot) -and $OutputRoot -eq "generated") {
+        $OutputRoot = Join-Path $resolvedProjectPath $projectPack.OutputRoot
+    }
+    if (-not [System.IO.Path]::IsPathRooted($SpecPath)) {
+        $SpecPath = Join-Path $resolvedProjectPath $SpecPath
+    }
+}
 
 function Resolve-InputPath {
     param([string]$Path)
@@ -42,26 +67,27 @@ $evidencePacketTool = Join-Path $scriptRoot "New-FanucRoboguideEvidencePacket.ps
 $manifestTool = Join-Path $scriptRoot "Update-FanucJobManifest.ps1"
 $reviewPacketTool = Join-Path $scriptRoot "Get-FanucReviewPacket.ps1"
 
-$validation = & $motionSpecValidator -SpecPath $resolvedSpec
+$validation = & $motionSpecValidator -SpecPath $resolvedSpec -CellMapPath $CellMapPath
 if (-not $validation.ReadyForGeneration) {
     $messages = $validation.GenerationGateMessages | ForEach-Object { "- $_" }
     throw "Motion application spec is not ready for generation:`n$($messages -join "`n")"
 }
 
-$generated = & $motionGenerator -SpecPath $resolvedSpec -ConfigPath $resolvedConfig -Force:$Force
-& $motionLsValidator -SpecPath $generated.JobSpecPath -LsPath $generated.SourcePath -Quiet
-& $roundTripTool -LsPath $generated.SourcePath -ConfigPath $resolvedConfig -Force:$Force | Out-Null
+$generated = & $motionGenerator -SpecPath $resolvedSpec -ConfigPath $resolvedConfig -CellMapPath $CellMapPath -OutputRoot $OutputRoot -Force:$Force
+& $motionLsValidator -SpecPath $generated.JobSpecPath -LsPath $generated.SourcePath -CellMapPath $CellMapPath -Quiet
+& $roundTripTool -LsPath $generated.SourcePath -ConfigPath $resolvedConfig -OutputRoot $OutputRoot -Force:$Force | Out-Null
 
 if (-not $SkipOptionalEvidence) {
-    & $evidencePacketTool -SpecPath $generated.JobSpecPath -WriteMarkdown -Force | Out-Null
+    $evidencePacketPath = Join-Path $generated.JobDirectory "roboguide-evidence-packet.json"
+    & $evidencePacketTool -SpecPath $generated.JobSpecPath -CellMapPath $CellMapPath -OutputPath $evidencePacketPath -WriteMarkdown -Force | Out-Null
 }
 
-$manifest = & $manifestTool -ProgramName $programName -ConfigPath $resolvedConfig
+$manifest = & $manifestTool -ProgramName $programName -ConfigPath $resolvedConfig -OutputRoot $OutputRoot
 
-$reviewPacket = & $reviewPacketTool -ProgramName $programName
+$reviewPacket = & $reviewPacketTool -ProgramName $programName -OutputRoot $OutputRoot
 $reviewPacketPath = Join-Path $generated.JobDirectory "review-packet.md"
 $reviewPacket | Set-Content -LiteralPath $reviewPacketPath -Encoding ASCII
-$manifest = & $manifestTool -ProgramName $programName -ConfigPath $resolvedConfig
+$manifest = & $manifestTool -ProgramName $programName -ConfigPath $resolvedConfig -OutputRoot $OutputRoot
 
 $manifestJson = Get-Content -LiteralPath $manifest.ManifestPath -Raw | ConvertFrom-Json
 $compiled = [bool]$manifestJson.files.compiled.exists

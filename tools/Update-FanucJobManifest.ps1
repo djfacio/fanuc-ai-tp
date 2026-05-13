@@ -4,6 +4,7 @@ param(
     [string]$ProgramName,
 
     [string]$ConfigPath = "..\config\robot.psd1",
+    [string]$OutputRoot = "generated",
 
     [ValidateSet("not-recorded", "approved", "rejected", "needs-changes")]
     [string]$HumanReviewStatus,
@@ -27,11 +28,28 @@ if ([System.IO.Path]::IsPathRooted($ConfigPath)) {
 }
 
 $config = Import-PowerShellDataFile -LiteralPath $resolvedConfig
+$configRoot = Split-Path -Parent $resolvedConfig
+$cellMapPath = if ($config.CellMapPath) {
+    if ([System.IO.Path]::IsPathRooted($config.CellMapPath)) {
+        $config.CellMapPath
+    } elseif (Test-Path -LiteralPath (Join-Path $projectRoot $config.CellMapPath)) {
+        Join-Path $projectRoot $config.CellMapPath
+    } else {
+        Join-Path $configRoot $config.CellMapPath
+    }
+} else {
+    Join-Path $projectRoot "config\cell-map.psd1"
+}
+if ([System.IO.Path]::IsPathRooted($OutputRoot)) {
+    $resolvedOutputRoot = $OutputRoot
+} else {
+    $resolvedOutputRoot = Join-Path $projectRoot $OutputRoot
+}
 $program = $ProgramName.ToUpperInvariant()
-$jobDir = Join-Path (Join-Path $projectRoot "generated\jobs") $program
-$sourcePath = Join-Path (Join-Path $projectRoot "generated\sources") ($program + ".LS")
+$jobDir = Join-Path (Join-Path $resolvedOutputRoot "jobs") $program
+$sourcePath = Join-Path (Join-Path $resolvedOutputRoot "sources") ($program + ".LS")
 $jobSourcePath = Join-Path $jobDir ($program + ".LS")
-$compiledPath = Join-Path (Join-Path $projectRoot "generated\compiled") ($program + ".TP")
+$compiledPath = Join-Path (Join-Path $resolvedOutputRoot "compiled") ($program + ".TP")
 $jobCompiledPath = Join-Path $jobDir ($program + ".TP")
 $programSpecPath = Join-Path $jobDir "spec.json"
 $motionSpecPath = Join-Path $jobDir "motion-application-spec.json"
@@ -123,7 +141,7 @@ $validations = [ordered]@{
             if (Test-Path -LiteralPath $programSpecPath) {
                 & $specValidator -SpecPath $specPath -ConfigPath $resolvedConfig
             } else {
-                & $motionSpecValidator -SpecPath $specPath
+                & $motionSpecValidator -SpecPath $specPath -CellMapPath $cellMapPath
             }
         }
     } else {
@@ -148,7 +166,7 @@ $validations = [ordered]@{
     }
     motionGeneratedLs = if ($isMotionApplicationJob -and (Test-Path -LiteralPath $sourcePath)) {
         Invoke-Validator -Name "MotionGeneratedLs" -Command {
-            & $motionGeneratedLsValidator -SpecPath $motionSpecPath -LsPath $sourcePath
+            & $motionGeneratedLsValidator -SpecPath $motionSpecPath -LsPath $sourcePath -CellMapPath $cellMapPath
         }
     } elseif ($isMotionApplicationJob) {
         [ordered]@{
@@ -249,7 +267,7 @@ $manifest = [ordered]@{
         makeTpPath = $config.MakeTpPath
         makeTpExists = (Test-Path -LiteralPath $config.MakeTpPath)
         printTpPath = (Join-Path (Split-Path -Parent $config.MakeTpPath) "printtp.exe")
-        robotIniPath = if ([System.IO.Path]::IsPathRooted($config.RobotIniPath)) { $config.RobotIniPath } else { Join-Path $projectRoot $config.RobotIniPath }
+        robotIniPath = if ([System.IO.Path]::IsPathRooted($config.RobotIniPath)) { $config.RobotIniPath } elseif (Test-Path -LiteralPath (Join-Path $projectRoot $config.RobotIniPath)) { Join-Path $projectRoot $config.RobotIniPath } else { Join-Path $configRoot $config.RobotIniPath }
     }
     files = [ordered]@{
         spec = Get-FileRecord $specPath

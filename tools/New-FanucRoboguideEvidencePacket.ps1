@@ -3,6 +3,7 @@ param(
     [string]$SpecPath,
 
     [string]$ConfigPath = "..\config\roboguide-evidence.psd1",
+    [string]$CellMapPath = "..\config\cell-map.psd1",
     [string]$OutputPath,
     [switch]$WriteMarkdown,
     [switch]$Force
@@ -48,7 +49,7 @@ $spec = Get-Content -LiteralPath $resolvedSpecPath -Raw | ConvertFrom-Json
 $isMotionApplicationSpec = ($null -ne $spec.motionPlan -and $null -ne $spec.resources -and $null -ne $spec.evidence -and $null -ne $spec.generation)
 
 if ($isMotionApplicationSpec) {
-    & $motionSpecValidator -SpecPath $resolvedSpecPath -Quiet
+    & $motionSpecValidator -SpecPath $resolvedSpecPath -CellMapPath $CellMapPath -Quiet
 } else {
     & $specValidator -SpecPath $resolvedSpecPath -Quiet
 }

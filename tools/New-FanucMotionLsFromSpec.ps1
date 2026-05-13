@@ -3,6 +3,7 @@ param(
     [string]$SpecPath,
 
     [string]$ConfigPath = "..\config\robot.psd1",
+    [string]$CellMapPath = "..\config\cell-map.psd1",
     [string]$OutputRoot = "generated",
     [switch]$Force
 )
@@ -38,7 +39,7 @@ if ([System.IO.Path]::IsPathRooted($OutputRoot)) {
 
 $resolvedSpec = Resolve-Path -LiteralPath $SpecPath
 $validator = Join-Path $scriptRoot "Test-FanucMotionApplicationSpec.ps1"
-$validation = & $validator -SpecPath $resolvedSpec
+$validation = & $validator -SpecPath $resolvedSpec -CellMapPath $CellMapPath
 
 if (-not $validation.ReadyForGeneration) {
     $messages = $validation.GenerationGateMessages | ForEach-Object { "- $_" }
