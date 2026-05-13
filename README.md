@@ -350,6 +350,18 @@ KAREL `.PC` files are included as present, non-traversed dependencies. Macro TP
 programs are identified from the decoded `/PROG ... Macro` marker; see
 `docs/MACRO_PROGRAMS.md`.
 
+To back up and delete the non-dependency TP candidates from a reviewed dependency
+map:
+
+```powershell
+.\tools\Remove-FanucTpNonDependencies.ps1 -DependencyMapPath .\generated\dependency-map\<run>\dependency-map.json
+.\tools\Remove-FanucTpNonDependencies.ps1 -DependencyMapPath .\generated\dependency-map\<run>\dependency-map.json -Execute
+```
+
+The cleanup tool refuses maps with missing dependencies or dynamic references,
+skips candidates already gone from the robot, backs up every present candidate to
+`generated\robot-cleanup\`, and records controller delete refusals per file.
+
 Validate a real application workflow spec before any motion generation:
 
 ```powershell

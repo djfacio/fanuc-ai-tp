@@ -207,6 +207,21 @@ To capture a durable read-only robot inventory and compare against it later:
 
 Latest inventory snapshot captured 474 parsed `MD:` entries at `generated\robot-inventory\latest.json`.
 
+`F_MAIN` dependency cleanup was executed on 2026-05-13. A fresh dependency map
+from `generated\dependency-map\20260513-155654-F_MAIN\dependency-map.json`
+reported 75 backup/delete candidates, 35 required programs, zero missing
+dependencies, and zero dynamic references. `tools\Remove-FanucTpNonDependencies.ps1`
+backed up the candidates under `generated\robot-cleanup\` and deleted 58 from
+robot `MD:`. The controller refused 17 remaining candidates: `AI_HELLO`, `ARC3`,
+`-BCKEDT-`, `FS_CLB_HND`, `FS_CLB_WRK`, `FS_GET_F`, `FS_MEAS_WRK1`,
+`FS_MEAS_WRK2`, `FS_MOV_15DEG`, `FS_MOV_30DEG`, `FS_MOV_45DEG`,
+`FS_MOV_5DEG`, `GETDATA`, `REQMENU`, `SENDDATA`, `SENDEVNT`, and `SENDSYSV`.
+`AI_HELLO`, `ARC3`, and `-BCKEDT-` were reported by FTP as in use; the rest
+were reported as protected. A post-cleanup dependency map at
+`generated\dependency-map\20260513-160748-F_MAIN\dependency-map.json` confirmed
+`F_MAIN` still has 35 required programs, zero missing dependencies, and 17
+remaining backup/delete candidates.
+
 Controlled production analysis has been proven read-only with:
 
 ```powershell
