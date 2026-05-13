@@ -49,6 +49,7 @@ function Invoke-ExpectFail {
 }
 
 $specValidator = Join-Path $scriptRoot "Test-FanucProgramSpec.ps1"
+$motionApplicationValidator = Join-Path $scriptRoot "Test-FanucMotionApplicationSpec.ps1"
 $lsValidator = Join-Path $scriptRoot "Test-FanucLsSafety.ps1"
 $schemaValidator = Join-Path $scriptRoot "Test-FanucJsonSchema.ps1"
 $cellMapValidator = Join-Path $scriptRoot "Test-FanucCellMap.ps1"
@@ -439,6 +440,18 @@ Invoke-ExpectPass -Name "ProjectHealthCheckValid" -Command {
 }
 Invoke-ExpectPass -Name "SchemaValidSpec" -Command {
     & $schemaValidator -JsonPath (Join-Path $projectRoot "tests\fixtures\valid\AI_VALID.program-spec.json") -SchemaPath $schemaPath -Quiet
+}
+Invoke-ExpectPass -Name "MotionApplicationPlanningSpecValid" -Command {
+    $result = & $motionApplicationValidator -SpecPath (Join-Path $projectRoot "examples\applications\AI_APP_PICK_PLACE.motion-application.json")
+    if (-not $result.IsValid) {
+        throw "Expected motion application planning spec to be valid."
+    }
+    if ($result.ReadyForGeneration) {
+        throw "Planning example should not be ready for generation."
+    }
+}
+Invoke-ExpectFail -Name "MotionApplicationBadGenerationFails" -Command {
+    & $motionApplicationValidator -SpecPath (Join-Path $projectRoot "tests\fixtures\invalid\AI_APP_BAD.motion-application.json") -Quiet
 }
 Invoke-ExpectPass -Name "SpecScratchRangePasses" -Command {
     $specPath = Join-Path $projectRoot "generated\test-runs\AI_RANGE_OK.program-spec.json"

@@ -91,6 +91,12 @@ Phase 1 is closed. See `docs\PHASE_1_SUMMARY.md`.
 
 Phase 2 has started as a disabled KAREL/TCP bridge contract and richer status-planning track. See `docs\PHASE_2_PLAN.md`. KAREL bridge work is schema/examples only right now; do not deploy robot-resident KAREL or grant command authority without a separate review.
 
+The real application workflow, including future motion, now starts with `docs\REAL_APPLICATION_WORKFLOW.md`, `schemas\motion-application-spec.schema.json`, and `tools\Test-FanucMotionApplicationSpec.ps1`. The current example is planning-only and intentionally not generation-ready:
+
+```powershell
+.\tools\Test-FanucMotionApplicationSpec.ps1 -SpecPath .\examples\applications\AI_APP_PICK_PLACE.motion-application.json
+```
+
 Run the project health check before new work:
 
 ```powershell

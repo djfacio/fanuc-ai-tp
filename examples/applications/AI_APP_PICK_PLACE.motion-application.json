@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "applicationName": "Example reviewed pick/place application intake",
+  "programName": "AI_APP_PICK_PLACE",
+  "phase": "planning",
+  "purpose": "Document the required workflow inputs for a future constrained pick/place motion template.",
+  "cellContext": {
+    "controller": "FANUC R-30iB Plus class",
+    "robot": "Review actual robot model before generation",
+    "workcell": "Review project/workcell policy",
+    "process": "Pick/place example",
+    "payloadName": "Review payload before generation"
+  },
+  "policy": {
+    "cellMapPolicy": "config/cell-map.psd1",
+    "motionAuthority": "not-authorized",
+    "humanReviewRequired": true,
+    "productionOverwriteAllowed": false
+  },
+  "resources": {
+    "userFrame": {
+      "number": 1,
+      "name": "Review UFRAME before generation",
+      "source": "pendant/RoboGuide review required",
+      "verified": false
+    },
+    "userTool": {
+      "number": 1,
+      "name": "Review UTOOL before generation",
+      "source": "pendant/RoboGuide review required",
+      "verified": false
+    },
+    "payload": {
+      "number": 1,
+      "name": "Review payload before generation",
+      "source": "controller payload schedule review required",
+      "verified": false
+    },
+    "points": [
+      {
+        "name": "APPROACH",
+        "source": "taught-point",
+        "verified": false,
+        "touchupRequired": true
+      },
+      {
+        "name": "PICK",
+        "source": "taught-point",
+        "verified": false,
+        "touchupRequired": true
+      },
+      {
+        "name": "RETRACT",
+        "source": "taught-point",
+        "verified": false,
+        "touchupRequired": true
+      }
+    ],
+    "io": [],
+    "registers": [],
+    "calls": []
+  },
+  "motionPlan": {
+    "motionTypes": ["J", "L"],
+    "speedPolicy": "Use reviewed low-speed values in first generation-ready spec.",
+    "terminationPolicy": "Use FINE/CNT only after path review.",
+    "approachRetract": "Approach and retract points must be explicit and reviewed.",
+    "clearancePolicy": "Clearance from fixtures, tooling, and operator space must be reviewed.",
+    "recoveryPlan": "Recovery must be described before generation."
+  },
+  "safety": {
+    "dcsReviewed": false,
+    "interlocksReviewed": false,
+    "operatorLocationReviewed": false,
+    "faultHandlingReviewed": false,
+    "noControllerConfigWrites": true,
+    "notes": "Planning example only. Not generation-ready."
+  },
+  "evidence": {
+    "roboguideRequired": true,
+    "roboguidePlan": "Create RoboGuide evidence packet before generation-ready status.",
+    "t1Plan": "Create pendant/T1 verification checklist before upload.",
+    "snapshotPlan": "Capture before/after status snapshots for relevant registers, IO, and operator checks.",
+    "acceptanceCriteria": [
+      "Path clears fixtures in RoboGuide.",
+      "T1 verification plan has named stop/recovery points."
+    ]
+  },
+  "generation": {
+    "allowed": false,
+    "mode": "not-authorized",
+    "templateId": "",
+    "notes": "Motion generation is blocked until all reviewed workflow gates pass."
+  }
+}

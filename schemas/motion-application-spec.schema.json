@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.fanuc-ai-tp/schemas/motion-application-spec.schema.json",
+  "title": "FANUC Motion Application Workflow Spec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "applicationName",
+    "programName",
+    "phase",
+    "purpose",
+    "cellContext",
+    "policy",
+    "resources",
+    "motionPlan",
+    "safety",
+    "evidence",
+    "generation"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "applicationName": { "type": "string", "minLength": 1 },
+    "programName": {
+      "type": "string",
+      "pattern": "^AI_[A-Z0-9_]{1,29}$"
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "intake",
+        "planning",
+        "simulation-ready",
+        "generation-ready",
+        "generated",
+        "uploaded",
+        "t1-verified",
+        "released"
+      ]
+    },
+    "purpose": { "type": "string", "minLength": 1 },
+    "cellContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controller", "robot", "workcell", "process", "payloadName"],
+      "properties": {
+        "controller": { "type": "string", "minLength": 1 },
+        "robot": { "type": "string", "minLength": 1 },
+        "workcell": { "type": "string", "minLength": 1 },
+        "process": { "type": "string", "minLength": 1 },
+        "payloadName": { "type": "string", "minLength": 1 }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cellMapPolicy", "motionAuthority", "humanReviewRequired", "productionOverwriteAllowed"],
+      "properties": {
+        "cellMapPolicy": { "type": "string", "minLength": 1 },
+        "motionAuthority": {
+          "type": "string",
+          "enum": ["not-authorized", "reviewed-motion-template", "reviewed-application"]
+        },
+        "humanReviewRequired": { "type": "boolean" },
+        "productionOverwriteAllowed": { "type": "boolean" }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["userFrame", "userTool", "payload", "points", "io", "registers", "calls"],
+      "properties": {
+        "userFrame": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["number", "name", "source", "verified"],
+          "properties": {
+            "number": { "type": "integer", "minimum": 1 },
+            "name": { "type": "string", "minLength": 1 },
+            "source": { "type": "string", "minLength": 1 },
+            "verified": { "type": "boolean" }
+          }
+        },
+        "userTool": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["number", "name", "source", "verified"],
+          "properties": {
+            "number": { "type": "integer", "minimum": 1 },
+            "name": { "type": "string", "minLength": 1 },
+            "source": { "type": "string", "minLength": 1 },
+            "verified": { "type": "boolean" }
+          }
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["number", "name", "source", "verified"],
+          "properties": {
+            "number": { "type": "integer", "minimum": 1 },
+            "name": { "type": "string", "minLength": 1 },
+            "source": { "type": "string", "minLength": 1 },
+            "verified": { "type": "boolean" }
+          }
+        },
+        "points": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "source", "verified", "touchupRequired"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "source": {
+                "type": "string",
+                "enum": ["taught-point", "position-register", "fixture-reference", "imported-reviewed"]
+              },
+              "verified": { "type": "boolean" },
+              "touchupRequired": { "type": "boolean" }
+            }
+          }
+        },
+        "io": { "type": "array" },
+        "registers": { "type": "array" },
+        "calls": { "type": "array" }
+      }
+    },
+    "motionPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["motionTypes", "speedPolicy", "terminationPolicy", "approachRetract", "clearancePolicy", "recoveryPlan"],
+      "properties": {
+        "motionTypes": { "type": "array", "minItems": 1 },
+        "speedPolicy": { "type": "string", "minLength": 1 },
+        "terminationPolicy": { "type": "string", "minLength": 1 },
+        "approachRetract": { "type": "string", "minLength": 1 },
+        "clearancePolicy": { "type": "string", "minLength": 1 },
+        "recoveryPlan": { "type": "string", "minLength": 1 }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dcsReviewed", "interlocksReviewed", "operatorLocationReviewed", "faultHandlingReviewed", "noControllerConfigWrites"],
+      "properties": {
+        "dcsReviewed": { "type": "boolean" },
+        "interlocksReviewed": { "type": "boolean" },
+        "operatorLocationReviewed": { "type": "boolean" },
+        "faultHandlingReviewed": { "type": "boolean" },
+        "noControllerConfigWrites": { "type": "boolean" },
+        "notes": { "type": "string" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["roboguideRequired", "roboguidePlan", "t1Plan", "snapshotPlan", "acceptanceCriteria"],
+      "properties": {
+        "roboguideRequired": { "type": "boolean" },
+        "roboguidePlan": { "type": "string", "minLength": 1 },
+        "t1Plan": { "type": "string", "minLength": 1 },
+        "snapshotPlan": { "type": "string", "minLength": 1 },
+        "acceptanceCriteria": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed", "mode", "templateId"],
+      "properties": {
+        "allowed": { "type": "boolean" },
+        "mode": {
+          "type": "string",
+          "enum": ["not-authorized", "reviewed-template-only", "reviewed-motion-template"]
+        },
+        "templateId": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

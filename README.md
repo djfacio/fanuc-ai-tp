@@ -313,6 +313,12 @@ Generate a RoboGuide/manual evidence packet from a spec:
 .\tools\New-FanucRoboguideEvidencePacket.ps1 -SpecPath .\examples\AI_IODIAG.program-spec.json -WriteMarkdown -Force
 ```
 
+Validate a real application workflow spec before any motion generation:
+
+```powershell
+.\tools\Test-FanucMotionApplicationSpec.ps1 -SpecPath .\examples\applications\AI_APP_PICK_PLACE.motion-application.json
+```
+
 Validate and emit the interface strategy before adding KAREL/PCDK bridge work:
 
 ```powershell
@@ -412,6 +418,7 @@ Planning docs for the next phase:
 
 - `docs/PHASE_1_SUMMARY.md`
 - `docs/PHASE_2_PLAN.md`
+- `docs/REAL_APPLICATION_WORKFLOW.md`
 - `docs/COMMUNICATION_STRATEGY.md`
 - `docs/KAREL_TCP_BRIDGE.md`
 - `docs/PROGRAM_TEMPLATES.md`
@@ -431,6 +438,7 @@ Additional safe starter specs:
 - `examples/AI_FRMTOOL.program-spec.json`
 - `examples/AI_SNAPSHOT.program-spec.json`
 - `examples/AI_CELLCHK.program-spec.json`
+- `examples/applications/AI_APP_PICK_PLACE.motion-application.json`
 
 ## Tests
 

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "applicationName": "Invalid motion application",
+  "programName": "AI_APP_BAD",
+  "phase": "generation-ready",
+  "purpose": "Should fail because generation is allowed without reviewed motion gates.",
+  "cellContext": {
+    "controller": "FANUC R-30iB Plus class",
+    "robot": "Robot",
+    "workcell": "Cell",
+    "process": "Invalid",
+    "payloadName": "Payload"
+  },
+  "policy": {
+    "cellMapPolicy": "config/cell-map.psd1",
+    "motionAuthority": "reviewed-motion-template",
+    "humanReviewRequired": true,
+    "productionOverwriteAllowed": false
+  },
+  "resources": {
+    "userFrame": {
+      "number": 1,
+      "name": "UF",
+      "source": "unknown",
+      "verified": false
+    },
+    "userTool": {
+      "number": 1,
+      "name": "UT",
+      "source": "unknown",
+      "verified": false
+    },
+    "payload": {
+      "number": 1,
+      "name": "Payload",
+      "source": "unknown",
+      "verified": false
+    },
+    "points": [
+      {
+        "name": "P1",
+        "source": "taught-point",
+        "verified": false,
+        "touchupRequired": true
+      }
+    ],
+    "io": [],
+    "registers": [],
+    "calls": []
+  },
+  "motionPlan": {
+    "motionTypes": ["J"],
+    "speedPolicy": "missing review",
+    "terminationPolicy": "missing review",
+    "approachRetract": "missing review",
+    "clearancePolicy": "missing review",
+    "recoveryPlan": "missing review"
+  },
+  "safety": {
+    "dcsReviewed": false,
+    "interlocksReviewed": false,
+    "operatorLocationReviewed": false,
+    "faultHandlingReviewed": false,
+    "noControllerConfigWrites": false
+  },
+  "evidence": {
+    "roboguideRequired": true,
+    "roboguidePlan": "missing",
+    "t1Plan": "missing",
+    "snapshotPlan": "missing",
+    "acceptanceCriteria": ["missing"]
+  },
+  "generation": {
+    "allowed": true,
+    "mode": "reviewed-motion-template",
+    "templateId": "PICK_PLACE_V1"
+  }
+}

@@ -8,6 +8,7 @@ Phase 2 starts with richer status and interface design while keeping command aut
 - Keep SNPX as the proven live read/write path for scratch proofing.
 - Expand status snapshots toward richer cell state, alarms, active program, selected frames/tools, and controlled operator prompts.
 - Prepare RoboGuide evidence flow for future motion templates.
+- Establish the real application workflow for motion before any motion generator is implemented.
 
 ## Track 1: KAREL/TCP Contract
 
@@ -38,9 +39,17 @@ Starter artifacts:
 - Promote evidence packets from checklists to repeatable RoboGuide run records.
 - Keep physical motion disabled until virtual evidence and T1/manual criteria are defined.
 
+## Track 4: Real Application Motion Workflow
+
+- Use `docs\REAL_APPLICATION_WORKFLOW.md` for the application lifecycle.
+- Use `schemas\motion-application-spec.schema.json` for motion application intake.
+- Use `tools\Test-FanucMotionApplicationSpec.ps1` to distinguish valid planning specs from generation-ready specs.
+- Keep motion generation disabled until a reviewed motion template exists.
+
 ## Exit Criteria For Phase 2
 
 - KAREL/TCP message schema and examples validate.
 - KAREL bridge remains disabled until deployment, rollback, and tests are reviewed.
 - Health check is the standard preflight before live work.
 - A richer read-only status model exists independently from write policy.
+- Motion application specs can be validated, and generation-ready status is blocked until frame/tool/payload/point/safety/evidence gates pass.
