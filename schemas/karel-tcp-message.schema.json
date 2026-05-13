@@ -1,0 +1,44 @@
+{
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "messageType",
+    "requestId"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "messageType": {
+      "type": "string",
+      "enum": [
+        "status.snapshot.request",
+        "status.snapshot.response",
+        "command.reviewed-write.request",
+        "command.reviewed-write.response"
+      ]
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target": {
+      "type": "string",
+      "pattern": "^(R\\[[1-9][0-9]*\\]|D[IO]\\[[1-9][0-9]*\\]|R[IO]\\[[1-9][0-9]*\\])$"
+    },
+    "approvalPhrase": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "rejected",
+        "error"
+      ]
+    }
+  }
+}

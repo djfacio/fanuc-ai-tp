@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "messageType": "command.reviewed-write.response",
+  "requestId": "REQ-WRITE-0001",
+  "status": "ok",
+  "before": 0,
+  "after": 9501
+}

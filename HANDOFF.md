@@ -87,7 +87,17 @@ Compile and upload to robot `MD:`:
 
 ## Next Good Step
 
-Build out spec-driven generators around constrained templates, starting with no-motion diagnostics and simple IO/register utilities. Keep motion generation behind explicit review and manual verification. Use `docs\STRATEGY.md`, `docs\SAFETY.md`, `docs\WORKFLOW.md`, and `schemas\program-spec.schema.json` as the starting architecture.
+Phase 1 is closed. See `docs\PHASE_1_SUMMARY.md`.
+
+Phase 2 has started as a disabled KAREL/TCP bridge contract and richer status-planning track. See `docs\PHASE_2_PLAN.md`. KAREL bridge work is schema/examples only right now; do not deploy robot-resident KAREL or grant command authority without a separate review.
+
+Run the project health check before new work:
+
+```powershell
+.\tools\Invoke-FanucProjectHealthCheck.ps1 -WriteMarkdown
+```
+
+Continue building spec-driven generators around constrained templates, starting with no-motion diagnostics and simple IO/register utilities. Keep motion generation behind explicit review and manual verification. Use `docs\STRATEGY.md`, `docs\SAFETY.md`, `docs\WORKFLOW.md`, and `schemas\program-spec.schema.json` as the starting architecture.
 
 The deterministic no-motion template catalog is now explicit in `config\template-catalog.psd1`. Validate it with `tools\Test-FanucTemplateCatalog.ps1` and emit review artifacts with `tools\Get-FanucTemplateCatalog.ps1 -WriteMarkdown`.
 
@@ -103,6 +113,13 @@ Interface strategy is explicit in `config\interface-strategy.psd1`. KAREL TCP is
 ```powershell
 .\tools\Test-FanucInterfaceStrategy.ps1
 .\tools\Get-FanucInterfaceStrategy.ps1 -WriteMarkdown
+```
+
+Phase 2 KAREL/TCP schema examples now exist under:
+
+```text
+schemas\karel-tcp-message.schema.json
+examples\karel\
 ```
 
 The latest proven local evidence is in `generated\jobs\AI_HELLO\manifest.json`. It records spec validation, LS safety, MakeTP compile, PrintTP decode, matching normalized `/MN` instructions, and file hashes. `localEvidencePassed` is true; `readyForUpload` stays false until human review/upload policy is explicitly recorded.

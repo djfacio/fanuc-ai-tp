@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "messageType": "command.reviewed-write.request",
+  "requestId": "REQ-WRITE-0001",
+  "target": "R[95]",
+  "value": 9501,
+  "approvalPhrase": "I approve reviewed bridge write: R[95]=9501"
+}

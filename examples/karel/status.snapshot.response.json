@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "messageType": "status.snapshot.response",
+  "requestId": "REQ-STATUS-0001",
+  "status": "ok",
+  "values": {
+    "registers": {
+      "R[95]": 9501
+    },
+    "ioSignals": {
+      "DO[2]": false
+    }
+  }
+}

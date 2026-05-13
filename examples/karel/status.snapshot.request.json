@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "messageType": "status.snapshot.request",
+  "requestId": "REQ-STATUS-0001"
+}

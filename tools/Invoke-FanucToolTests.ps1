@@ -69,6 +69,7 @@ $snpxWritePlanTool = Join-Path $scriptRoot "New-FanucSnpxWritePlan.ps1"
 $snpxLiveReadTool = Join-Path $scriptRoot "Invoke-FanucSnpxLiveRead.ps1"
 $snpxLiveWriteTool = Join-Path $scriptRoot "Invoke-FanucSnpxLiveWrite.ps1"
 $snpxScratchProofTool = Join-Path $scriptRoot "Invoke-FanucSnpxScratchProof.ps1"
+$healthCheckTool = Join-Path $scriptRoot "Invoke-FanucProjectHealthCheck.ps1"
 $statusPlanTool = Join-Path $scriptRoot "New-FanucCellStatusPlan.ps1"
 $statusSnapshotTool = Join-Path $scriptRoot "New-FanucCellStatusSnapshot.ps1"
 $statusCompareTool = Join-Path $scriptRoot "Compare-FanucCellStatusSnapshot.ps1"
@@ -172,6 +173,17 @@ Invoke-ExpectPass -Name "InterfaceStrategyArtifactValid" -Command {
     $writeSchemas = @($strategy.messageSchemas | Where-Object { $_.AllowsWrites })
     if ($writeSchemas.Count -ne 1 -or $writeSchemas[0].Name -ne "command.reviewed-write.request") {
         throw "Expected exactly one proposed reviewed-write request schema."
+    }
+}
+Invoke-ExpectPass -Name "KarelTcpMessageExamplesValid" -Command {
+    $karelSchemaPath = Join-Path $projectRoot "schemas\karel-tcp-message.schema.json"
+    foreach ($example in @(
+        "examples\karel\status.snapshot.request.json",
+        "examples\karel\status.snapshot.response.json",
+        "examples\karel\command.reviewed-write.request.json",
+        "examples\karel\command.reviewed-write.response.json"
+    )) {
+        & $schemaValidator -JsonPath (Join-Path $projectRoot $example) -SchemaPath $karelSchemaPath -Quiet
     }
 }
 Invoke-ExpectPass -Name "SnpxReadonlyConfigValid" -Command {
@@ -409,6 +421,20 @@ Invoke-ExpectPass -Name "CellStatusSnapshotSample" -Command {
     $comparison = & $statusCompareTool -BeforePath $before.SnapshotPath -AfterPath $after.SnapshotPath -OutputPath $comparisonPath
     if ($comparison.ChangeCount -lt 1) {
         throw "Expected snapshot comparison to find changes."
+    }
+}
+Invoke-ExpectPass -Name "ProjectHealthCheckValid" -Command {
+    $healthPath = Join-Path $projectRoot "generated\test-runs\health\health-check.json"
+    $result = & $healthCheckTool -OutputPath $healthPath -WriteMarkdown
+    if (-not $result.OverallPassed) {
+        throw "Expected project health check to pass."
+    }
+    if ($result.LiveRobotCommandsExecuted -or $result.ControllerWritesExecuted) {
+        throw "Project health check must remain offline/read-only with respect to the robot."
+    }
+    $health = Get-Content -LiteralPath $healthPath -Raw | ConvertFrom-Json
+    if ($health.liveRobotCommandsExecuted -or $health.controllerWritesExecuted) {
+        throw "Health artifact must record no live robot commands and no controller writes."
     }
 }
 Invoke-ExpectPass -Name "SchemaValidSpec" -Command {

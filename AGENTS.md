@@ -37,6 +37,8 @@ The working path is:
 This repo is an AI-assisted FANUC TP workflow, not just a MakeTP/FTP script folder. Read these before adding new generators or deployment behavior:
 
 - `docs\STRATEGY.md`
+- `docs\PHASE_1_SUMMARY.md`
+- `docs\PHASE_2_PLAN.md`
 - `docs\SAFETY.md`
 - `docs\WORKFLOW.md`
 - `docs\MOTION_SAFETY.md`
@@ -61,6 +63,7 @@ Prefer structured specs and deterministic emitters. Use AI for planning, draftin
 
 Use `config\template-catalog.psd1` as the reviewed deterministic template list. Run `tools\Test-FanucTemplateCatalog.ps1` after adding or changing example specs/templates.
 Use `config\interface-strategy.psd1` and `tools\Test-FanucInterfaceStrategy.ps1` before adding KAREL, PCDK, or new bridge behavior. KAREL TCP must remain disabled until schemas, robot-resident code, deployment, rollback, and tests are reviewed.
+Use `tools\Invoke-FanucProjectHealthCheck.ps1 -WriteMarkdown` for an offline/read-only project preflight. It must not execute live robot reads or controller writes.
 
 Run commands from this folder:
 

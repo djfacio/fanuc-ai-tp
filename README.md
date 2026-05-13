@@ -48,6 +48,12 @@ Run the offline validator suite:
 .\tools\Invoke-FanucToolTests.ps1
 ```
 
+Run the offline/read-only project health check:
+
+```powershell
+.\tools\Invoke-FanucProjectHealthCheck.ps1 -WriteMarkdown
+```
+
 Run the vendored SNPX codec tests:
 
 ```powershell
@@ -314,6 +320,12 @@ Validate and emit the interface strategy before adding KAREL/PCDK bridge work:
 .\tools\Get-FanucInterfaceStrategy.ps1 -WriteMarkdown
 ```
 
+Generate the offline/read-only project health summary:
+
+```powershell
+.\tools\Invoke-FanucProjectHealthCheck.ps1 -WriteMarkdown
+```
+
 Generate a read-only cell status plan:
 
 ```powershell
@@ -398,6 +410,8 @@ The first example spec is `examples/AI_HELLO.program-spec.json`.
 
 Planning docs for the next phase:
 
+- `docs/PHASE_1_SUMMARY.md`
+- `docs/PHASE_2_PLAN.md`
 - `docs/COMMUNICATION_STRATEGY.md`
 - `docs/KAREL_TCP_BRIDGE.md`
 - `docs/PROGRAM_TEMPLATES.md`
