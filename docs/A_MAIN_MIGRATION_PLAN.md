@@ -91,8 +91,9 @@ Before `A_MAIN.LS` should be generated, decide:
 - Whether station routines with internal waits, such as `F_UNLOAD_CNC`, must be
   converted to `A_` before the first `A_MAIN` test or can run under a scoped
   exception.
-- Compile, upload, and test `A_TSKSTAT` from `docs\KAREL_TASK_STATE.md` so
-  `A_MAIN` can prove `F_FLEXI_LOADER` is not already running before starting it.
+- Compile, upload, and test `TSKSTATUS` from `docs\KAREL_TASK_STATE.md` so
+  `A_MAIN` can call `TSKSTATUS('F_FLEXI_LOADER',91)` and prove
+  `F_FLEXI_LOADER` is not already running before starting it.
 - Decide whether generated code should restore the previous `$WAITTMOUT` value
   after each bounded wait, or whether the project owns it as a fixed cell-level
   180-second setting.

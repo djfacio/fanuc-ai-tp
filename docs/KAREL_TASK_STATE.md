@@ -1,11 +1,14 @@
 # KAREL Task State Helper
 
-This is the narrow KAREL path for checking whether an async/background task is
-already running before `A_MAIN` starts or depends on it.
+`TSKSTATUS` is the narrow KAREL utility for checking whether an async/background
+task is already running before `A_MAIN` starts or depends on it.
 
 It is not the KAREL TCP bridge. It does not start, pause, abort, resume, select,
-or move programs. It reads task state and writes status evidence to reviewed
+or move programs. It reads task state and writes status evidence to caller-chosen
 registers.
+
+`TSKSTATUS` is a reviewed exception to the generated `A_` prefix because it is a
+general utility, not an application workflow program.
 
 ## Local Manual Basis
 
@@ -17,6 +20,7 @@ Local manual `b-83144en-1-02` supports this design:
 - Pages 264-265: `GET_TSK_INFO(task_name, task_no, attribute, value_int,
   value_str, status)` supports `TSK_STATUS`, `TSK_LINENUM`, `TSK_PROGNAME`, and
   status values such as `PG_RUNNING`, `PG_PAUSED`, and `PG_ABORTED`.
+- Page 262: TP `CALL` parameters can be read from KAREL using `GET_TPE_PRM`.
 - Page 342: `SET_INT_REG(register_no, int_value, status)` stores integer values
   in numeric registers.
 
@@ -25,52 +29,37 @@ KTRANS V9.40 loads that core environment by default, so generated source does
 not declare it explicitly; it declares only `%ENVIRONMENT REGOPE` for register
 writes.
 
-## Tooling
+## Call Interface
 
-Generate the KAREL source:
+From TP:
 
-```powershell
-.\tools\New-FanucTaskStateKarelSource.ps1 `
-  -ProgramName A_TSKSTAT `
-  -TargetTask F_FLEXI_LOADER `
-  -OutputPath .\prototypes\karel\A_TSKSTAT.KL `
-  -Force
+```ls
+CALL TSKSTATUS('F_FLEXI_LOADER',91) ;
 ```
 
-Current generated source:
+Arguments:
 
-```text
-prototypes\karel\A_TSKSTAT.KL
-```
+| Argument | Type | Meaning |
+| --- | --- | --- |
+| `1` | string | Task/program name to inspect |
+| `2` | integer | Base numeric register for the result block |
 
-Compile locally with WinOLPC KTRANS:
-
-```powershell
-.\tools\Invoke-FanucKarelBuild.ps1 `
-  -SourcePath .\prototypes\karel\A_TSKSTAT.KL `
-  -Force
-```
-
-The build writes:
-
-```text
-generated\karel\A_TSKSTAT.PC
-generated\karel\A_TSKSTAT.LS
-```
+The base register is caller-owned. For `A_MAIN`, the proposed call uses base
+`R[91]`.
 
 ## Output Contract
 
-`A_TSKSTAT` checks `F_FLEXI_LOADER` and writes:
+`TSKSTATUS('TASK_NAME',base)` writes:
 
 | Register | Meaning |
 | --- | --- |
-| `R[91]` | Normalized task state |
-| `R[92]` | Raw `TSK_STATUS` value from `GET_TSK_INFO` |
-| `R[93]` | Task number returned by `GET_TSK_INFO` |
-| `R[94]` | Current executing line number, or `0` if unavailable |
-| `R[95]` | KAREL `status` from the first `GET_TSK_INFO` call |
+| `R[base]` | Normalized task state |
+| `R[base+1]` | Raw `TSK_STATUS` value from `GET_TSK_INFO` |
+| `R[base+2]` | Task number returned by `GET_TSK_INFO` |
+| `R[base+3]` | Current executing line number, or `0` if unavailable |
+| `R[base+4]` | KAREL `status` from first `GET_TSK_INFO` or parameter read |
 
-Normalized `R[91]` values:
+Normalized values:
 
 | Value | Meaning |
 | --- | --- |
@@ -79,13 +68,43 @@ Normalized `R[91]` values:
 | `30` | Paused |
 | `40` | Aborted or not running |
 | `50` | Aborting |
+| `901` | Missing or invalid `CALL` parameter |
 | `900` | `GET_TSK_INFO` failed |
 | `999` | Unrecognized raw task status |
 
+## Tooling
+
+Generate the KAREL source:
+
+```powershell
+.\tools\New-FanucTaskStateKarelSource.ps1 `
+  -ProgramName TSKSTATUS `
+  -OutputPath .\prototypes\karel\TSKSTATUS.KL `
+  -Force
+```
+
+Compile locally with WinOLPC KTRANS:
+
+```powershell
+.\tools\Invoke-FanucKarelBuild.ps1 `
+  -SourcePath .\prototypes\karel\TSKSTATUS.KL `
+  -Force
+```
+
+The build writes generated artifacts:
+
+```text
+generated\karel\TSKSTATUS.PC
+generated\karel\TSKSTATUS.LS
+```
+
 ## A_MAIN Use
 
-Before `A_MAIN` uses `RUN F_FLEXI_LOADER`, it should call `A_TSKSTAT` and branch
-on `R[91]`.
+Before `A_MAIN` uses `RUN F_FLEXI_LOADER`, it should call:
+
+```ls
+CALL TSKSTATUS('F_FLEXI_LOADER',91) ;
+```
 
 Recommended first policy:
 
@@ -94,7 +113,8 @@ Recommended first policy:
 - `R[91]=30`: do not auto-continue yet; raise a specific state/status path.
 - `R[91]=40`: safe candidate to `RUN`, subject to the rest of the startup
   preconditions.
-- `R[91]=900` or `999`: fail closed and do not start the feeder task.
+- `R[91]=900`, `901`, or `999`: fail closed and do not start the feeder task.
 
-This resolves the single-instance question only after the KAREL source compiles,
-is uploaded, and the register contract is tested on the controller.
+This resolves the design of the single-instance question. It does not clear the
+gate until `TSKSTATUS.PC` is uploaded and the register contract is tested on the
+controller.

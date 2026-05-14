@@ -225,17 +225,19 @@ Invoke-ExpectPass -Name "KarelTcpMessageExamplesValid" -Command {
     }
 }
 Invoke-ExpectPass -Name "KarelTaskStateSourceGenerated" -Command {
-    $sourcePath = Join-Path $projectRoot "generated\test-runs\A_TSKSTAT.KL"
-    $result = & $taskStateKarelSourceTool -ProgramName A_TSKSTAT -TargetTask F_FLEXI_LOADER -OutputPath $sourcePath -Force
-    if ($result.ProgramName -ne "A_TSKSTAT" -or $result.TargetTask -ne "F_FLEXI_LOADER") {
+    $sourcePath = Join-Path $projectRoot "generated\test-runs\TSKSTATUS.KL"
+    $result = & $taskStateKarelSourceTool -ProgramName TSKSTATUS -OutputPath $sourcePath -Force
+    if ($result.ProgramName -ne "TSKSTATUS") {
         throw "Unexpected generated KAREL task-state metadata."
     }
     $source = Get-Content -LiteralPath $sourcePath -Raw
     foreach ($expected in @(
+        "GET_TPE_PRM(1, data_type",
+        "GET_TPE_PRM(2, data_type",
         "GET_TSK_INFO(task_name, task_no, TSK_STATUS",
         "SET_INT_REG(reg_no, value, set_status)",
         "IF value_int = PG_RUNNING THEN",
-        "REG_RESULT = 91"
+        "CALL TSKSTATUS('TASK_NAME', result_register)"
     )) {
         if ($source -notlike "*$expected*") {
             throw "Generated task-state KAREL source missing '$expected'."

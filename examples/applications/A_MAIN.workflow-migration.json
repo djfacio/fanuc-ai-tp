@@ -336,7 +336,7 @@
       "program": "F_FLEXI_LOADER",
       "baselineStartLines": "F_MAIN lines 20 and 40",
       "ownership": "Owns vision trigger/retry behavior and writes F[50:Part_Ready], R[103:Retry_Count], and R[105:Hopper_Count].",
-      "singleInstancePolicy": "Proposed: call A_TSKSTAT before RUN. A_TSKSTAT uses KAREL GET_TSK_INFO for F_FLEXI_LOADER and writes normalized task state to R[91]. Blocking until compiled, uploaded, and tested.",
+      "singleInstancePolicy": "Proposed: call TSKSTATUS('F_FLEXI_LOADER',91) before RUN. TSKSTATUS uses KAREL GET_TPE_PRM, GET_TSK_INFO, and SET_INT_REG to write normalized task state to R[91] and evidence to R[92]-R[95]. Blocking until compiled, uploaded, and tested.",
       "statusPolicy": "Blocking: F_TASK_STATUS exists but the guard in F_FLEXI_LOADER is commented out; define the status/heartbeat rule before generation.",
       "stopPolicy": "Blocking: define how task exits or closes K_VS connection on STOP, abort, or A_MAIN fault."
     },
@@ -364,7 +364,7 @@
     {
       "id": "flexi-loader-run-contract",
       "severity": "blocking",
-      "question": "Compile, upload, and test A_TSKSTAT so A_MAIN can prove F_FLEXI_LOADER is not already running before starting it.",
+      "question": "Compile, upload, and test TSKSTATUS so A_MAIN can call TSKSTATUS('F_FLEXI_LOADER',91) and prove F_FLEXI_LOADER is not already running before starting it.",
       "blocking": true
     },
     {

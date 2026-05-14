@@ -31,8 +31,8 @@ if (-not $programMatch.Success) {
 }
 
 $programName = $programMatch.Groups[1].Value.ToUpperInvariant()
-if ($programName -notmatch '^A_[A-Z0-9_]{1,30}$') {
-    throw "KAREL program '$programName' must use the generated A_ prefix."
+if ($programName -notmatch '^(A_[A-Z0-9_]{1,30}|TSKSTATUS)$') {
+    throw "KAREL program '$programName' must use the generated A_ prefix or be the reviewed TSKSTATUS utility."
 }
 
 $resolvedRobotConfig = Resolve-ProjectPath $RobotConfigPath
