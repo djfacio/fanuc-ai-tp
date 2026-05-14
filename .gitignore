@@ -4,6 +4,7 @@
 /logs/
 /docs/fanuc-manuals/*
 !/docs/fanuc-manuals/README.md
+!/docs/fanuc-manuals/local-manifest.template.md
 *.pcap
 *.pcapng
 
