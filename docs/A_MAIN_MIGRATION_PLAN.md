@@ -77,9 +77,11 @@ The lifecycle states are:
 Fully populated is a derived WIP condition, not a separate lifecycle state. That
 keeps the program readable without duplicating state in two places.
 
-The global external wait policy is 180 seconds. Generated LS must explicitly
-write the reviewed wait-timeout variable immediately before each bounded wait so
-the value is visible and easy to tune after observation.
+The global external wait policy is 180 seconds. On this controller, `$WAITTMOUT`
+stores that value as `18000` in hundredths of a second; see
+`docs\SYSTEM_VARIABLES.md`. Generated LS must explicitly write
+`$WAITTMOUT=18000` immediately before each bounded wait so the value is visible
+and easy to tune after observation.
 
 ## Next Decisions Required
 
@@ -90,8 +92,9 @@ Before `A_MAIN.LS` should be generated, decide:
   exception.
 - How `A_MAIN` should prove `F_FLEXI_LOADER`/`A_FLEXI_LOADER` is not already
   running before starting it.
-- Confirm the controller wait-timeout variable and units for a 180-second timeout
-  before generated LS writes it.
+- Decide whether generated code should restore the previous `$WAITTMOUT` value
+  after each bounded wait, or whether the project owns it as a fixed cell-level
+  180-second setting.
 
 ## Validation
 

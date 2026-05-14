@@ -43,6 +43,7 @@ This repo is an AI-assisted FANUC TP workflow, not just a MakeTP/FTP script fold
 - `docs\A_MAIN_MIGRATION_PLAN.md`
 - `docs\SAFETY.md`
 - `docs\STANDARDS_RULES.md`
+- `docs\SYSTEM_VARIABLES.md`
 - `docs\WORKFLOW.md`
 - `docs\MOTION_SAFETY.md`
 - `docs\INTERFACES.md`

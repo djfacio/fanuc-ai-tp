@@ -23,7 +23,9 @@
   "waitPolicy": {
     "globalTimeoutSeconds": 180,
     "controllerVariable": "$WAITTMOUT",
-    "variableWritePolicy": "Generated LS must explicitly write the controller wait-timeout variable immediately before each WAIT ... TIMEOUT instruction so the 3-minute policy is visible and easy to tune after observation.",
+    "controllerWriteValue": 18000,
+    "controllerStorageUnits": "hundredths of a second; confirmed by SNPX readback as raw 3000 at 30.00 sec and raw 18000 at 180.00 sec.",
+    "variableWritePolicy": "Generated LS must explicitly write $WAITTMOUT=18000 immediately before each WAIT ... TIMEOUT instruction so the 3-minute policy is visible and easy to tune after observation.",
     "onTimeoutDefault": "Preserve WIP flags, stop infeed, set R[80:A_CELL_STATE]=900, set R[90:A_STEP_STATUS] to the step-specific timeout code, and raise a specific alarm/status path."
   },
   "stateModel": {

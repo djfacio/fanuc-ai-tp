@@ -71,10 +71,12 @@
     "waitPolicy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["globalTimeoutSeconds", "controllerVariable", "variableWritePolicy", "onTimeoutDefault"],
+      "required": ["globalTimeoutSeconds", "controllerVariable", "controllerWriteValue", "controllerStorageUnits", "variableWritePolicy", "onTimeoutDefault"],
       "properties": {
         "globalTimeoutSeconds": { "type": "number", "exclusiveMinimum": 0 },
         "controllerVariable": { "type": "string", "minLength": 1 },
+        "controllerWriteValue": { "type": "number", "exclusiveMinimum": 0 },
+        "controllerStorageUnits": { "type": "string", "minLength": 1 },
         "variableWritePolicy": { "type": "string", "minLength": 1 },
         "onTimeoutDefault": { "type": "string", "minLength": 1 }
       }

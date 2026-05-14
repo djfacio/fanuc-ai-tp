@@ -87,6 +87,14 @@ if (-not $spec.waitPolicy.controllerVariable -or $spec.waitPolicy.controllerVari
     Add-Finding -Rule "WaitTimeoutVariableRequired" -Message "waitPolicy.controllerVariable must identify the controller timeout variable or reviewed mechanism."
 }
 
+if ([double]$spec.waitPolicy.controllerWriteValue -le 0) {
+    Add-Finding -Rule "WaitTimeoutWriteValueRequired" -Message "waitPolicy.controllerWriteValue must be the reviewed controller-native value for the timeout."
+}
+
+if (-not $spec.waitPolicy.controllerStorageUnits -or $spec.waitPolicy.controllerStorageUnits.Trim().Length -lt 1) {
+    Add-Finding -Rule "WaitTimeoutStorageUnitsRequired" -Message "waitPolicy.controllerStorageUnits must record the controller-native units for the timeout variable."
+}
+
 $stateNames = @{}
 foreach ($state in @($spec.stateModel.states)) {
     $name = [string]$state.name
