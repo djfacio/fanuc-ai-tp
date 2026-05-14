@@ -2,6 +2,10 @@
 
 This project produces robot programs. Default behavior must be conservative, observable, and reversible.
 
+The standards-driven review posture and reusable generation rules live in
+`docs/STANDARDS_RULES.md`. Use that file when deciding whether a project-specific
+exception is justified.
+
 ## Default Rules
 
 - New generated program names must start with the configured prefix, currently `A_`. Legacy `AI_` programs are still recognized for existing artifacts and robot cleanup analysis.

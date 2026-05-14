@@ -41,6 +41,7 @@ This repo is an AI-assisted FANUC TP workflow, not just a MakeTP/FTP script fold
 - `docs\PHASE_2_PLAN.md`
 - `docs\REAL_APPLICATION_WORKFLOW.md`
 - `docs\SAFETY.md`
+- `docs\STANDARDS_RULES.md`
 - `docs\WORKFLOW.md`
 - `docs\MOTION_SAFETY.md`
 - `docs\INTERFACES.md`
@@ -62,6 +63,7 @@ This repo is an AI-assisted FANUC TP workflow, not just a MakeTP/FTP script fold
 - `examples\AI_HELLO.program-spec.json`
 
 Prefer structured specs and deterministic emitters. Use AI for planning, drafting, inspection, and review support; keep robot-facing artifacts validated, compiled, round-tripped, and manually reviewed.
+Use `docs\STANDARDS_RULES.md` as the standards-driven push-back rulebook. When designing or reviewing generated `A_` production programs, challenge missing state models, timeouts, recovery behavior, async-task ownership, resource policy, and evidence instead of optimizing for agreement.
 
 Use `config\template-catalog.psd1` as the reviewed deterministic template list. Run `tools\Test-FanucTemplateCatalog.ps1` after adding or changing example specs/templates.
 Use `tools\New-FanucProjectPack.ps1` for real workcell/project folders outside this public toolchain repo. Project packs keep `applications\`, `config\`, `generated\`, `evidence\`, and `notes\` together under the project folder. Use `tools\Invoke-FanucMotionWorkflow.ps1 -ProjectPath <project-pack> -SpecPath .\applications\<spec>.motion-application.json` for pack-local generation.
