@@ -1,0 +1,345 @@
+{
+  "schemaVersion": 1,
+  "applicationName": "F_MAIN defensive A_MAIN migration",
+  "phase": "planning",
+  "baseline": {
+    "rootProgram": "F_MAIN",
+    "source": "downloaded/ls/F_MAIN.LS",
+    "dependencyMap": "generated/dependency-map/20260513-160748-F_MAIN/dependency-map.json"
+  },
+  "generated": {
+    "entryProgram": "A_MAIN",
+    "programPrefix": "A_",
+    "migrationMode": "wrapper-first"
+  },
+  "policy": {
+    "humanReviewRequired": true,
+    "productionOverwriteAllowed": false,
+    "allowLegacyFCallsDuringMigration": true,
+    "allowRunDuringMigration": false,
+    "requiresBoundedExternalWaits": true,
+    "requiresExplicitStateModel": true
+  },
+  "stateModel": {
+    "stateRegister": "R[80:A_CELL_STATE]",
+    "statusRegister": "R[90:A_STEP_STATUS]",
+    "states": [
+      {
+        "code": 0,
+        "name": "IDLE",
+        "description": "No active WIP owned by A_MAIN."
+      },
+      {
+        "code": 10,
+        "name": "WAITING_FOR_PART",
+        "description": "Infeed is enabled and A_MAIN is waiting for the feeder/vision task to present a part."
+      },
+      {
+        "code": 20,
+        "name": "PART_FOR_CNC",
+        "description": "A part has been picked and is staged for CNC load/regrip decision."
+      },
+      {
+        "code": 30,
+        "name": "PART_IN_CNC",
+        "description": "A part is in the CNC and may need unloading on the next CNC-ready cycle."
+      },
+      {
+        "code": 40,
+        "name": "PART_FOR_TUBE_INSERTION",
+        "description": "A part has been unloaded from the CNC and is staged for tube insertion."
+      },
+      {
+        "code": 50,
+        "name": "PART_IN_TUBE_INSERTION",
+        "description": "A part is in the tube insertion station and may need unloading."
+      },
+      {
+        "code": 60,
+        "name": "PART_FOR_CONVEYOR",
+        "description": "A part has been unloaded from tube insertion and is staged for conveyor/drop."
+      },
+      {
+        "code": 900,
+        "name": "FAULTED",
+        "description": "A_MAIN stopped by an explicit alarm/failure path with WIP state preserved for operator recovery."
+      }
+    ]
+  },
+  "steps": [
+    {
+      "name": "START_CHECKS",
+      "baselineLines": "F_MAIN lines 4-13",
+      "intent": "Verify home/perch, counter, and CNC alarm conditions before any cycle work.",
+      "preconditions": [
+        "Operator selected A_MAIN intentionally.",
+        "F_ baseline remains available for fallback."
+      ],
+      "actions": [
+        "Check home/perch flags and UO[7].",
+        "Check counter limit.",
+        "Check DI[101] CNC alarm."
+      ],
+      "successCriteria": [
+        "Robot is at a permitted start condition.",
+        "Counter has not reached limit.",
+        "CNC alarm input is not active."
+      ],
+      "failureBehavior": "Raise the corresponding user alarm, set state FAULTED, preserve WIP flags, and do not enter the cycle loop.",
+      "stateTransition": {
+        "from": "IDLE",
+        "to": "IDLE"
+      },
+      "externalWaits": [],
+      "legacyCalls": []
+    },
+    {
+      "name": "INITIALIZE",
+      "baselineLines": "F_MAIN lines 15-20",
+      "intent": "Initialize existing cell state and start feeder/vision support behavior.",
+      "preconditions": [
+        "START_CHECKS succeeded."
+      ],
+      "actions": [
+        "Call F_INIT.",
+        "Call F_CALC_POS.",
+        "Start or validate feeder/vision async task."
+      ],
+      "successCriteria": [
+        "F_INIT and F_CALC_POS complete.",
+        "Async feeder/vision ownership is known before entering the main loop."
+      ],
+      "failureBehavior": "Set state FAULTED and do not continue into main loop.",
+      "stateTransition": {
+        "from": "IDLE",
+        "to": "WAITING_FOR_PART"
+      },
+      "externalWaits": [],
+      "legacyCalls": ["F_INIT", "F_CALC_POS"]
+    },
+    {
+      "name": "GET_PART",
+      "baselineLines": "F_MAIN lines 24-61",
+      "intent": "Go home, wait for a feeder/vision part-ready signal, pick the part, optionally regrip, and mark it ready for CNC.",
+      "preconditions": [
+        "State is WAITING_FOR_PART or continuing with infeed enabled.",
+        "F[60:INFEED] allows part acquisition."
+      ],
+      "actions": [
+        "Call F_GO_HOME.",
+        "Wait for F[50:Part_Ready] or F[20:STOP].",
+        "Call F_CALC_PICK and F_PICK.",
+        "Set F[61:PART_4_CNC].",
+        "Apply counter logic.",
+        "Call F_CALC_REGRIP and F_REGRIP if required by part/pattern."
+      ],
+      "successCriteria": [
+        "Part-ready flag is consumed.",
+        "Part-for-CNC state is set.",
+        "Counter behavior is applied without losing WIP."
+      ],
+      "failureBehavior": "If STOP is requested, stop infeed and loop without changing WIP. If a step fails, set state FAULTED and preserve the last known WIP state.",
+      "stateTransition": {
+        "from": "WAITING_FOR_PART",
+        "to": "PART_FOR_CNC"
+      },
+      "externalWaits": [
+        {
+          "signal": "F[50:Part_Ready] or F[20:STOP]",
+          "expected": "Part ready ON or STOP ON",
+          "timeoutSeconds": 0,
+          "onTimeout": "Reviewed exception required: current F_MAIN waits indefinitely here while feeder/vision owns part readiness."
+        }
+      ],
+      "legacyCalls": ["F_GO_HOME", "F_CALC_PICK", "F_PICK", "F_CALC_REGRIP", "F_REGRIP"]
+    },
+    {
+      "name": "CNC_EXCHANGE",
+      "baselineLines": "F_MAIN lines 64-90",
+      "intent": "When CNC is ready, enter CNC, unload any finished part, load any waiting part, acknowledge CNC, and exit.",
+      "preconditions": [
+        "F[61:PART_4_CNC] or F[62:PART_IN_CNC] is ON.",
+        "CNC Sync1 signal is expected to represent a safe process-ready condition."
+      ],
+      "actions": [
+        "Wait for DI[104:Sync1].",
+        "Call F_CALC_CNC and F_ENTER_CNC.",
+        "If part is in CNC, call F_UNLOAD_CNC and transition to part-for-tube-insertion.",
+        "If part is for CNC, call F_LOAD_CNC and transition to part-in-CNC.",
+        "Pulse DO[104:Ack1].",
+        "Call F_EXIT_CNC."
+      ],
+      "successCriteria": [
+        "Robot exits CNC.",
+        "WIP flags and state reflect unload/load result.",
+        "CNC acknowledgement is sent only after load succeeds."
+      ],
+      "failureBehavior": "On timeout or station failure, keep the previous WIP state, stop infeed, set state FAULTED, and raise a CNC-specific alarm.",
+      "stateTransition": {
+        "from": "PART_FOR_CNC or PART_IN_CNC",
+        "to": "PART_IN_CNC or PART_FOR_TUBE_INSERTION"
+      },
+      "externalWaits": [
+        {
+          "signal": "DI[104:Sync1]",
+          "expected": "ON",
+          "timeoutSeconds": 0,
+          "onTimeout": "Blocking: choose timeout and recovery. Current F_MAIN waits indefinitely."
+        }
+      ],
+      "legacyCalls": ["F_CALC_CNC", "F_ENTER_CNC", "F_UNLOAD_CNC", "F_LOAD_CNC", "F_EXIT_CNC"]
+    },
+    {
+      "name": "TUBE_INSERTION_EXCHANGE",
+      "baselineLines": "F_MAIN lines 92-114",
+      "intent": "Unload and/or load the tube insertion station when Sync2 is ready.",
+      "preconditions": [
+        "F[64:PART_IN_INS] or F[63:PART_4_INS] is ON.",
+        "Tube insertion Sync2 represents a safe process-ready condition."
+      ],
+      "actions": [
+        "Go home before tube insertion work.",
+        "Wait for DI[105:Sync2] before unload if part is in station.",
+        "Call F_UNLOAD_TI.",
+        "Wait for DI[105:Sync2] before load if part is staged.",
+        "Call F_LOAD_TI.",
+        "Pulse DO[105:Ack2]."
+      ],
+      "successCriteria": [
+        "Tube insertion WIP flags and state reflect unload/load result.",
+        "Acknowledgement is sent only after load succeeds."
+      ],
+      "failureBehavior": "On timeout or station failure, keep previous WIP state, stop infeed, set state FAULTED, and raise a tube-insertion-specific alarm.",
+      "stateTransition": {
+        "from": "PART_FOR_TUBE_INSERTION or PART_IN_TUBE_INSERTION",
+        "to": "PART_IN_TUBE_INSERTION or PART_FOR_CONVEYOR"
+      },
+      "externalWaits": [
+        {
+          "signal": "DI[105:Sync2]",
+          "expected": "ON",
+          "timeoutSeconds": 0,
+          "onTimeout": "Blocking: choose timeout and recovery. Current F_MAIN waits indefinitely for unload."
+        },
+        {
+          "signal": "DI[105:Sync2]",
+          "expected": "ON",
+          "timeoutSeconds": 0,
+          "onTimeout": "Blocking: choose timeout and recovery. Current F_MAIN waits indefinitely for load."
+        }
+      ],
+      "legacyCalls": ["F_GO_HOME", "F_UNLOAD_TI", "F_LOAD_TI"]
+    },
+    {
+      "name": "CONVEYOR_DROP",
+      "baselineLines": "F_MAIN lines 116-124",
+      "intent": "Place completed part onto conveyor/drop path and decide whether the cycle should finish.",
+      "preconditions": [
+        "F[65:PART_2_PRINT] is ON for conveyor/drop work."
+      ],
+      "actions": [
+        "Call F_CONV_DROP.",
+        "Call F_GO_HOME.",
+        "If infeed and WIP are all clear, finish cycle."
+      ],
+      "successCriteria": [
+        "Part-for-conveyor state is cleared by F_CONV_DROP.",
+        "Robot returns home.",
+        "Cycle exits only when infeed and WIP state are clear."
+      ],
+      "failureBehavior": "On conveyor/drop failure, preserve WIP state and raise a conveyor/drop-specific alarm.",
+      "stateTransition": {
+        "from": "PART_FOR_CONVEYOR",
+        "to": "WAITING_FOR_PART or IDLE"
+      },
+      "externalWaits": [],
+      "legacyCalls": ["F_CONV_DROP", "F_GO_HOME"]
+    },
+    {
+      "name": "FINISH_OR_FAULT",
+      "baselineLines": "F_MAIN lines 129-152",
+      "intent": "Handle terminal alarms and finish-cycle cleanup.",
+      "preconditions": [
+        "Main loop reached a finish condition or an explicit alarm label."
+      ],
+      "actions": [
+        "Raise specific UALM for known start/limit/CNC faults.",
+        "Call F_FINISH_CYCLE.",
+        "Clear F[20:STOP].",
+        "Re-enable F[60:INFEED] only if reviewed as safe for the terminal condition."
+      ],
+      "successCriteria": [
+        "Terminal outputs are reset consistently.",
+        "WIP state is preserved when needed for recovery."
+      ],
+      "failureBehavior": "If finish cleanup cannot be proven safe, leave state FAULTED and require operator recovery.",
+      "stateTransition": {
+        "from": "ANY",
+        "to": "IDLE or FAULTED"
+      },
+      "externalWaits": [],
+      "legacyCalls": ["F_FINISH_CYCLE"]
+    }
+  ],
+  "asyncTasks": [
+    {
+      "program": "F_FLEXI_LOADER",
+      "baselineStartLines": "F_MAIN lines 20 and 40",
+      "ownership": "Owns vision trigger/retry behavior and writes F[50:Part_Ready], R[103:Retry_Count], and R[105:Hopper_Count].",
+      "singleInstancePolicy": "Blocking: define how A_MAIN proves the feeder task is not already running before using RUN.",
+      "statusPolicy": "Blocking: F_TASK_STATUS exists but the guard in F_FLEXI_LOADER is commented out; define the status/heartbeat rule before generation.",
+      "stopPolicy": "Blocking: define how task exits or closes K_VS connection on STOP, abort, or A_MAIN fault."
+    },
+    {
+      "program": "F_CONVEYOR",
+      "baselineStartLines": "F_PLACE_CONVEYOR line 25",
+      "ownership": "Owns conveyor running flag F[52] and conveyor outputs during drop/discharge.",
+      "singleInstancePolicy": "F_CONV_DROP waits for F[52] OFF before calling F_PLACE_CONVEYOR; A_ version should keep or strengthen this contract.",
+      "statusPolicy": "Uses F[52:Conveyor Running] and UALM[10] on timeout.",
+      "stopPolicy": "Blocking: define output reset behavior if A_MAIN faults while conveyor task is running."
+    }
+  ],
+  "generation": {
+    "allowed": false,
+    "target": "contract-only",
+    "notes": "Planning artifact only. Do not generate A_MAIN LS until blocking review questions are answered."
+  },
+  "reviewQuestions": [
+    {
+      "id": "cnc-sync-timeout",
+      "severity": "blocking",
+      "question": "What timeout and recovery action should replace the indefinite DI[104:Sync1] wait?",
+      "blocking": true
+    },
+    {
+      "id": "tube-sync-timeout",
+      "severity": "blocking",
+      "question": "What timeout and recovery action should replace the two indefinite DI[105:Sync2] waits?",
+      "blocking": true
+    },
+    {
+      "id": "gripper-close-proof",
+      "severity": "blocking",
+      "question": "What timeout and recovery action should replace the indefinite DI[106:G1 Closed]=OFF wait in F_UNLOAD_CNC?",
+      "blocking": true
+    },
+    {
+      "id": "flexi-loader-run-contract",
+      "severity": "blocking",
+      "question": "How should A_MAIN prove F_FLEXI_LOADER/A_FLEXI_LOADER is not already running before starting it?",
+      "blocking": true
+    },
+    {
+      "id": "state-register-approval",
+      "severity": "blocking",
+      "question": "Approve or change R[80] and R[90] for A_MAIN state/status before generated TP writes them.",
+      "blocking": true
+    },
+    {
+      "id": "legacy-call-scope",
+      "severity": "important",
+      "question": "Which F_ routines may A_MAIN call during wrapper-first migration, and which must be converted to A_ before first robot test?",
+      "blocking": false
+    }
+  ]
+}

@@ -50,6 +50,7 @@ function Invoke-ExpectFail {
 
 $specValidator = Join-Path $scriptRoot "Test-FanucProgramSpec.ps1"
 $motionApplicationValidator = Join-Path $scriptRoot "Test-FanucMotionApplicationSpec.ps1"
+$workflowMigrationValidator = Join-Path $scriptRoot "Test-FanucWorkflowMigrationSpec.ps1"
 $motionLsGenerator = Join-Path $scriptRoot "New-FanucMotionLsFromSpec.ps1"
 $motionGeneratedLsValidator = Join-Path $scriptRoot "Test-FanucMotionGeneratedLs.ps1"
 $projectPackTool = Join-Path $scriptRoot "New-FanucProjectPack.ps1"
@@ -520,6 +521,18 @@ Invoke-ExpectPass -Name "MotionApplicationPlanningSpecValid" -Command {
     }
     if ($result.ReadyForGeneration) {
         throw "Planning example should not be ready for generation."
+    }
+}
+Invoke-ExpectPass -Name "WorkflowMigrationPlanningSpecValid" -Command {
+    $result = & $workflowMigrationValidator -SpecPath (Join-Path $projectRoot "examples\applications\A_MAIN.workflow-migration.json")
+    if (-not $result.IsValid) {
+        throw "Expected A_MAIN workflow migration planning spec to be valid."
+    }
+    if ($result.ReadyForGeneration) {
+        throw "A_MAIN workflow migration planning spec should not be ready for generation yet."
+    }
+    if (@($result.GenerationGateMessages).Count -lt 1) {
+        throw "A_MAIN workflow migration spec should expose blocking generation gates."
     }
 }
 Invoke-ExpectFail -Name "MotionApplicationBadGenerationFails" -Command {

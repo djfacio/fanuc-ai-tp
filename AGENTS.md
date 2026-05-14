@@ -40,6 +40,7 @@ This repo is an AI-assisted FANUC TP workflow, not just a MakeTP/FTP script fold
 - `docs\PHASE_1_SUMMARY.md`
 - `docs\PHASE_2_PLAN.md`
 - `docs\REAL_APPLICATION_WORKFLOW.md`
+- `docs\A_MAIN_MIGRATION_PLAN.md`
 - `docs\SAFETY.md`
 - `docs\STANDARDS_RULES.md`
 - `docs\WORKFLOW.md`
@@ -71,6 +72,7 @@ Use `config\interface-strategy.psd1` and `tools\Test-FanucInterfaceStrategy.ps1`
 Use `config\pcdk-snapshot.psd1`, `docs\PCDK_STRATEGY.md`, and `tools\New-FanucPcdkSnapshot.ps1` for PCDK work. PCDK is allowed only as a read-only evidence/introspection layer by default. Do not use PCDK task control, program selection, FTP upload/delete, IO writes, frame/position updates, or motion-related methods without a separate reviewed policy.
 Use `tools\Invoke-FanucProjectHealthCheck.ps1 -WriteMarkdown` for an offline/read-only project preflight. It must not execute live robot reads or controller writes.
 Use `schemas\motion-application-spec.schema.json` and `tools\Test-FanucMotionApplicationSpec.ps1` before any real application or motion generation. `ReadyForGeneration=false` is acceptable during planning. The reviewed offline motion generator is `tools\New-FanucMotionLsFromSpec.ps1` with templates `pr-waypoint-sequence-v1`, `approach-process-retract-v1`, and `io-motion-sequence-v1`; it emits only reviewed `UFRAME_NUM`, `UTOOL_NUM`, `PAYLOAD[n]`, reviewed `J/L PR[n]` moves, and allowlisted IO actions for the IO template. Use `tools\Invoke-FanucMotionWorkflow.ps1` for the one-command local motion generation/compile/round-trip/review-packet workflow. Use `tools\New-FanucRoboguideEvidencePacket.ps1` against the generated `motion-application-spec.json` when optional RoboGuide/manual evidence notes are useful.
+Use `schemas\workflow-migration-spec.schema.json` and `tools\Test-FanucWorkflowMigrationSpec.ps1` for the `F_MAIN` to `A_MAIN` defensive migration. The current planning contract is `examples\applications\A_MAIN.workflow-migration.json`; it must remain `ReadyForGeneration=false` until blocking wait, state, legacy-call, and async-task decisions are reviewed.
 
 Run commands from this folder:
 

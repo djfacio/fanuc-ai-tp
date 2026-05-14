@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.fanuc-ai-tp/schemas/workflow-migration-spec.schema.json",
+  "title": "FANUC Workflow Migration Spec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "applicationName",
+    "phase",
+    "baseline",
+    "generated",
+    "policy",
+    "stateModel",
+    "steps",
+    "asyncTasks",
+    "generation",
+    "reviewQuestions"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "applicationName": { "type": "string", "minLength": 1 },
+    "phase": {
+      "type": "string",
+      "enum": ["planning", "contract-review", "generation-ready", "generated", "uploaded", "operator-tested", "released"]
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rootProgram", "source", "dependencyMap"],
+      "properties": {
+        "rootProgram": { "type": "string", "pattern": "^F_[A-Z0-9_]{1,30}$" },
+        "source": { "type": "string", "minLength": 1 },
+        "dependencyMap": { "type": "string", "minLength": 1 }
+      }
+    },
+    "generated": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entryProgram", "programPrefix", "migrationMode"],
+      "properties": {
+        "entryProgram": { "type": "string", "pattern": "^A_[A-Z0-9_]{1,30}$" },
+        "programPrefix": { "type": "string", "pattern": "^A_$" },
+        "migrationMode": {
+          "type": "string",
+          "enum": ["contract-only", "wrapper-first", "full-a-family"]
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "humanReviewRequired",
+        "productionOverwriteAllowed",
+        "allowLegacyFCallsDuringMigration",
+        "allowRunDuringMigration",
+        "requiresBoundedExternalWaits",
+        "requiresExplicitStateModel"
+      ],
+      "properties": {
+        "humanReviewRequired": { "type": "boolean" },
+        "productionOverwriteAllowed": { "type": "boolean" },
+        "allowLegacyFCallsDuringMigration": { "type": "boolean" },
+        "allowRunDuringMigration": { "type": "boolean" },
+        "requiresBoundedExternalWaits": { "type": "boolean" },
+        "requiresExplicitStateModel": { "type": "boolean" }
+      }
+    },
+    "stateModel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stateRegister", "statusRegister", "states"],
+      "properties": {
+        "stateRegister": { "type": "string", "pattern": "^R\\[[0-9]+(:[^\\]]+)?\\]$" },
+        "statusRegister": { "type": "string", "pattern": "^R\\[[0-9]+(:[^\\]]+)?\\]$" },
+        "states": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "name", "description"],
+            "properties": {
+              "code": { "type": "integer", "minimum": 0 },
+              "name": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,30}$" },
+              "description": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "baselineLines",
+          "intent",
+          "preconditions",
+          "actions",
+          "successCriteria",
+          "failureBehavior",
+          "stateTransition",
+          "externalWaits",
+          "legacyCalls"
+        ],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,30}$" },
+          "baselineLines": { "type": "string", "minLength": 1 },
+          "intent": { "type": "string", "minLength": 1 },
+          "preconditions": { "type": "array" },
+          "actions": { "type": "array" },
+          "successCriteria": { "type": "array" },
+          "failureBehavior": { "type": "string", "minLength": 1 },
+          "stateTransition": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to"],
+            "properties": {
+              "from": { "type": "string", "minLength": 1 },
+              "to": { "type": "string", "minLength": 1 }
+            }
+          },
+          "externalWaits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["signal", "expected", "timeoutSeconds", "onTimeout"],
+              "properties": {
+                "signal": { "type": "string", "minLength": 1 },
+                "expected": { "type": "string", "minLength": 1 },
+                "timeoutSeconds": { "type": "number", "minimum": 0 },
+                "onTimeout": { "type": "string", "minLength": 1 }
+              }
+            }
+          },
+          "legacyCalls": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^F_[A-Z0-9_]{1,30}$" }
+          }
+        }
+      }
+    },
+    "asyncTasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["program", "baselineStartLines", "ownership", "singleInstancePolicy", "statusPolicy", "stopPolicy"],
+        "properties": {
+          "program": { "type": "string", "pattern": "^F_[A-Z0-9_]{1,30}$" },
+          "baselineStartLines": { "type": "string", "minLength": 1 },
+          "ownership": { "type": "string", "minLength": 1 },
+          "singleInstancePolicy": { "type": "string", "minLength": 1 },
+          "statusPolicy": { "type": "string", "minLength": 1 },
+          "stopPolicy": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed", "target", "notes"],
+      "properties": {
+        "allowed": { "type": "boolean" },
+        "target": { "type": "string", "enum": ["contract-only", "ls-source"] },
+        "notes": { "type": "string", "minLength": 1 }
+      }
+    },
+    "reviewQuestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "severity", "question", "blocking"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "severity": { "type": "string", "enum": ["blocking", "important", "note"] },
+          "question": { "type": "string", "minLength": 1 },
+          "blocking": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}
