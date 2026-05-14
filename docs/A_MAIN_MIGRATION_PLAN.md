@@ -36,7 +36,8 @@ dynamic `CALL`/`RUN` references in the latest dependency map.
 The blocking gaps are:
 
 - Legacy internal waits, such as the gripper proof wait in `F_UNLOAD_CNC`, are not controlled by an `A_MAIN` wrapper.
-- `RUN F_FLEXI_LOADER` lacks a reviewed single-instance/heartbeat/stop contract
+- `RUN F_FLEXI_LOADER` now has a proposed KAREL task-state helper, but it still
+  needs compile/deploy/readback proof before it clears the single-instance gate.
 - Legacy `F_` calls during migration need an explicit allowlist
 
 ## Proposed First A_MAIN Contract
@@ -90,8 +91,8 @@ Before `A_MAIN.LS` should be generated, decide:
 - Whether station routines with internal waits, such as `F_UNLOAD_CNC`, must be
   converted to `A_` before the first `A_MAIN` test or can run under a scoped
   exception.
-- How `A_MAIN` should prove `F_FLEXI_LOADER`/`A_FLEXI_LOADER` is not already
-  running before starting it.
+- Compile, upload, and test `A_TSKSTAT` from `docs\KAREL_TASK_STATE.md` so
+  `A_MAIN` can prove `F_FLEXI_LOADER` is not already running before starting it.
 - Decide whether generated code should restore the previous `$WAITTMOUT` value
   after each bounded wait, or whether the project owns it as a fixed cell-level
   180-second setting.

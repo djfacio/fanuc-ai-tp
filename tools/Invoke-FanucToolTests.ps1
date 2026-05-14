@@ -67,6 +67,7 @@ $roboguideEvidenceValidator = Join-Path $scriptRoot "Test-FanucRoboguideEvidence
 $roboguideEvidencePacketTool = Join-Path $scriptRoot "New-FanucRoboguideEvidencePacket.ps1"
 $interfaceStrategyValidator = Join-Path $scriptRoot "Test-FanucInterfaceStrategy.ps1"
 $interfaceStrategyTool = Join-Path $scriptRoot "Get-FanucInterfaceStrategy.ps1"
+$taskStateKarelSourceTool = Join-Path $scriptRoot "New-FanucTaskStateKarelSource.ps1"
 $pcdkSnapshotConfigValidator = Join-Path $scriptRoot "Test-FanucPcdkSnapshotConfig.ps1"
 $pcdkSnapshotTool = Join-Path $scriptRoot "New-FanucPcdkSnapshot.ps1"
 $snpxReadonlyValidator = Join-Path $scriptRoot "Test-FanucSnpxReadonlyConfig.ps1"
@@ -221,6 +222,24 @@ Invoke-ExpectPass -Name "KarelTcpMessageExamplesValid" -Command {
         "examples\karel\command.reviewed-write.response.json"
     )) {
         & $schemaValidator -JsonPath (Join-Path $projectRoot $example) -SchemaPath $karelSchemaPath -Quiet
+    }
+}
+Invoke-ExpectPass -Name "KarelTaskStateSourceGenerated" -Command {
+    $sourcePath = Join-Path $projectRoot "generated\test-runs\A_TSKSTAT.KL"
+    $result = & $taskStateKarelSourceTool -ProgramName A_TSKSTAT -TargetTask F_FLEXI_LOADER -OutputPath $sourcePath -Force
+    if ($result.ProgramName -ne "A_TSKSTAT" -or $result.TargetTask -ne "F_FLEXI_LOADER") {
+        throw "Unexpected generated KAREL task-state metadata."
+    }
+    $source = Get-Content -LiteralPath $sourcePath -Raw
+    foreach ($expected in @(
+        "GET_TSK_INFO(task_name, task_no, TSK_STATUS",
+        "SET_INT_REG(reg_no, value, set_status)",
+        "IF value_int = PG_RUNNING THEN",
+        "REG_RESULT = 91"
+    )) {
+        if ($source -notlike "*$expected*") {
+            throw "Generated task-state KAREL source missing '$expected'."
+        }
     }
 }
 Invoke-ExpectPass -Name "PcdkSnapshotConfigValid" -Command {
