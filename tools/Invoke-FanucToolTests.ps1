@@ -51,6 +51,7 @@ function Invoke-ExpectFail {
 $specValidator = Join-Path $scriptRoot "Test-FanucProgramSpec.ps1"
 $motionApplicationValidator = Join-Path $scriptRoot "Test-FanucMotionApplicationSpec.ps1"
 $workflowMigrationValidator = Join-Path $scriptRoot "Test-FanucWorkflowMigrationSpec.ps1"
+$workflowMigrationReviewPacketTool = Join-Path $scriptRoot "Get-FanucWorkflowMigrationReviewPacket.ps1"
 $motionLsGenerator = Join-Path $scriptRoot "New-FanucMotionLsFromSpec.ps1"
 $motionGeneratedLsValidator = Join-Path $scriptRoot "Test-FanucMotionGeneratedLs.ps1"
 $projectPackTool = Join-Path $scriptRoot "New-FanucProjectPack.ps1"
@@ -533,6 +534,18 @@ Invoke-ExpectPass -Name "WorkflowMigrationPlanningSpecValid" -Command {
     }
     if (@($result.GenerationGateMessages).Count -lt 1) {
         throw "A_MAIN workflow migration spec should expose blocking generation gates."
+    }
+}
+Invoke-ExpectPass -Name "WorkflowMigrationReviewPacketValid" -Command {
+    $packet = & $workflowMigrationReviewPacketTool -SpecPath (Join-Path $projectRoot "examples\applications\A_MAIN.workflow-migration.json")
+    if ($packet.ReadyForGeneration) {
+        throw "A_MAIN review packet should report not ready for generation."
+    }
+    if ($packet.BlockingDecisionCount -lt 1) {
+        throw "A_MAIN review packet should expose blocking decisions."
+    }
+    if ($packet.Markdown -notmatch "## Blocking Decisions") {
+        throw "A_MAIN review packet markdown should include blocking decisions."
     }
 }
 Invoke-ExpectFail -Name "MotionApplicationBadGenerationFails" -Command {

@@ -80,3 +80,13 @@ Validate the migration contract:
 ```
 
 The expected current result is `IsValid=True` and `ReadyForGeneration=False`.
+
+Generate the short human review packet:
+
+```powershell
+.\tools\Get-FanucWorkflowMigrationReviewPacket.ps1 -SpecPath .\examples\applications\A_MAIN.workflow-migration.json -WriteMarkdown -Force
+```
+
+The review packet is the artifact the robot programmer should normally read.
+The JSON contract, schema, validator, and dependency maps are audit/tooling
+artifacts unless a deeper technical review is needed.
