@@ -11,6 +11,7 @@
     "baseline",
     "generated",
     "policy",
+    "waitPolicy",
     "stateModel",
     "steps",
     "asyncTasks",
@@ -67,13 +68,46 @@
         "requiresExplicitStateModel": { "type": "boolean" }
       }
     },
+    "waitPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["globalTimeoutSeconds", "controllerVariable", "variableWritePolicy", "onTimeoutDefault"],
+      "properties": {
+        "globalTimeoutSeconds": { "type": "number", "exclusiveMinimum": 0 },
+        "controllerVariable": { "type": "string", "minLength": 1 },
+        "variableWritePolicy": { "type": "string", "minLength": 1 },
+        "onTimeoutDefault": { "type": "string", "minLength": 1 }
+      }
+    },
     "stateModel": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["stateRegister", "statusRegister", "states"],
+      "required": ["stateRegister", "statusRegister", "wipRepresentation", "states"],
       "properties": {
         "stateRegister": { "type": "string", "pattern": "^R\\[[0-9]+(:[^\\]]+)?\\]$" },
         "statusRegister": { "type": "string", "pattern": "^R\\[[0-9]+(:[^\\]]+)?\\]$" },
+        "wipRepresentation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "description", "signals"],
+          "properties": {
+            "kind": { "type": "string", "enum": ["pipeline-flags"] },
+            "description": { "type": "string", "minLength": 1 },
+            "signals": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["signal", "meaning"],
+                "properties": {
+                  "signal": { "type": "string", "minLength": 1 },
+                  "meaning": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        },
         "states": {
           "type": "array",
           "minItems": 1,
@@ -84,6 +118,20 @@
             "properties": {
               "code": { "type": "integer", "minimum": 0 },
               "name": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,30}$" },
+              "description": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "transitionExamples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "lifecycleState", "wipCondition", "description"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "lifecycleState": { "type": "string", "minLength": 1 },
+              "wipCondition": { "type": "string", "minLength": 1 },
               "description": { "type": "string", "minLength": 1 }
             }
           }

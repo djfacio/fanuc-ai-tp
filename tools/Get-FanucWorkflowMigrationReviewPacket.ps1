@@ -85,13 +85,32 @@ $lines.Add("")
 $lines.Add("## Proposed Robot Resources")
 $lines.Add("- State register: $($spec.stateModel.stateRegister)")
 $lines.Add("- Step status register: $($spec.stateModel.statusRegister)")
+$lines.Add("- Global external wait timeout: $($spec.waitPolicy.globalTimeoutSeconds) seconds")
+$lines.Add("- Wait timeout variable: ``$($spec.waitPolicy.controllerVariable)``")
+$lines.Add("- Timeout variable write policy: $($spec.waitPolicy.variableWritePolicy)")
 $lines.Add("- Production overwrite: $($spec.policy.productionOverwriteAllowed)")
 $lines.Add("- Legacy `F_` calls during migration: $($spec.policy.allowLegacyFCallsDuringMigration)")
 $lines.Add("- `RUN` during migration: $($spec.policy.allowRunDuringMigration)")
 $lines.Add("")
-$lines.Add("## Proposed State Model")
+$lines.Add("## Lifecycle State Model")
 foreach ($state in @($spec.stateModel.states | Sort-Object code)) {
     $lines.Add("- $($state.code) = $($state.name): $($state.description)")
+}
+$lines.Add("")
+$lines.Add("## WIP Representation")
+$lines.Add("- Model: $($spec.stateModel.wipRepresentation.kind)")
+$lines.Add("- $($spec.stateModel.wipRepresentation.description)")
+foreach ($signal in @($spec.stateModel.wipRepresentation.signals)) {
+    $lines.Add("- $($signal.signal): $($signal.meaning)")
+}
+$lines.Add("")
+$lines.Add("## Lifecycle/WIP Examples")
+if ($spec.stateModel.transitionExamples) {
+    foreach ($example in @($spec.stateModel.transitionExamples)) {
+        $lines.Add("- $($example.name): $($example.lifecycleState); $($example.wipCondition) $($example.description)")
+    }
+} else {
+    $lines.Add("- none")
 }
 $lines.Add("")
 $lines.Add("## Blocking Decisions")
@@ -104,18 +123,19 @@ if ($blockingQuestions.Count -eq 0) {
 }
 $lines.Add("")
 $lines.Add("## My Recommendations")
-$lines.Add("- Use wrapper-first `A_MAIN`: call selected existing `F_` station routines at first, but do not modify them.")
-$lines.Add("- Approve `R[80]` for `A_CELL_STATE` and `R[90]` for `A_STEP_STATUS` only if they are outside your production/status register map.")
+$lines.Add("- Keep `R[80]` as lifecycle mode only. Do not use it as the part-location truth in this pipelined cell.")
+$lines.Add("- Keep existing WIP flags as the source of truth for station occupancy and staged parts.")
+$lines.Add("- Use wrapper-first `A_MAIN` only where the called `F_` routine does not contain uncontrolled internal waits, or record an explicit exception.")
 $lines.Add("- Do not allow `RUN F_FLEXI_LOADER` in generated `A_MAIN` until we define single-instance and stop behavior.")
-$lines.Add("- Treat CNC and tube insertion waits as bounded waits. Start with conservative timeouts, then tune after real cycle observation.")
+$lines.Add("- Use the 180-second global external wait timeout and explicitly write the timeout variable immediately before each bounded wait.")
 $lines.Add("- Preserve WIP state on any timeout; stop infeed; raise a specific alarm/status code; do not auto-clear part-location flags.")
 $lines.Add("")
-$lines.Add("## External Waits Needing Policy")
-if ($unboundedWaits.Count -eq 0) {
+$lines.Add("## External Waits")
+if ($waits.Count -eq 0) {
     $lines.Add("- none")
 } else {
-    foreach ($wait in $unboundedWaits) {
-        $lines.Add("- $($wait.step): wait for $($wait.signal) = $($wait.expected); timeout is not approved yet.")
+    foreach ($wait in $waits) {
+        $lines.Add("- $($wait.step): wait for $($wait.signal) = $($wait.expected); timeout $($wait.timeoutSeconds) seconds; on timeout: $($wait.onTimeout)")
     }
 }
 $lines.Add("")

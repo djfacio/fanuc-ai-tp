@@ -79,6 +79,14 @@ if (-not $spec.policy.requiresBoundedExternalWaits) {
     Add-Finding -Rule "BoundedExternalWaitsRequired" -Message "Workflow migration must require bounded external waits."
 }
 
+if ([double]$spec.waitPolicy.globalTimeoutSeconds -le 0) {
+    Add-Finding -Rule "GlobalTimeoutRequired" -Message "waitPolicy.globalTimeoutSeconds must be positive."
+}
+
+if (-not $spec.waitPolicy.controllerVariable -or $spec.waitPolicy.controllerVariable.Trim().Length -lt 1) {
+    Add-Finding -Rule "WaitTimeoutVariableRequired" -Message "waitPolicy.controllerVariable must identify the controller timeout variable or reviewed mechanism."
+}
+
 $stateNames = @{}
 foreach ($state in @($spec.stateModel.states)) {
     $name = [string]$state.name
@@ -90,6 +98,10 @@ foreach ($state in @($spec.stateModel.states)) {
 
 if (-not $stateNames.ContainsKey("FAULTED")) {
     Add-Finding -Rule "FaultedStateRequired" -Message "State model must include FAULTED."
+}
+
+if ($spec.stateModel.wipRepresentation.kind -ne "pipeline-flags") {
+    Add-Finding -Rule "PipelineWipModelRequired" -Message "Pipelined workflow migration must represent WIP separately from lifecycle state."
 }
 
 foreach ($step in @($spec.steps)) {

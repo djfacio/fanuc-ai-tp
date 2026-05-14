@@ -20,49 +20,97 @@
     "requiresBoundedExternalWaits": true,
     "requiresExplicitStateModel": true
   },
+  "waitPolicy": {
+    "globalTimeoutSeconds": 180,
+    "controllerVariable": "$WAITTMOUT",
+    "variableWritePolicy": "Generated LS must explicitly write the controller wait-timeout variable immediately before each WAIT ... TIMEOUT instruction so the 3-minute policy is visible and easy to tune after observation.",
+    "onTimeoutDefault": "Preserve WIP flags, stop infeed, set R[80:A_CELL_STATE]=900, set R[90:A_STEP_STATUS] to the step-specific timeout code, and raise a specific alarm/status path."
+  },
   "stateModel": {
     "stateRegister": "R[80:A_CELL_STATE]",
     "statusRegister": "R[90:A_STEP_STATUS]",
+    "wipRepresentation": {
+      "kind": "pipeline-flags",
+      "description": "R[80] represents lifecycle mode only. Physical WIP is represented by existing part-location flags because the cell can be partially or fully populated.",
+      "signals": [
+        {
+          "signal": "F[61:PART_4_CNC]",
+          "meaning": "A picked part is staged for CNC load."
+        },
+        {
+          "signal": "F[62:PART_IN_CNC]",
+          "meaning": "A part is currently in the CNC."
+        },
+        {
+          "signal": "F[63:PART_4_INS]",
+          "meaning": "A part has been unloaded from CNC and is staged for tube insertion."
+        },
+        {
+          "signal": "F[64:PART_IN_INS]",
+          "meaning": "A part is currently in the tube insertion station."
+        },
+        {
+          "signal": "F[65:PART_2_PRINT]",
+          "meaning": "A part has been unloaded from tube insertion and is staged for conveyor/drop."
+        }
+      ]
+    },
     "states": [
       {
         "code": 0,
-        "name": "IDLE",
-        "description": "No active WIP owned by A_MAIN."
+        "name": "EMPTY_IDLE",
+        "description": "Cold start or completed state with no active WIP flags set."
       },
       {
         "code": 10,
-        "name": "WAITING_FOR_PART",
-        "description": "Infeed is enabled and A_MAIN is waiting for the feeder/vision task to present a part."
+        "name": "FILLING",
+        "description": "Infeed is enabled and the pipeline is being populated from an empty or partially populated state."
       },
       {
         "code": 20,
-        "name": "PART_FOR_CNC",
-        "description": "A part has been picked and is staged for CNC load/regrip decision."
+        "name": "RUNNING_PIPELINE",
+        "description": "Normal production with one or more WIP flags active; the pipeline may become fully populated."
       },
       {
         "code": 30,
-        "name": "PART_IN_CNC",
-        "description": "A part is in the CNC and may need unloading on the next CNC-ready cycle."
+        "name": "DRAINING",
+        "description": "Infeed is off, but existing WIP remains and must continue through CNC, tube insertion, and conveyor/drop."
       },
       {
         "code": 40,
-        "name": "PART_FOR_TUBE_INSERTION",
-        "description": "A part has been unloaded from the CNC and is staged for tube insertion."
-      },
-      {
-        "code": 50,
-        "name": "PART_IN_TUBE_INSERTION",
-        "description": "A part is in the tube insertion station and may need unloading."
-      },
-      {
-        "code": 60,
-        "name": "PART_FOR_CONVEYOR",
-        "description": "A part has been unloaded from tube insertion and is staged for conveyor/drop."
+        "name": "FINISHED",
+        "description": "Infeed is off and all WIP flags are clear after the remaining pipeline parts have been processed."
       },
       {
         "code": 900,
         "name": "FAULTED",
-        "description": "A_MAIN stopped by an explicit alarm/failure path with WIP state preserved for operator recovery."
+        "description": "A_MAIN stopped by an explicit alarm/failure path with lifecycle mode and WIP flags preserved for operator recovery."
+      }
+    ],
+    "transitionExamples": [
+      {
+        "name": "cold-start-empty",
+        "lifecycleState": "EMPTY_IDLE",
+        "wipCondition": "F[61], F[62], F[63], F[64], and F[65] are all OFF.",
+        "description": "Robot can start from a genuinely empty cell without pretending a part is already assigned to CNC or tube insertion."
+      },
+      {
+        "name": "pipeline-fill",
+        "lifecycleState": "FILLING then RUNNING_PIPELINE",
+        "wipCondition": "One or more WIP flags become ON as parts are picked, loaded into CNC, moved to tube insertion, and staged for conveyor/drop.",
+        "description": "The cell transitions from empty to partially populated and then normal pipelined production without encoding part location into R[80]."
+      },
+      {
+        "name": "fully-populated-running",
+        "lifecycleState": "RUNNING_PIPELINE",
+        "wipCondition": "Multiple WIP flags may be ON at the same time, including CNC and tube insertion occupancy.",
+        "description": "Fully populated is treated as a derived WIP condition, not a separate lifecycle state, because station occupancy is already represented by the flags."
+      },
+      {
+        "name": "finish-drain",
+        "lifecycleState": "DRAINING then FINISHED",
+        "wipCondition": "F[60:INFEED] is OFF; existing WIP flags continue through CNC, tube insertion, and conveyor/drop until all WIP flags are OFF.",
+        "description": "The finish path stops adding parts but continues processing loaded parts before declaring the workflow finished."
       }
     ]
   },
@@ -87,8 +135,8 @@
       ],
       "failureBehavior": "Raise the corresponding user alarm, set state FAULTED, preserve WIP flags, and do not enter the cycle loop.",
       "stateTransition": {
-        "from": "IDLE",
-        "to": "IDLE"
+        "from": "EMPTY_IDLE or preserved lifecycle state",
+        "to": "EMPTY_IDLE or preserved lifecycle state"
       },
       "externalWaits": [],
       "legacyCalls": []
@@ -111,8 +159,8 @@
       ],
       "failureBehavior": "Set state FAULTED and do not continue into main loop.",
       "stateTransition": {
-        "from": "IDLE",
-        "to": "WAITING_FOR_PART"
+        "from": "EMPTY_IDLE",
+        "to": "FILLING"
       },
       "externalWaits": [],
       "legacyCalls": ["F_INIT", "F_CALC_POS"]
@@ -122,7 +170,7 @@
       "baselineLines": "F_MAIN lines 24-61",
       "intent": "Go home, wait for a feeder/vision part-ready signal, pick the part, optionally regrip, and mark it ready for CNC.",
       "preconditions": [
-        "State is WAITING_FOR_PART or continuing with infeed enabled.",
+        "Lifecycle state is FILLING or RUNNING_PIPELINE with infeed enabled.",
         "F[60:INFEED] allows part acquisition."
       ],
       "actions": [
@@ -140,15 +188,15 @@
       ],
       "failureBehavior": "If STOP is requested, stop infeed and loop without changing WIP. If a step fails, set state FAULTED and preserve the last known WIP state.",
       "stateTransition": {
-        "from": "WAITING_FOR_PART",
-        "to": "PART_FOR_CNC"
+        "from": "FILLING or RUNNING_PIPELINE",
+        "to": "RUNNING_PIPELINE"
       },
       "externalWaits": [
         {
           "signal": "F[50:Part_Ready] or F[20:STOP]",
           "expected": "Part ready ON or STOP ON",
-          "timeoutSeconds": 0,
-          "onTimeout": "Reviewed exception required: current F_MAIN waits indefinitely here while feeder/vision owns part readiness."
+          "timeoutSeconds": 180,
+          "onTimeout": "Apply global timeout policy. Stop infeed, preserve WIP flags, set lifecycle FAULTED, and report feeder/vision part-ready timeout."
         }
       ],
       "legacyCalls": ["F_GO_HOME", "F_CALC_PICK", "F_PICK", "F_CALC_REGRIP", "F_REGRIP"]
@@ -176,15 +224,15 @@
       ],
       "failureBehavior": "On timeout or station failure, keep the previous WIP state, stop infeed, set state FAULTED, and raise a CNC-specific alarm.",
       "stateTransition": {
-        "from": "PART_FOR_CNC or PART_IN_CNC",
-        "to": "PART_IN_CNC or PART_FOR_TUBE_INSERTION"
+        "from": "FILLING, RUNNING_PIPELINE, or DRAINING",
+        "to": "RUNNING_PIPELINE or DRAINING depending on infeed and remaining WIP"
       },
       "externalWaits": [
         {
           "signal": "DI[104:Sync1]",
           "expected": "ON",
-          "timeoutSeconds": 0,
-          "onTimeout": "Blocking: choose timeout and recovery. Current F_MAIN waits indefinitely."
+          "timeoutSeconds": 180,
+          "onTimeout": "Apply global timeout policy. Stop infeed, preserve WIP flags, set lifecycle FAULTED, and report CNC Sync1 timeout."
         }
       ],
       "legacyCalls": ["F_CALC_CNC", "F_ENTER_CNC", "F_UNLOAD_CNC", "F_LOAD_CNC", "F_EXIT_CNC"]
@@ -211,21 +259,21 @@
       ],
       "failureBehavior": "On timeout or station failure, keep previous WIP state, stop infeed, set state FAULTED, and raise a tube-insertion-specific alarm.",
       "stateTransition": {
-        "from": "PART_FOR_TUBE_INSERTION or PART_IN_TUBE_INSERTION",
-        "to": "PART_IN_TUBE_INSERTION or PART_FOR_CONVEYOR"
+        "from": "FILLING, RUNNING_PIPELINE, or DRAINING",
+        "to": "RUNNING_PIPELINE or DRAINING depending on infeed and remaining WIP"
       },
       "externalWaits": [
         {
           "signal": "DI[105:Sync2]",
           "expected": "ON",
-          "timeoutSeconds": 0,
-          "onTimeout": "Blocking: choose timeout and recovery. Current F_MAIN waits indefinitely for unload."
+          "timeoutSeconds": 180,
+          "onTimeout": "Apply global timeout policy. Stop infeed, preserve WIP flags, set lifecycle FAULTED, and report tube insertion unload Sync2 timeout."
         },
         {
           "signal": "DI[105:Sync2]",
           "expected": "ON",
-          "timeoutSeconds": 0,
-          "onTimeout": "Blocking: choose timeout and recovery. Current F_MAIN waits indefinitely for load."
+          "timeoutSeconds": 180,
+          "onTimeout": "Apply global timeout policy. Stop infeed, preserve WIP flags, set lifecycle FAULTED, and report tube insertion load Sync2 timeout."
         }
       ],
       "legacyCalls": ["F_GO_HOME", "F_UNLOAD_TI", "F_LOAD_TI"]
@@ -249,8 +297,8 @@
       ],
       "failureBehavior": "On conveyor/drop failure, preserve WIP state and raise a conveyor/drop-specific alarm.",
       "stateTransition": {
-        "from": "PART_FOR_CONVEYOR",
-        "to": "WAITING_FOR_PART or IDLE"
+        "from": "RUNNING_PIPELINE or DRAINING",
+        "to": "RUNNING_PIPELINE, DRAINING, or FINISHED depending on infeed and remaining WIP flags"
       },
       "externalWaits": [],
       "legacyCalls": ["F_CONV_DROP", "F_GO_HOME"]
@@ -275,7 +323,7 @@
       "failureBehavior": "If finish cleanup cannot be proven safe, leave state FAULTED and require operator recovery.",
       "stateTransition": {
         "from": "ANY",
-        "to": "IDLE or FAULTED"
+        "to": "FINISHED or FAULTED"
       },
       "externalWaits": [],
       "legacyCalls": ["F_FINISH_CYCLE"]
@@ -306,21 +354,9 @@
   },
   "reviewQuestions": [
     {
-      "id": "cnc-sync-timeout",
+      "id": "legacy-internal-waits",
       "severity": "blocking",
-      "question": "What timeout and recovery action should replace the indefinite DI[104:Sync1] wait?",
-      "blocking": true
-    },
-    {
-      "id": "tube-sync-timeout",
-      "severity": "blocking",
-      "question": "What timeout and recovery action should replace the two indefinite DI[105:Sync2] waits?",
-      "blocking": true
-    },
-    {
-      "id": "gripper-close-proof",
-      "severity": "blocking",
-      "question": "What timeout and recovery action should replace the indefinite DI[106:G1 Closed]=OFF wait in F_UNLOAD_CNC?",
+      "question": "Global 3-minute timeout policy cannot control waits inside unchanged legacy F_ routines such as F_UNLOAD_CNC. Convert those routines to A_ before first A_MAIN test, or record a scoped exception.",
       "blocking": true
     },
     {
@@ -330,15 +366,15 @@
       "blocking": true
     },
     {
-      "id": "state-register-approval",
-      "severity": "blocking",
-      "question": "Approve or change R[80] and R[90] for A_MAIN state/status before generated TP writes them.",
-      "blocking": true
-    },
-    {
       "id": "legacy-call-scope",
       "severity": "important",
       "question": "Which F_ routines may A_MAIN call during wrapper-first migration, and which must be converted to A_ before first robot test?",
+      "blocking": false
+    },
+    {
+      "id": "wait-timeout-variable",
+      "severity": "important",
+      "question": "Confirm $WAITTMOUT is the correct controller wait-timeout variable and confirm its required units/value for a 180-second timeout before LS generation.",
       "blocking": false
     }
   ]

@@ -35,11 +35,8 @@ dynamic `CALL`/`RUN` references in the latest dependency map.
 
 The blocking gaps are:
 
-- Indefinite CNC wait: `DI[104:Sync1]`
-- Indefinite tube insertion waits: `DI[105:Sync2]`
-- Indefinite gripper close/open proof in `F_UNLOAD_CNC`: `DI[106:G1 Closed]`
+- Legacy internal waits, such as the gripper proof wait in `F_UNLOAD_CNC`, are not controlled by an `A_MAIN` wrapper.
 - `RUN F_FLEXI_LOADER` lacks a reviewed single-instance/heartbeat/stop contract
-- Proposed `A_MAIN` state/status registers need project approval before writes
 - Legacy `F_` calls during migration need an explicit allowlist
 
 ## Proposed First A_MAIN Contract
@@ -54,22 +51,47 @@ The initial `A_MAIN` should be wrapper-first:
 5. Block or wrap `RUN` until async ownership is approved.
 6. Preserve WIP state on failure.
 
-The proposed state model is in `R[80:A_CELL_STATE]` and the proposed step status
-is `R[90:A_STEP_STATUS]`. These are not approved yet.
+The approved state/status resources are:
+
+- `R[80:A_CELL_STATE]` for lifecycle mode
+- `R[90:A_STEP_STATUS]` for step/result status
+
+`R[80]` is not the part-location truth. This is a pipelined cell, so location
+truth remains in the existing WIP flags:
+
+- `F[61:PART_4_CNC]`
+- `F[62:PART_IN_CNC]`
+- `F[63:PART_4_INS]`
+- `F[64:PART_IN_INS]`
+- `F[65:PART_2_PRINT]`
+
+The lifecycle states are:
+
+- `0 EMPTY_IDLE`: cold start or completed state with all WIP flags OFF
+- `10 FILLING`: infeed enabled and the pipeline is being populated
+- `20 RUNNING_PIPELINE`: normal production; the system may be partially or fully populated
+- `30 DRAINING`: infeed OFF, but loaded/staged WIP is still being processed
+- `40 FINISHED`: infeed OFF and all WIP flags OFF
+- `900 FAULTED`: explicit failure path with WIP preserved
+
+Fully populated is a derived WIP condition, not a separate lifecycle state. That
+keeps the program readable without duplicating state in two places.
+
+The global external wait policy is 180 seconds. Generated LS must explicitly
+write the reviewed wait-timeout variable immediately before each bounded wait so
+the value is visible and easy to tune after observation.
 
 ## Next Decisions Required
 
 Before `A_MAIN.LS` should be generated, decide:
 
-- Timeout for CNC `Sync1`, and what alarm/recovery should happen.
-- Timeout for tube insertion `Sync2`, and whether unload/load need different
-  recovery behavior.
-- Timeout for `G1 Closed` proof and what state to preserve if it fails.
-- Whether `A_MAIN` can call existing `F_` station routines for the first robot
-  test.
-- Whether `F_FLEXI_LOADER` remains `F_` during first test or must become
-  `A_FLEXI_LOADER` first.
-- Which registers are approved for `A_MAIN` state/status.
+- Whether station routines with internal waits, such as `F_UNLOAD_CNC`, must be
+  converted to `A_` before the first `A_MAIN` test or can run under a scoped
+  exception.
+- How `A_MAIN` should prove `F_FLEXI_LOADER`/`A_FLEXI_LOADER` is not already
+  running before starting it.
+- Confirm the controller wait-timeout variable and units for a 180-second timeout
+  before generated LS writes it.
 
 ## Validation
 
