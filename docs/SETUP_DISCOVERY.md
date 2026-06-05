@@ -3,14 +3,39 @@
 Do not rely on another AI or new user guessing where FANUC tooling is installed.
 Use the project setup tools and review the generated config before live work.
 
-## Required Local Inputs
+## Dependency Levels
+
+Most repository work is offline and does not require FANUC software:
+
+- review and edit specs, rules, schemas, docs, and project packs
+- validate JSON/specs/cell maps
+- generate `.LS` source
+- run offline PowerShell tests
+- run the vendored Rust SNPX codec tests
+- plan Robot Server comments/alarms and SNPX address/write maps
+
+WinOLPC is needed when a workflow compiles or decodes TP artifacts:
+
+- `MakeTP` compile from `.LS` to `.TP`
+- `PrintTP` decode from `.TP` to `.LS`
+- round-trip evidence
+- upload-ready local workflow gates
+
+RoboGuide is optional unless a specific project policy makes simulation evidence
+a gate. It may provide the workcell robot path used by `robot.ini`, but offline
+planning and LS generation can proceed without it.
+
+PCDK is optional and read-only by default. It is not required for normal spec,
+generation, compile, FTP, SNPX, or Robot Server workflows.
+
+## Required Local Inputs For Live Or Compile Workflows
 
 Each robot/workcell needs its own local robot config:
 
 - controller IP address
 - FTP user/password policy
-- WinOLPC `MakeTP` path
-- project `robot.ini` path
+- WinOLPC `MakeTP` path, when compiling or decoding
+- project `robot.ini` path, when compiling or decoding
 - RoboGuide workcell robot path, when RoboGuide evidence is used
 - project cell-map/resource policy
 
@@ -29,9 +54,9 @@ current user's Documents folder for RoboGuide `My Workcells\...\Robot_*`
 folders that contain `support` and `output`.
 
 Then open `config\robot.local.psd1` and review every value. Replace placeholder
-values such as `REVIEW_AND_SET_MAKETP_PATH` or
-`REVIEW_AND_SET_ROBOGUIDE_WORKCELL_ROBOT_PATH` before compiling or using
-RoboGuide evidence.
+values such as `REVIEW_AND_SET_MAKETP_PATH` before compiling or decoding, and
+replace `REVIEW_AND_SET_ROBOGUIDE_WORKCELL_ROBOT_PATH` before using RoboGuide
+evidence.
 
 Use the local config explicitly:
 

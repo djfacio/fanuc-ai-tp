@@ -32,6 +32,13 @@ The working path is:
 - MakeTP robot ini: `config\robot.ini`
 - Project-local paths in `config\robot.psd1` should be repo-relative, such as `config\robot.ini`, so the folder can move without breaking MakeTP/PrintTP. Keep machine-installed tools and RoboGuide workcell paths absolute unless they are moved too.
 
+Tool dependency rule: offline planning, specs, LS generation, validation,
+project-pack creation, docs, Robot Server planning, and SNPX planning do not
+require WinOLPC, RoboGuide, PCDK, or a robot connection. WinOLPC is required for
+MakeTP/PrintTP compile/decode and round-trip gates. RoboGuide is optional
+evidence tooling unless a project policy explicitly makes it required. PCDK is
+optional and read-only by default.
+
 ## Project Direction
 
 This repo is an AI-assisted FANUC TP workflow, not just a MakeTP/FTP script folder. Read these before adding new generators or deployment behavior:

@@ -41,6 +41,29 @@ This project currently supports:
 - PCDK read-only controller snapshot planning for richer evidence
 - No auto-run behavior
 
+## Tooling Requirements
+
+You can use the offline planning, schema validation, LS generation, cell-map
+validation, documentation, project-pack creation, and Rust SNPX codec tests
+without RoboGuide, WinOLPC, PCDK, or a robot connection.
+
+WinOLPC is required only for workflows that compile `.LS` to `.TP` with
+`MakeTP` or decode `.TP` files with `PrintTP`, including the round-trip evidence
+gate and upload-ready local workflow.
+
+RoboGuide is optional evidence tooling. It is useful for simulation/manual
+review packets and workcell-specific compile context, but this repo does not
+require RoboGuide for offline spec review, LS generation, SNPX planning, Robot
+Server comment/alarm planning, or documentation work.
+
+PCDK is optional and read-only by default in this repo. Use it only for the
+documented controller snapshot/evidence path unless a project policy explicitly
+expands its authority.
+
+Live robot FTP, SNPX, and Robot Server access are optional and require a local
+reviewed config plus each tool's approval gates. The public CI/offline tests do
+not connect to FANUC software or a controller.
+
 ## Quick Start
 
 Run the offline validator suite:
