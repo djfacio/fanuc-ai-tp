@@ -70,6 +70,24 @@ function Test-AllowedRegisterWrite {
     return $false
 }
 
+function Test-AllowedRegisterWriteBlock {
+    param(
+        [int]$Start,
+        [int]$Length
+    )
+
+    if ($Length -lt 1) {
+        return $false
+    }
+
+    for ($register = $Start; $register -lt ($Start + $Length); $register++) {
+        if (-not (Test-AllowedRegisterWrite -Register $register)) {
+            return $false
+        }
+    }
+    return $true
+}
+
 function Test-AllowedIoWrite {
     param(
         [string]$Signal,
@@ -118,6 +136,31 @@ function Get-AllowedCallEntry {
     foreach ($entry in @($cellMap.Calls.Allowed)) {
         if ($entry.Program.ToUpperInvariant() -eq $Program.ToUpperInvariant()) {
             return $entry
+        }
+    }
+    return $null
+}
+
+function Get-AllowedRunEntry {
+    param([string]$Program)
+
+    foreach ($entry in @($cellMap.Runs.Allowed)) {
+        if ($entry.Program.ToUpperInvariant() -eq $Program.ToUpperInvariant()) {
+            return $entry
+        }
+    }
+    return $null
+}
+
+function Get-CallArgumentRule {
+    param(
+        [object]$CallEntry,
+        [int]$Position
+    )
+
+    foreach ($rule in @($CallEntry.Arguments)) {
+        if ([int]$rule.Position -eq $Position) {
+            return $rule
         }
     }
     return $null
@@ -218,6 +261,13 @@ foreach ($operation in $operations) {
                 Add-Finding -Rule "CommentTextRequired" -Message "operations[$operationIndex].text is required for comment."
             }
         }
+        "remark" {
+            if (-not $operation.text -or $operation.text.Trim().Length -eq 0) {
+                Add-Finding -Rule "RemarkTextRequired" -Message "operations[$operationIndex].text is required for remark."
+            } elseif ($operation.text.Length -gt 120) {
+                Add-Finding -Rule "RemarkTooLong" -Message "operations[$operationIndex].text must be 120 characters or fewer."
+            }
+        }
         "diagnosticCheck" {
             if (-not $operation.name -or $operation.name.Trim().Length -eq 0) {
                 Add-Finding -Rule "DiagnosticNameRequired" -Message "operations[$operationIndex].name is required for diagnosticCheck."
@@ -236,6 +286,96 @@ foreach ($operation in $operations) {
                 } elseif ($callEntry.MotionAllowed -eq $true) {
                     Add-Finding -Rule "CallProgramMotionNotSupported" -Message "operations[$operationIndex] calls $($operation.program), but motion-capable CALL targets are not supported by this generator stage."
                 }
+
+                if ($null -ne $callEntry) {
+                    $arguments = if ($operation.PSObject.Properties.Name -contains "arguments") { @($operation.arguments) } else { @() }
+                    $argumentRules = @($callEntry.Arguments)
+                    $requiredArgumentRules = @($argumentRules | Where-Object { -not ($_.PSObject.Properties.Name -contains "Required") -or $_.Required -ne $false })
+
+                    if ($argumentRules.Count -gt 0 -and ($arguments.Count -lt $requiredArgumentRules.Count -or $arguments.Count -gt $argumentRules.Count)) {
+                        Add-Finding -Rule "CallArgumentCount" -Message "operations[$operationIndex] calls $($operation.program) with $($arguments.Count) argument(s), but the cell map allows $($requiredArgumentRules.Count) to $($argumentRules.Count)."
+                    }
+
+                    $argumentIndex = 0
+                    foreach ($argument in $arguments) {
+                        $argumentIndex++
+                        $rule = Get-CallArgumentRule -CallEntry $callEntry -Position $argumentIndex
+                        if ($argumentRules.Count -gt 0 -and $null -eq $rule) {
+                            Add-Finding -Rule "CallArgumentUnexpected" -Message "operations[$operationIndex].arguments[$argumentIndex] is not allowed by the $($operation.program) cell-map contract."
+                            continue
+                        }
+
+                        if ($argument.type -notin @("string", "integer")) {
+                            Add-Finding -Rule "CallArgumentType" -Message "operations[$operationIndex].arguments[$argumentIndex].type must be string or integer."
+                            continue
+                        }
+
+                        if ($argument.type -eq "string") {
+                            if ($argument.value -isnot [string] -or $argument.value -cnotmatch '^[A-Z0-9_ -]{1,32}$') {
+                                Add-Finding -Rule "CallStringArgumentValue" -Message "operations[$operationIndex].arguments[$argumentIndex].value must be safe uppercase FANUC text."
+                            } elseif ($null -ne $rule -and $rule.Type -and $rule.Type -ne "string") {
+                                Add-Finding -Rule "CallArgumentContractType" -Message "operations[$operationIndex].arguments[$argumentIndex] must be $($rule.Type) for $($operation.program)."
+                            } elseif ($null -ne $rule -and @($rule.AllowedValues).Count -gt 0 -and @($rule.AllowedValues | ForEach-Object { $_.ToUpperInvariant() }) -notcontains $argument.value.ToUpperInvariant()) {
+                                Add-Finding -Rule "CallStringArgumentNotAllowed" -Message "operations[$operationIndex].arguments[$argumentIndex] value '$($argument.value)' is not allowed for $($operation.program)."
+                            }
+                        } elseif ($argument.type -eq "integer") {
+                            if ($argument.value -isnot [int] -and $argument.value -isnot [long]) {
+                                Add-Finding -Rule "CallIntegerArgumentValue" -Message "operations[$operationIndex].arguments[$argumentIndex].value must be an integer."
+                            } elseif ($null -ne $rule -and $rule.Type -and $rule.Type -ne "integer") {
+                                Add-Finding -Rule "CallArgumentContractType" -Message "operations[$operationIndex].arguments[$argumentIndex] must be $($rule.Type) for $($operation.program)."
+                            } else {
+                                $integerValue = [int]$argument.value
+                                if ($null -ne $rule -and $null -ne $rule.Min -and $integerValue -lt [int]$rule.Min) {
+                                    Add-Finding -Rule "CallIntegerArgumentMin" -Message "operations[$operationIndex].arguments[$argumentIndex] value $integerValue is below the $($operation.program) minimum $($rule.Min)."
+                                }
+                                if ($null -ne $rule -and $null -ne $rule.Max -and $integerValue -gt [int]$rule.Max) {
+                                    Add-Finding -Rule "CallIntegerArgumentMax" -Message "operations[$operationIndex].arguments[$argumentIndex] value $integerValue is above the $($operation.program) maximum $($rule.Max)."
+                                }
+                                if ($null -ne $rule -and $null -ne $rule.RegisterWriteBlockLength -and -not (Test-AllowedRegisterWriteBlock -Start $integerValue -Length ([int]$rule.RegisterWriteBlockLength))) {
+                                    Add-Finding -Rule "CallRegisterBlockNotAllowed" -Message "operations[$operationIndex].arguments[$argumentIndex] points $($operation.program) at R[$integerValue] through R[$($integerValue + [int]$rule.RegisterWriteBlockLength - 1)], which is not fully allowed by config\cell-map.psd1."
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        "runProgram" {
+            if (-not $operation.program -or $operation.program -cnotmatch '^[A-Z][A-Z0-9_]{0,31}$') {
+                Add-Finding -Rule "RunProgramRequired" -Message "operations[$operationIndex].program must be an uppercase FANUC-compatible program name."
+            } else {
+                $runEntry = Get-AllowedRunEntry -Program $operation.program
+                if ($null -eq $runEntry) {
+                    Add-Finding -Rule "RunProgramNotAllowed" -Message "operations[$operationIndex] runs $($operation.program), which is not allowed by config\cell-map.psd1."
+                } elseif ($runEntry.MotionAllowed -eq $true) {
+                    Add-Finding -Rule "RunProgramMotionNotSupported" -Message "operations[$operationIndex] runs $($operation.program), but motion-capable RUN targets are not supported by this generator stage."
+                }
+            }
+        }
+        "userAlarm" {
+            if ($null -eq $operation.alarm -or [int]$operation.alarm -lt 1 -or [int]$operation.alarm -gt 999) {
+                Add-Finding -Rule "UserAlarmRequired" -Message "operations[$operationIndex].alarm must be between 1 and 999."
+            }
+        }
+        "label" {
+            if ($null -eq $operation.label -or [int]$operation.label -lt 1 -or [int]$operation.label -gt 9999) {
+                Add-Finding -Rule "LabelRequired" -Message "operations[$operationIndex].label must be between 1 and 9999."
+            }
+        }
+        "jump" {
+            if ($null -eq $operation.label -or [int]$operation.label -lt 1 -or [int]$operation.label -gt 9999) {
+                Add-Finding -Rule "JumpLabelRequired" -Message "operations[$operationIndex].label must be between 1 and 9999."
+            }
+        }
+        "ifRegisterEqualsJump" {
+            if ($null -eq $operation.register -or [int]$operation.register -lt 1) {
+                Add-Finding -Rule "IfRegisterRequired" -Message "operations[$operationIndex].register must be 1 or greater."
+            }
+            if ($null -eq $operation.value) {
+                Add-Finding -Rule "IfRegisterValueRequired" -Message "operations[$operationIndex].value is required for ifRegisterEqualsJump."
+            }
+            if ($null -eq $operation.label -or [int]$operation.label -lt 1 -or [int]$operation.label -gt 9999) {
+                Add-Finding -Rule "IfRegisterLabelRequired" -Message "operations[$operationIndex].label must be between 1 and 9999."
             }
         }
         default {

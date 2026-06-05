@@ -46,6 +46,12 @@ Before generation-ready status:
 - UTOOL number, name, source, and verification must be explicit.
 - Payload schedule and end-effector assumptions must be explicit.
 - Points must be taught/reviewed or position-register based with touch-up requirements documented.
+- Offset PRs must identify their source and owner. If the AI/tooling should
+  populate them, capture the requested values in a human-reviewable list before
+  any controller write.
+- PR reads are allowed for planning/evidence, but the workflow must record the
+  read source when it affects generated behavior. PR writes require explicit
+  confirmation and a reviewed PR family/write contract.
 - IO, registers, and CALL targets must be in the project cell map.
 
 5. Motion Design
@@ -56,6 +62,11 @@ The motion plan must define:
 - Speed policy.
 - FINE/CNT termination policy.
 - Approach and retract behavior.
+- Whether approach/safe/retract positions are explicit calculated PRs or inline
+  `Offset,PR[]` / `Tool_Offset,PR[]` modifiers. Prefer explicit calculated PRs
+  when practical so the pendant can manually move to and review them.
+- When calculated PRs are refreshed: once near startup/phase start by default,
+  or every cycle only for dynamic targets such as vision/recipe/measured inputs.
 - Clearance around fixtures, tools, and operators.
 - Recovery plan.
 - A line-level `motionSequence` with reviewed PR targets, speed, and termination for each move.
@@ -98,6 +109,13 @@ It emits:
 - `J PR[n] ...` and `L PR[n] ...` moves from the reviewed `motionSequence`
 
 It does not emit Cartesian position records, teach points, frame writes, tool writes, PR writes, DCS edits, system variable writes, `RUN`, or `ABORT`.
+
+Separate PR-population tooling may be used later for reviewed offset/base PR
+values. That workflow must ask for the values, show a reviewable list, write
+only approved PRs, and verify by readback. For offset-vector initialization,
+the `PR[x]=LPOS-LPOS` Cartesian-zero technique is an allowed reviewed
+implementation detail when representation needs to be forced before element
+writes.
 
 Generate offline LS from a reviewed generation-ready spec:
 

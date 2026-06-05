@@ -1,4 +1,7 @@
 @{
+    AllowedSystemVariables = @(
+        '$WAITTMOUT'
+    )
     BlockedPatterns = @(
         @{
             Rule = "SystemVariable"

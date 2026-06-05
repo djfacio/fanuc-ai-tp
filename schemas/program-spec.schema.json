@@ -47,16 +47,44 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["message", "registerWrite", "ioWrite", "wait", "comment", "diagnosticCheck", "callProgram"]
+              "enum": ["message", "registerWrite", "ioWrite", "wait", "comment", "remark", "diagnosticCheck", "callProgram", "runProgram", "userAlarm", "label", "jump", "ifRegisterEqualsJump"]
           },
           "text": { "type": "string" },
+          "remark": { "type": "string" },
           "name": { "type": "string" },
           "program": {
             "type": "string",
             "pattern": "^[A-Z][A-Z0-9_]{0,31}$"
           },
+          "arguments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "value"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["string", "integer"]
+                },
+                "value": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[A-Z0-9_ -]{1,32}$"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ]
+                }
+              }
+            }
+          },
           "register": { "type": "integer", "minimum": 1 },
           "value": { "type": "integer" },
+          "label": { "type": "integer", "minimum": 1, "maximum": 9999 },
+          "alarm": { "type": "integer", "minimum": 1, "maximum": 999 },
           "signal": { "type": "string" },
           "state": { "type": "boolean" },
           "seconds": { "type": "number", "minimum": 0 }

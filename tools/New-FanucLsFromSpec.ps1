@@ -3,6 +3,7 @@ param(
     [string]$SpecPath,
 
     [string]$ConfigPath = "..\config\robot.psd1",
+    [string]$OutputRoot = "generated",
     [switch]$Force
 )
 
@@ -19,6 +20,11 @@ if ([System.IO.Path]::IsPathRooted($ConfigPath)) {
 
 $config = Import-PowerShellDataFile -LiteralPath $resolvedConfig
 $resolvedSpec = Resolve-Path -LiteralPath $SpecPath
+if ([System.IO.Path]::IsPathRooted($OutputRoot)) {
+    $resolvedOutputRoot = $OutputRoot
+} else {
+    $resolvedOutputRoot = Join-Path $projectRoot $OutputRoot
+}
 
 $specValidator = Join-Path $scriptRoot "Test-FanucProgramSpec.ps1"
 & $specValidator -SpecPath $resolvedSpec -ConfigPath $resolvedConfig -Quiet
@@ -52,6 +58,47 @@ function Format-FanucComment {
     return $safeText
 }
 
+function Format-FanucMultiLanguageRemark {
+    param([string]$Text)
+
+    $safeText = $Text.ToUpperInvariant() -replace '[^\w \-\.,:/\(\)]', ''
+    if ($safeText.Length -eq 0) {
+        throw "Remark became empty after safety filtering."
+    }
+    if ($safeText.Length -gt 120) {
+        throw "FANUC multi-language remark should stay concise. Use 120 characters or fewer."
+    }
+    return $safeText
+}
+
+function Add-FanucMultiLanguageRemark {
+    param([string]$Text)
+
+    $remark = Format-FanucMultiLanguageRemark $Text
+    $script:mnLines.Add((" {0,3}:  --eg:{1} ;" -f $script:lineNumber, $remark))
+    $script:lineNumber++
+}
+
+function Format-FanucCallArgument {
+    param([object]$Argument)
+
+    switch ($Argument.type) {
+        "string" {
+            $safeText = $Argument.value.ToUpperInvariant()
+            if ($safeText -notmatch '^[A-Z0-9_ -]{1,32}$') {
+                throw "Unsafe CALL string argument: $($Argument.value)"
+            }
+            return "'$safeText'"
+        }
+        "integer" {
+            return ([int]$Argument.value).ToString()
+        }
+        default {
+            throw "Unsupported CALL argument type: $($Argument.type)"
+        }
+    }
+}
+
 $mnLines = New-Object System.Collections.Generic.List[string]
 $lineNumber = 1
 foreach ($operation in @($spec.operations)) {
@@ -75,12 +122,46 @@ foreach ($operation in @($spec.operations)) {
             $comment = Format-FanucComment $operation.text
             $mnLines.Add((" {0,3}:  ! {1} ;" -f $lineNumber, $comment))
         }
+        "remark" {
+            Add-FanucMultiLanguageRemark $operation.text
+            continue
+        }
         "diagnosticCheck" {
             $label = Format-FanucComment ($operation.name + " " + $operation.text)
             $mnLines.Add((" {0,3}:  ! {1} ;" -f $lineNumber, $label))
         }
         "callProgram" {
-            $mnLines.Add((" {0,3}:  CALL {1} ;" -f $lineNumber, $operation.program.ToUpperInvariant()))
+            $program = $operation.program.ToUpperInvariant()
+            $arguments = if ($operation.PSObject.Properties.Name -contains "arguments") { @($operation.arguments) } else { @() }
+            if ($program -eq "TSKSTATUS") {
+                $remark = if ($operation.PSObject.Properties.Name -contains "remark" -and $operation.remark) {
+                    $operation.remark
+                } else {
+                    "TSK 200 RUNNING, 204/404 OK START, ELSE NO START"
+                }
+                Add-FanucMultiLanguageRemark $remark
+            }
+            if ($arguments.Count -gt 0) {
+                $argumentText = @($arguments | ForEach-Object { Format-FanucCallArgument $_ }) -join ","
+                $mnLines.Add((" {0,3}:  CALL {1}({2}) ;" -f $lineNumber, $program, $argumentText))
+            } else {
+                $mnLines.Add((" {0,3}:  CALL {1} ;" -f $lineNumber, $program))
+            }
+        }
+        "runProgram" {
+            $mnLines.Add((" {0,3}:  RUN {1} ;" -f $lineNumber, $operation.program.ToUpperInvariant()))
+        }
+        "userAlarm" {
+            $mnLines.Add((" {0,3}:  UALM[{1}] ;" -f $lineNumber, [int]$operation.alarm))
+        }
+        "label" {
+            $mnLines.Add((" {0,3}:  LBL[{1}] ;" -f $lineNumber, [int]$operation.label))
+        }
+        "jump" {
+            $mnLines.Add((" {0,3}:  JMP LBL[{1}] ;" -f $lineNumber, [int]$operation.label))
+        }
+        "ifRegisterEqualsJump" {
+            $mnLines.Add((" {0,3}:  IF (R[{1}]={2}),JMP LBL[{3}] ;" -f $lineNumber, [int]$operation.register, [int]$operation.value, [int]$operation.label))
         }
         default {
             throw "Unsupported operation type: $($operation.type)"
@@ -89,8 +170,8 @@ foreach ($operation in @($spec.operations)) {
     $lineNumber++
 }
 
-$sourcesDir = Join-Path $projectRoot "generated\sources"
-$jobDir = Join-Path (Join-Path $projectRoot "generated\jobs") $programName
+$sourcesDir = Join-Path $resolvedOutputRoot "sources"
+$jobDir = Join-Path (Join-Path $resolvedOutputRoot "jobs") $programName
 $jobSourcePath = Join-Path $jobDir ($programName + ".LS")
 $sourcePath = Join-Path $sourcesDir ($programName + ".LS")
 $jobSpecPath = Join-Path $jobDir "spec.json"
@@ -112,6 +193,7 @@ $date = $now.ToString("yy-MM-dd")
 $time = $now.ToString("HH:mm:ss")
 $lineCount = $mnLines.Count
 $mnText = $mnLines -join "`n"
+$defaultGroup = "*,*,*,*,*,*,*,*"
 
 $content = @"
 /PROG $programName
@@ -132,7 +214,7 @@ TCD: STACK_SIZE = 0,
      BUSY_LAMP_OFF = 0,
      ABORT_REQUEST = 0,
      PAUSE_REQUEST = 0;
-DEFAULT_GROUP = 1,*,*,*,*;
+DEFAULT_GROUP = $defaultGroup;
 CONTROL_CODE = 00000000 00000000;
 /MN
 $mnText

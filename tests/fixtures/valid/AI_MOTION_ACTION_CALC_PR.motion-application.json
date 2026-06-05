@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 1,
+  "applicationName": "Fixture motion-action calculated PR template",
+  "programName": "AI_MACALC",
+  "phase": "generation-ready",
+  "purpose": "Validate motion-action generation that consumes explicit calculated PRs and writes after-motion breadcrumbs.",
+  "cellContext": {
+    "controller": "FANUC R-30iB Plus class",
+    "robot": "Fixture robot",
+    "workcell": "Offline validator fixture",
+    "process": "Calculated PR motion-action sequence",
+    "payloadName": "Fixture payload"
+  },
+  "policy": {
+    "cellMapPolicy": "config/cell-map.psd1",
+    "motionAuthority": "reviewed-motion-template",
+    "humanReviewRequired": true,
+    "productionOverwriteAllowed": false
+  },
+  "resources": {
+    "userFrame": {
+      "number": 1,
+      "name": "Fixture UFRAME",
+      "source": "Fixture reviewed source",
+      "verified": true
+    },
+    "userTool": {
+      "number": 1,
+      "name": "Fixture UTOOL",
+      "source": "Fixture reviewed source",
+      "verified": true
+    },
+    "payload": {
+      "number": 1,
+      "name": "Fixture payload",
+      "source": "Fixture reviewed source",
+      "verified": true
+    },
+    "points": [
+      {
+        "name": "APPROACH",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      },
+      {
+        "name": "WORK",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      },
+      {
+        "name": "RETRACT",
+        "source": "position-register",
+        "verified": true,
+        "touchupRequired": false
+      }
+    ],
+    "io": [],
+    "registers": [
+      {
+        "register": "R[95]",
+        "name": "Motion Step",
+        "source": "config/cell-map.psd1"
+      }
+    ],
+    "calls": [
+      {
+        "program": "A_CALC_POS",
+        "name": "Calculate visible PRs",
+        "source": "config/cell-map.psd1"
+      }
+    ]
+  },
+  "motionPlan": {
+    "motionTypes": ["J", "L"],
+    "speedPolicy": "Fixture uses reduced speed values for deterministic offline generation.",
+    "terminationPolicy": "Fixture uses FINE termination at each reviewed waypoint.",
+    "approachRetract": "A CALC_POS-style program calculates PR[21] and PR[22] from PR[20] plus reviewed offsets before motion.",
+    "clearancePolicy": "Fixture assumes offline-only clearance evidence.",
+    "recoveryPlan": "Fixture recovery is stop and manual review.",
+    "motionSequence": [
+      {
+        "stepName": "APPROACH",
+        "motionType": "J",
+        "target": {
+          "type": "position-register",
+          "number": 21,
+          "name": "APPROACH",
+          "source": "Fixture calculated PR[21]=PR[20]+PR[26]",
+          "verified": true
+        },
+        "speed": {
+          "value": 10,
+          "unit": "%"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      },
+      {
+        "stepName": "WORK",
+        "motionType": "L",
+        "target": {
+          "type": "position-register",
+          "number": 20,
+          "name": "WORK",
+          "source": "Fixture reviewed base PR[20]",
+          "verified": true
+        },
+        "speed": {
+          "value": 100,
+          "unit": "mm/sec"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      },
+      {
+        "stepName": "RETRACT",
+        "motionType": "L",
+        "target": {
+          "type": "position-register",
+          "number": 22,
+          "name": "RETRACT",
+          "source": "Fixture calculated PR[22]=PR[20]+PR[27]",
+          "verified": true
+        },
+        "speed": {
+          "value": 100,
+          "unit": "mm/sec"
+        },
+        "termination": {
+          "type": "FINE"
+        }
+      }
+    ],
+    "positionArchitecture": {
+      "strategy": "explicit-calculated-prs",
+      "notes": "Default generated motion-action architecture: visible PRs are calculated before motion so they are available for pendant MOVE_TO review.",
+      "calcProgram": {
+        "required": true,
+        "programName": "A_CALC_POS",
+        "callBeforeMotion": true,
+        "verified": true,
+        "notes": "Fixture exercises reviewed A_CALC_POS call authority. Real projects should call near startup/phase start unless positions are dynamic."
+      },
+      "prFamilies": [
+        {
+          "familyName": "Fixture Pick",
+          "start": 20,
+          "size": 10,
+          "purpose": "Work, approach, retract, and reviewed offsets for one station family.",
+          "owner": "Fixture reviewer",
+          "verified": true
+        }
+      ],
+      "fixedPrs": [
+        {
+          "number": 20,
+          "name": "WORK",
+          "role": "process",
+          "owner": "Fixture reviewer",
+          "verified": true,
+          "notes": "Reviewed base/work PR."
+        }
+      ],
+      "offsetPrs": [
+        {
+          "number": 26,
+          "name": "APP_OFFSET",
+          "owner": "Fixture reviewer",
+          "source": "Human-provided fixture offset",
+          "aiMayPopulate": true,
+          "verified": true,
+          "zeroingMethod": "lpos-minus-lpos",
+          "notes": "Tooling may populate after human review."
+        },
+        {
+          "number": 27,
+          "name": "RET_OFFSET",
+          "owner": "Fixture reviewer",
+          "source": "Human-provided fixture offset",
+          "aiMayPopulate": true,
+          "verified": true,
+          "zeroingMethod": "lpos-minus-lpos",
+          "notes": "Tooling may populate after human review."
+        }
+      ],
+      "derivedPrs": [
+        {
+          "number": 21,
+          "name": "APPROACH",
+          "role": "approach",
+          "sourceBasePr": 20,
+          "sourceOffsetPr": 26,
+          "writer": "A_CALC_POS",
+          "availableForPendantMoveTo": true,
+          "verified": true
+        },
+        {
+          "number": 22,
+          "name": "RETRACT",
+          "role": "retract",
+          "sourceBasePr": 20,
+          "sourceOffsetPr": 27,
+          "writer": "A_CALC_POS",
+          "availableForPendantMoveTo": true,
+          "verified": true
+        }
+      ],
+      "inlineOffsetPolicy": {
+        "defaultAllowed": false,
+        "exceptions": []
+      },
+      "breadcrumb": {
+        "enabled": true,
+        "register": 95,
+        "comment": "Motion Step",
+        "assignmentPosition": "after-motion",
+        "semantics": "last-motion-statement-advanced-past",
+        "requiredForEveryMotion": true,
+        "notes": "Diagnostic breadcrumb only; not actual robot position after CNT moves."
+      }
+    }
+  },
+  "safety": {
+    "dcsReviewed": true,
+    "interlocksReviewed": true,
+    "operatorLocationReviewed": true,
+    "faultHandlingReviewed": true,
+    "noControllerConfigWrites": true,
+    "notes": "Offline fixture only; not a live cell approval."
+  },
+  "evidence": {
+    "roboguideRequired": false,
+    "roboguidePlan": "Fixture requires generated RoboGuide evidence before live use.",
+    "operatorRunPlan": "Operator owns robot setup and physical run decisions.",
+    "snapshotPlan": "Fixture requires before/after status snapshots before live use.",
+    "acceptanceCriteria": [
+      "Generated LS references only reviewed fixed or calculated PR targets.",
+      "Generated LS repeats UFRAME and UTOOL before every motion line.",
+      "Generated LS writes R[95] after every motion as a Motion Step breadcrumb.",
+      "Generated LS contains no inline Offset,PR[] or Tool_Offset,PR[] modifiers."
+    ]
+  },
+  "generation": {
+    "allowed": true,
+    "mode": "reviewed-motion-template",
+    "templateId": "motion-action-calc-pr-v1",
+    "notes": "Offline generator fixture for calculated visible PR motion-action architecture."
+  }
+}

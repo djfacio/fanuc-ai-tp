@@ -1,15 +1,17 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("probe", "read-r", "asg-read", "asg-write-r", "write-r", "command-g")]
+    [ValidateSet("probe", "read-r", "asg-read", "asg-write-r", "asg-read-ualm-severity", "asg-write-ualm-severity", "asg-write-r-text", "write-r", "command-g")]
     [string]$Operation,
 
-    [string]$HostAddress = "192.168.5.10:60008",
+    [string]$HostAddress = "192.168.0.10:60008",
     [ValidateSet("fanuc-snpx", "srtp")]
     [string]$PortKind = "fanuc-snpx",
 
     [int]$Start,
     [int]$Count,
     [int]$Value,
+    [ValidateSet("WARN", "STOP.L", "STOP.G", "ABORT.L", "ABORT.G", "0", "6", "38", "11", "43")]
+    [string]$Severity,
     [string]$Text,
     [string]$SetupFile,
 
@@ -83,6 +85,55 @@ switch ($Operation) {
             throw "asg-write-r requires -Start >= 1."
         }
         $toolArgs += @("--setup-file", (Resolve-Path -LiteralPath $SetupFile).Path, "--start", [string]$Start, "--value", [string]$Value, "--i-accept-live-write")
+    }
+    "asg-read-ualm-severity" {
+        if (-not $SetupFile) {
+            throw "asg-read-ualm-severity requires -SetupFile."
+        }
+        if (-not (Test-Path -LiteralPath $SetupFile)) {
+            throw "asg-read-ualm-severity setup file not found: $SetupFile"
+        }
+        if ($Start -lt 1) {
+            throw "asg-read-ualm-severity requires -Start >= 1."
+        }
+        $toolArgs += @("--setup-file", (Resolve-Path -LiteralPath $SetupFile).Path, "--start", [string]$Start)
+    }
+    "asg-write-ualm-severity" {
+        if (-not $AcceptLiveWrite) {
+            throw "asg-write-ualm-severity requires -AcceptLiveWrite and an approved alarm severity plan."
+        }
+        if (-not $SetupFile) {
+            throw "asg-write-ualm-severity requires -SetupFile."
+        }
+        if (-not (Test-Path -LiteralPath $SetupFile)) {
+            throw "asg-write-ualm-severity setup file not found: $SetupFile"
+        }
+        if ($Start -lt 1) {
+            throw "asg-write-ualm-severity requires -Start >= 1."
+        }
+        if (-not $Severity) {
+            throw "asg-write-ualm-severity requires -Severity."
+        }
+        $toolArgs += @("--setup-file", (Resolve-Path -LiteralPath $SetupFile).Path, "--start", [string]$Start, "--severity", $Severity, "--i-accept-live-write")
+    }
+    "asg-write-r-text" {
+        if (-not $AcceptLiveWrite) {
+            throw "asg-write-r-text requires -AcceptLiveWrite. Use only after a reviewed proof plan."
+        }
+        if (-not $SetupFile) {
+            throw "asg-write-r-text requires -SetupFile."
+        }
+        if (-not (Test-Path -LiteralPath $SetupFile)) {
+            throw "asg-write-r-text setup file not found: $SetupFile"
+        }
+        if ($Start -lt 1) {
+            throw "asg-write-r-text requires -Start >= 1."
+        }
+        if (-not $Text) {
+            throw "asg-write-r-text requires -Text."
+        }
+        $wordCount = if ($Count -ge 1) { $Count } else { 30 }
+        $toolArgs += @("--setup-file", (Resolve-Path -LiteralPath $SetupFile).Path, "--start", [string]$Start, "--text", $Text, "--word-count", [string]$wordCount, "--i-accept-live-write")
     }
     "command-g" {
         if (-not $AcceptLiveWrite) {

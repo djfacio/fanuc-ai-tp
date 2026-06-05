@@ -1,0 +1,28 @@
+{
+  "programName": "A_SETCMT",
+  "intent": "No-motion pendant caller that applies actual data-register comments for the generated A_ workflow scratch registers.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": false,
+    "notes": "Calls A_REGCMT only. A_REGCMT uses SET_REG_CMT for R[80] and R[90]-R[94] comments only; it does not write register values, IO, motion, task control, or program selection."
+  },
+  "operations": [
+    {
+      "type": "comment",
+      "text": "Set A register comments"
+    },
+    {
+      "type": "callProgram",
+      "program": "A_REGCMT"
+    },
+    {
+      "type": "message",
+      "text": "REG COMMENTS SET"
+    }
+  ],
+  "verification": {
+    "roboguideRequired": false,
+    "operatorRunDecisionOwned": true,
+    "notes": "Upload is staging only. Operator runs once from the pendant to apply actual register comments, then verifies DATA > Registers comments for R[80] and R[90]-R[94]."
+  }
+}

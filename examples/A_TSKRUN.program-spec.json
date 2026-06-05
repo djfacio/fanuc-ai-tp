@@ -1,0 +1,50 @@
+{
+  "programName": "A_TSKRUN",
+  "intent": "No-motion launcher/checker that starts A_TSKDUMMY asynchronously and proves TSKSTATUS returns running.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true,
+    "notes": "This program uses reviewed RUN only for A_TSKDUMMY, a no-motion wait-only dummy task."
+  },
+  "operations": [
+    {
+      "type": "comment",
+      "text": "Positive task-status proof"
+    },
+    {
+      "type": "runProgram",
+      "program": "A_TSKDUMMY"
+    },
+    {
+      "type": "wait",
+      "seconds": 1
+    },
+    {
+      "type": "callProgram",
+      "program": "TSKSTATUS",
+      "arguments": [
+        {
+          "type": "string",
+          "value": "A_TSKDUMMY"
+        },
+        {
+          "type": "integer",
+          "value": 91
+        },
+        {
+          "type": "integer",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "type": "message",
+      "text": "TSKRUN DONE"
+    }
+  ],
+  "verification": {
+    "roboguideRequired": false,
+    "operatorRunDecisionOwned": true,
+    "notes": "Run from pendant. Expected live result while A_TSKDUMMY is active: R[91]=200 and KAREL user output STATE=200."
+  }
+}

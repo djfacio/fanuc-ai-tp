@@ -145,6 +145,24 @@ foreach ($entry in @($cellMap.Calls.Allowed)) {
     $calls[$key] = $true
 }
 
+$runs = @{}
+foreach ($entry in @($cellMap.Runs.Allowed)) {
+    if ($null -eq $entry) {
+        continue
+    }
+
+    if (-not $entry.Program -or $entry.Program -cnotmatch '^[A-Z][A-Z0-9_]{0,31}$') {
+        Add-Finding -Rule "RunEntryInvalid" -Message "RUN entries must include an uppercase FANUC-compatible Program name."
+        continue
+    }
+
+    $key = $entry.Program.ToUpperInvariant()
+    if ($runs.ContainsKey($key)) {
+        Add-Finding -Rule "RunDuplicate" -Message "$key appears more than once."
+    }
+    $runs[$key] = $true
+}
+
 $result = New-Object psobject -Property ([ordered]@{
     Path = (Get-Item -LiteralPath $resolvedCellMapPath).FullName
     IsValid = ($findings.Count -eq 0)
@@ -153,6 +171,7 @@ $result = New-Object psobject -Property ([ordered]@{
     IoWriteCount = $signals.Count
     IoWriteRangeCount = $signalRanges.Count
     CallTargetCount = $calls.Count
+    RunTargetCount = $runs.Count
     Findings = $findings.ToArray()
 })
 

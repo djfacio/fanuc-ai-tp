@@ -34,43 +34,61 @@ writes.
 From TP:
 
 ```ls
-CALL TSKSTATUS('F_FLEXI_LOADER',91) ;
+CALL TSKSTATUS('F_FLEXI_LOADER',91,1) ;
 ```
+
+The no-motion generated caller for controller proof is:
+
+```powershell
+.\tools\Invoke-FanucLocalWorkflow.ps1 -SpecPath .\examples\A_TSKTEST.program-spec.json -Force
+```
+
+It emits `A_TSKTEST`, whose only executable task-state action is the `CALL`
+above, then a completion message.
 
 Arguments:
 
 | Argument | Type | Meaning |
 | --- | --- | --- |
 | `1` | string | Task/program name to inspect |
-| `2` | integer | Base numeric register for the result block |
+| `2` | integer | Base numeric register for the normalized result |
+| `3` | integer | Optional display flag; `1` prints raw details, `0` stays quiet |
 
-The base register is caller-owned. For `A_MAIN`, the proposed call uses base
-`R[91]`.
+The base register is caller-owned. For `A_MAIN`, the proposed call uses
+`R[91]`. The test caller uses display flag `1`; production orchestration should
+use `0` unless an operator-facing diagnostic is intentionally wanted.
 
 ## Output Contract
 
-`TSKSTATUS('TASK_NAME',base)` writes:
+`TSKSTATUS('TASK_NAME',base,display)` writes:
 
 | Register | Meaning |
 | --- | --- |
 | `R[base]` | Normalized task state |
-| `R[base+1]` | Raw `TSK_STATUS` value from `GET_TSK_INFO` |
-| `R[base+2]` | Task number returned by `GET_TSK_INFO` |
-| `R[base+3]` | Current executing line number, or `0` if unavailable |
-| `R[base+4]` | KAREL `status` from first `GET_TSK_INFO` or parameter read |
+
+When `display` is nonzero, KAREL also writes the former debug register details
+to user output:
+
+```text
+TSKSTATUS <task name>
+STATE=<normalized> RAW=<raw TSK_STATUS>
+TASK=<task number> LINE=<line number>
+KSTAT=<KAREL status>
+```
 
 Normalized values:
 
 | Value | Meaning |
 | --- | --- |
-| `10` | Run request accepted |
-| `20` | Running |
-| `30` | Paused |
-| `40` | Aborted or not running |
-| `50` | Aborting |
-| `901` | Missing or invalid `CALL` parameter |
-| `900` | `GET_TSK_INFO` failed |
-| `999` | Unrecognized raw task status |
+| `200` | Running |
+| `202` | Run request accepted |
+| `204` | Inactive / `PG_ABORTED` task instance |
+| `404` | Task instance not found; observed as KAREL status `3016` when the program file exists but no active task instance is available |
+| `409` | Aborting / conflicting transition |
+| `423` | Paused / locked |
+| `400` | Missing or invalid `CALL` parameter |
+| `502` | `GET_TSK_INFO` failed for another reason |
+| `500` | Unrecognized raw task status |
 
 ## Tooling
 
@@ -98,23 +116,104 @@ generated\karel\TSKSTATUS.PC
 generated\karel\TSKSTATUS.LS
 ```
 
+Upload the compiled utility without running anything:
+
+```powershell
+.\tools\Send-FanucRobotFile.ps1 `
+  -LocalPath .\generated\karel\TSKSTATUS.PC `
+  -RemoteName TSKSTATUS.PC `
+  -Force
+```
+
 ## A_MAIN Use
 
 Before `A_MAIN` uses `RUN F_FLEXI_LOADER`, it should call:
 
 ```ls
-CALL TSKSTATUS('F_FLEXI_LOADER',91) ;
+CALL TSKSTATUS('F_FLEXI_LOADER',91,0) ;
 ```
 
-Recommended first policy:
+Generated TP must place one compact multi-language `--eg:` remark immediately
+before every `CALL TSKSTATUS(...)`. Use `--eg:` instead of `!` because the teach
+pendant wraps the remark text. The remark should describe the local decision at
+that call site, not just the generic return-code table:
 
-- `R[91]=20`: feeder task is already running; do not issue another `RUN`.
-- `R[91]=10`: treat as in transition; wait briefly, recheck, then decide.
-- `R[91]=30`: do not auto-continue yet; raise a specific state/status path.
-- `R[91]=40`: safe candidate to `RUN`, subject to the rest of the startup
-  preconditions.
-- `R[91]=900`, `901`, or `999`: fail closed and do not start the feeder task.
+```ls
+--eg:TSK 204/404 RUN, ELSE ALARM ;
+CALL TSKSTATUS('F_FLEXI_LOADER',91,0) ;
+```
 
-This resolves the design of the single-instance question. It does not clear the
-gate until `TSKSTATUS.PC` is uploaded and the register contract is tested on the
-controller.
+Current `A_MAIN` pre-run policy:
+
+- `R[91]=200`: feeder task is already running before `A_MAIN` requested it;
+  treat this as an ownership/state violation and alarm.
+- `R[91]=423`: do not auto-continue yet; raise a specific state/status path.
+- `R[91]=204` or `404`: startable; `RUN F_FLEXI_LOADER`.
+- `R[91]=400`, `409`, `500`, or `502`: fail closed and do not start the feeder
+  task without a reviewed recovery path.
+
+After `RUN F_FLEXI_LOADER`, `A_MAIN` must recheck and only `R[91]=200` proves
+the start request succeeded.
+
+The pendant remark intentionally omits `400`, `500`, and `502` details. Those
+are generator/helper fault classifications, not normal human operating choices.
+
+This resolves the design of the single-instance question. `TSKSTATUS.PC` has
+now been uploaded and the `R[91]`/display contract has both a live no-instance
+proof and a live positive running-task proof.
+
+## Live Proof
+
+On 2026-05-14, the revised `TSKSTATUS.PC` was uploaded and tested through
+`A_TSKTEST` against `F_FLEXI_LOADER` while no active task instance existed. The
+pendant-visible result was:
+
+```text
+STATE=404 RAW=0 TASK=0 LINE=0 KSTAT=3016
+```
+
+That proves the observed `GET_TSK_INFO` status `3016` maps cleanly to the
+HTTP-like `404` task-instance-not-found result for this helper.
+
+For the positive running-path proof, two no-motion programs were generated,
+compiled, uploaded, and read back from the controller on 2026-05-14:
+
+- `A_TSKDUMMY`: displays `DUMMY RUNNING`, waits 30 seconds, then displays
+  `DUMMY DONE`.
+- `A_TSKRUN`: runs `A_TSKDUMMY`, waits one second, then calls
+  `TSKSTATUS('A_TSKDUMMY',91,1)`.
+
+The reviewed `RUN` exception is deliberately narrow: `A_TSKRUN` may only run
+`A_TSKDUMMY`, and `A_TSKDUMMY` is motionless. The expected pendant result when
+`A_TSKRUN` is run is:
+
+```text
+STATE=200 RAW=<controller running code> TASK=<nonzero task> LINE=<line> KSTAT=0
+```
+
+The positive proof was run from the pendant on 2026-05-15. The observed result
+was:
+
+```text
+R[91]=200
+STATE=200 RAW=0 TASK=9 LINE=2
+```
+
+That proves the normalized `200` running-task result for a known active task.
+
+During first live staging, `A_TSKRUN` could not be overwritten while another
+task still owned it, and the first generated copies used
+`DEFAULT_GROUP = 1,*,*,*,*;`. The no-motion generator and LS safety gate were
+updated so no-motion programs now emit and require:
+
+```ls
+DEFAULT_GROUP = *,*,*,*,*,*,*,*;
+```
+
+Readback after the corrected upload confirmed that both `A_TSKRUN` and
+`A_TSKDUMMY` now use the wildcard default group. The eight-field source form
+matches the teach pendant Program Detail Group Mask display and the local
+operator manual example in B-83284EN/12 page 550. WinOLPC PrintTP V9.40 may
+serialize the compiled wildcard mask back to five fields in decoded LS; the
+round-trip gate treats all-wildcard masks as equivalent, but generated source
+stays eight-field to match the pendant/manual contract.

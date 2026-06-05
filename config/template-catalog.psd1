@@ -95,6 +95,60 @@
             Status = "proven-live"
         },
         @{
+            Id = "task-status-caller"
+            ProgramName = "A_TSKTEST"
+            ExampleSpec = "examples\A_TSKTEST.program-spec.json"
+            MotionClass = "no-motion"
+            Purpose = "Call the reviewed TSKSTATUS utility and display its task-detail output."
+            AllowedOperationTypes = @("comment", "callProgram", "message")
+            RegisterWrites = @("R[91]")
+            IoWrites = @()
+            CallTargets = @("TSKSTATUS")
+            Evidence = @("schema-validation", "cell-map-validation", "ls-safety", "maketp", "printtp-roundtrip", "human-review", "upload-readback", "operator-owned-run-decision")
+            Status = "local-validated-pending-upload"
+        },
+        @{
+            Id = "legacy-register-comment-caller"
+            ProgramName = "A_SETCMT"
+            ExampleSpec = "examples\A_SETCMT.program-spec.json"
+            MotionClass = "no-motion"
+            Purpose = "Call the legacy KAREL register-comment helper for A_ workflow scratch register comments."
+            AllowedOperationTypes = @("comment", "callProgram", "message")
+            RegisterWrites = @()
+            IoWrites = @()
+            CallTargets = @("A_REGCMT")
+            Evidence = @("schema-validation", "cell-map-validation", "ls-safety", "maketp", "printtp-roundtrip", "human-review", "operator-owned-run-decision")
+            Status = "superseded-by-robot-server-comment-tools"
+        },
+        @{
+            Id = "task-status-dummy"
+            ProgramName = "A_TSKDUMMY"
+            ExampleSpec = "examples\A_TSKDUMMY.program-spec.json"
+            MotionClass = "no-motion"
+            Purpose = "Stay active briefly as a no-motion RUN target for task-status positive-path proof."
+            AllowedOperationTypes = @("message", "wait")
+            RegisterWrites = @()
+            IoWrites = @()
+            CallTargets = @()
+            RunTargets = @()
+            Evidence = @("schema-validation", "cell-map-validation", "ls-safety", "maketp", "printtp-roundtrip", "human-review", "upload-readback", "operator-owned-run-decision")
+            Status = "planned-upload"
+        },
+        @{
+            Id = "task-status-running-proof"
+            ProgramName = "A_TSKRUN"
+            ExampleSpec = "examples\A_TSKRUN.program-spec.json"
+            MotionClass = "no-motion"
+            Purpose = "Start the no-motion dummy task and call TSKSTATUS to prove the running result path."
+            AllowedOperationTypes = @("comment", "runProgram", "wait", "callProgram", "message")
+            RegisterWrites = @("R[91]")
+            IoWrites = @()
+            CallTargets = @("TSKSTATUS")
+            RunTargets = @("A_TSKDUMMY")
+            Evidence = @("schema-validation", "cell-map-validation", "ls-safety", "maketp", "printtp-roundtrip", "human-review", "upload-readback", "operator-owned-run-decision")
+            Status = "planned-upload"
+        },
+        @{
             Id = "pr-waypoint-sequence-v1"
             ProgramName = "AI_MOTION_PR_READY"
             SpecType = "motion-application"
@@ -141,6 +195,22 @@
             PositionRegisters = @("PR[306]", "PR[307]", "PR[308]")
             Evidence = @("motion-application-validation", "motion-ls-spec-match", "ls-safety", "maketp", "printtp-roundtrip", "optional-roboguide-evidence", "operator-owned-robot-setup")
             Status = "offline-validated"
+        },
+        @{
+            Id = "motion-action-calc-pr-v1"
+            ProgramName = "AI_MACALC"
+            SpecType = "motion-application"
+            TemplateId = "motion-action-calc-pr-v1"
+            ExampleSpec = "tests\fixtures\valid\AI_MOTION_ACTION_CALC_PR.motion-application.json"
+            MotionClass = "motion-reviewed"
+            Purpose = "Emit motion-action TP that consumes explicit calculated PRs, repeats frame/tool before every motion, and writes an after-motion breadcrumb."
+            AllowedOperationTypes = @("setUserFrame", "setUserTool", "setPayload", "motionPrWaypoint", "registerWrite")
+            RegisterWrites = @("R[95]")
+            IoWrites = @()
+            CallTargets = @()
+            PositionRegisters = @("PR[20]", "PR[21]", "PR[22]", "PR[26]")
+            Evidence = @("motion-application-validation", "motion-ls-spec-match", "ls-safety", "maketp", "printtp-roundtrip", "optional-roboguide-evidence", "operator-owned-robot-setup")
+            Status = "planned"
         }
     )
 }

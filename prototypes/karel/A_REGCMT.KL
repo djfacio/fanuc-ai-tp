@@ -1,0 +1,32 @@
+PROGRAM A_REGCMT
+%NOLOCKGROUP
+%ENVIRONMENT REGOPE
+%COMMENT = 'AI reg comments'
+
+-- Sets actual data-register comments for the generated A_ workflow scratch
+-- registers. This utility writes comments only; it does not write register
+-- values, IO, task state, motion, or program control.
+
+VAR
+  status : INTEGER
+
+ROUTINE set_comment(reg_no : INTEGER; comment_text : STRING)
+BEGIN
+  SET_REG_CMT(reg_no, comment_text, status)
+  IF status <> 0 THEN
+    WRITE('SET_REG_CMT R[', reg_no, '] STATUS=', status, CR)
+  ENDIF
+END set_comment
+
+BEGIN
+  status = 0
+
+  set_comment(80, 'CELL STATE')
+  set_comment(90, 'STEP STATUS')
+  set_comment(91, 'MAIN TASK')
+  set_comment(92, 'FLEX TASK')
+  set_comment(93, 'CONV TASK')
+  set_comment(94, 'SUB RESULT')
+
+  WRITE('A_REGCMT DONE', CR)
+END A_REGCMT

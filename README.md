@@ -135,14 +135,14 @@ Keep real TP generation projects outside this public toolchain repo. Create a
 local project pack:
 
 ```powershell
-.\tools\New-FanucProjectPack.ps1 -Path "C:\Dev\AI-Fanuc Robot TP\TestProject" -ProjectName TestProject
+.\tools\New-FanucProjectPack.ps1 -Path "C:\FanucProjects\TestProject" -ProjectName TestProject
 ```
 
 Run motion workflows against the pack:
 
 ```powershell
 .\tools\Invoke-FanucMotionWorkflow.ps1 `
-  -ProjectPath "C:\Dev\AI-Fanuc Robot TP\TestProject" `
+  -ProjectPath "C:\FanucProjects\TestProject" `
   -SpecPath .\applications\A_TEST_APR.motion-application.json `
   -Force
 ```
@@ -414,7 +414,7 @@ Use `-SkipComProbe` when running on a machine without PCDK or COM support, such 
 Live PCDK reads require an explicit switch and remain read-only:
 
 ```powershell
-.\tools\New-FanucPcdkSnapshot.ps1 -HostName 192.168.5.10 -ConnectReadOnly
+.\tools\New-FanucPcdkSnapshot.ps1 -HostName 192.168.0.10 -ConnectReadOnly
 ```
 
 Generate the offline/read-only project health summary:
@@ -513,6 +513,7 @@ Planning docs for the next phase:
 - `docs/COMMUNICATION_STRATEGY.md`
 - `docs/KAREL_TCP_BRIDGE.md`
 - `docs/PCDK_STRATEGY.md`
+- `docs/SOURCE_AUTHORITY.md`
 - `docs/PROGRAM_TEMPLATES.md`
 - `docs/TEMPLATE_ROADMAP.md`
 - `docs/CELL_RESOURCE_MAP.md`

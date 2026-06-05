@@ -1,0 +1,28 @@
+{
+  "programName": "A_TSKDUMMY",
+  "intent": "No-motion dummy task that stays active briefly so TSKSTATUS can prove the running-task path.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true,
+    "notes": "This program does not move, write IO, write registers, call programs, or touch system variables. It only waits long enough to be observed as running."
+  },
+  "operations": [
+    {
+      "type": "message",
+      "text": "DUMMY RUNNING"
+    },
+    {
+      "type": "wait",
+      "seconds": 30
+    },
+    {
+      "type": "message",
+      "text": "DUMMY DONE"
+    }
+  ],
+  "verification": {
+    "roboguideRequired": false,
+    "operatorRunDecisionOwned": true,
+    "notes": "Run only as the target of A_TSKRUN. It should remain active long enough for TSKSTATUS to report R[91]=200."
+  }
+}

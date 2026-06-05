@@ -52,9 +52,18 @@ $specValidator = Join-Path $scriptRoot "Test-FanucProgramSpec.ps1"
 $motionApplicationValidator = Join-Path $scriptRoot "Test-FanucMotionApplicationSpec.ps1"
 $workflowMigrationValidator = Join-Path $scriptRoot "Test-FanucWorkflowMigrationSpec.ps1"
 $workflowMigrationReviewPacketTool = Join-Path $scriptRoot "Get-FanucWorkflowMigrationReviewPacket.ps1"
+$aMainWorkflowDraftTool = Join-Path $scriptRoot "New-FanucAMainWorkflowDraft.ps1"
+$aGreenfieldWorkflowDraftTool = Join-Path $scriptRoot "New-FanucAGreenfieldWorkflowDraft.ps1"
+$aMigrationDraftTool = Join-Path $scriptRoot "New-FanucAMigrationDraft.ps1"
 $motionLsGenerator = Join-Path $scriptRoot "New-FanucMotionLsFromSpec.ps1"
 $motionGeneratedLsValidator = Join-Path $scriptRoot "Test-FanucMotionGeneratedLs.ps1"
 $projectPackTool = Join-Path $scriptRoot "New-FanucProjectPack.ps1"
+$programGenerator = Join-Path $scriptRoot "New-FanucLsFromSpec.ps1"
+$programGeneratorOutputRoot = Join-Path $projectRoot "generated\test-runs\program-spec"
+$tpBuildTool = Join-Path $scriptRoot "Invoke-FanucTpBuild.ps1"
+$tpRoundTripTool = Join-Path $scriptRoot "Invoke-FanucTpRoundTrip.ps1"
+$uploadReadbackTool = Join-Path $scriptRoot "Invoke-FanucUploadReadback.ps1"
+$manifestTool = Join-Path $scriptRoot "Update-FanucJobManifest.ps1"
 $lsValidator = Join-Path $scriptRoot "Test-FanucLsSafety.ps1"
 $schemaValidator = Join-Path $scriptRoot "Test-FanucJsonSchema.ps1"
 $cellMapValidator = Join-Path $scriptRoot "Test-FanucCellMap.ps1"
@@ -78,11 +87,16 @@ $snpxWritePlanTool = Join-Path $scriptRoot "New-FanucSnpxWritePlan.ps1"
 $snpxLiveReadTool = Join-Path $scriptRoot "Invoke-FanucSnpxLiveRead.ps1"
 $snpxLiveWriteTool = Join-Path $scriptRoot "Invoke-FanucSnpxLiveWrite.ps1"
 $snpxScratchProofTool = Join-Path $scriptRoot "Invoke-FanucSnpxScratchProof.ps1"
+$robotServerCommentPlanTool = Join-Path $scriptRoot "New-FanucRobotServerCommentWritePlan.ps1"
+$robotServerCommentWriteTool = Join-Path $scriptRoot "Invoke-FanucRobotServerCommentWrite.ps1"
+$robotServerAlarmPlanTool = Join-Path $scriptRoot "New-FanucRobotServerAlarmWritePlan.ps1"
+$robotServerAlarmWriteTool = Join-Path $scriptRoot "Invoke-FanucRobotServerAlarmWrite.ps1"
 $healthCheckTool = Join-Path $scriptRoot "Invoke-FanucProjectHealthCheck.ps1"
 $statusPlanTool = Join-Path $scriptRoot "New-FanucCellStatusPlan.ps1"
 $statusSnapshotTool = Join-Path $scriptRoot "New-FanucCellStatusSnapshot.ps1"
 $statusCompareTool = Join-Path $scriptRoot "Compare-FanucCellStatusSnapshot.ps1"
 $simulationEvidenceTool = Join-Path $scriptRoot "Set-FanucSimulationEvidence.ps1"
+$autoHomeDraftTool = Join-Path $scriptRoot "New-FanucAutoHomeDraft.ps1"
 $schemaPath = Join-Path $projectRoot "schemas\program-spec.schema.json"
 
 Invoke-ExpectPass -Name "CellMapValid" -Command {
@@ -126,14 +140,14 @@ Invoke-ExpectPass -Name "TemplateCatalogArtifactValid" -Command {
     $catalogPath = Join-Path $projectRoot "generated\test-runs\template-catalog.json"
     & $templateCatalogTool -OutputPath $catalogPath -WriteMarkdown | Out-Null
     $catalog = Get-Content -LiteralPath $catalogPath -Raw | ConvertFrom-Json
-    if ([int]$catalog.templateCount -ne 10) {
-        throw "Expected template catalog artifact to contain 10 templates."
+    if ([int]$catalog.templateCount -ne 15) {
+        throw "Expected template catalog artifact to contain 15 templates."
     }
     $motionTemplates = @($catalog.templates | Where-Object { $_.motionClass -ne "no-motion" })
-    if ($motionTemplates.Count -ne 3) {
-        throw "Expected current template catalog to contain three motion templates."
+    if ($motionTemplates.Count -ne 4) {
+        throw "Expected current template catalog to contain four motion templates."
     }
-    foreach ($templateId in @("pr-waypoint-sequence-v1", "approach-process-retract-v1", "io-motion-sequence-v1")) {
+    foreach ($templateId in @("pr-waypoint-sequence-v1", "approach-process-retract-v1", "io-motion-sequence-v1", "motion-action-calc-pr-v1")) {
         if (@($motionTemplates | ForEach-Object { $_.templateId }) -notcontains $templateId) {
             throw "Expected motion template catalog to include $templateId."
         }
@@ -234,10 +248,11 @@ Invoke-ExpectPass -Name "KarelTaskStateSourceGenerated" -Command {
     foreach ($expected in @(
         "GET_TPE_PRM(1, data_type",
         "GET_TPE_PRM(2, data_type",
+        "GET_TPE_PRM(3, data_type",
         "GET_TSK_INFO(task_name, task_no, TSK_STATUS",
         "SET_INT_REG(reg_no, value, set_status)",
         "IF value_int = PG_RUNNING THEN",
-        "CALL TSKSTATUS('TASK_NAME', result_register)"
+        "CALL TSKSTATUS('TASK_NAME', result_register, display_flag)"
     )) {
         if ($source -notlike "*$expected*") {
             throw "Generated task-state KAREL source missing '$expected'."
@@ -493,6 +508,87 @@ Invoke-ExpectPass -Name "SnpxLiveWritePlanValid" -Command {
         throw "Expected R[99] live write plan to use %R00013."
     }
 }
+Invoke-ExpectPass -Name "RobotServerCommentPlanFixtureValid" -Command {
+    $planPath = Join-Path $projectRoot "generated\test-runs\robot-server-comment-write-plan-fixture.json"
+    $commentMapPath = Join-Path $projectRoot "tests\fixtures\valid\comment-map-approved.psd1"
+    $snapshotPath = Join-Path $projectRoot "tests\fixtures\valid\robot-server-metadata.sample.json"
+    $result = & $robotServerCommentPlanTool -CommentMapPath $commentMapPath -SnapshotPath $snapshotPath -OutputPath $planPath -Approved
+    if ($result.WriteCount -ne 5) {
+        throw "Expected fixture comment write plan to include 5 approved writes."
+    }
+    $plan = Get-Content -LiteralPath $planPath -Raw | ConvertFrom-Json
+    if (@($plan.writes | Where-Object { $_.family -eq "GO" }).Count -ne 0) {
+        throw "Expected proposed GO row to be skipped."
+    }
+    if (@($plan.writes | Where-Object { $_.setFunctionCode -in @(2, 4, 5, 15, 16, 17, 18, 67, 68, 69, 70) }).Count -ne 0) {
+        throw "Comment write plan included excluded Robot Server function codes."
+    }
+}
+Invoke-ExpectPass -Name "RobotServerCommentWriteDryRunValid" -Command {
+    $planPath = Join-Path $projectRoot "generated\test-runs\robot-server-comment-write-plan-fixture.json"
+    $evidencePath = Join-Path $projectRoot "generated\test-runs\robot-server-comment-write-evidence-fixture.json"
+    if (-not (Test-Path -LiteralPath $planPath)) {
+        $commentMapPath = Join-Path $projectRoot "tests\fixtures\valid\comment-map-approved.psd1"
+        $snapshotPath = Join-Path $projectRoot "tests\fixtures\valid\robot-server-metadata.sample.json"
+        & $robotServerCommentPlanTool -CommentMapPath $commentMapPath -SnapshotPath $snapshotPath -OutputPath $planPath -Approved | Out-Null
+    }
+    $result = & $robotServerCommentWriteTool -PlanPath $planPath -OutputPath $evidencePath
+    if ($result.Executed) {
+        throw "Dry-run Robot Server comment writer should not execute."
+    }
+    if ($result.WriteCount -ne 5 -or $result.VerifiedCount -ne 0) {
+        throw "Unexpected dry-run Robot Server comment writer counts."
+    }
+    $evidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
+    if (@($evidence.rows | Where-Object { $_.before -ne $null -or $_.writeStatusCode -ne $null }).Count -ne 0) {
+        throw "Dry-run Robot Server comment writer should not do live readback or writes."
+    }
+}
+Invoke-ExpectPass -Name "RobotServerAlarmPlanFixtureValid" -Command {
+    $planPath = Join-Path $projectRoot "generated\test-runs\robot-server-alarm-write-plan-fixture.json"
+    $alarmMapPath = Join-Path $projectRoot "tests\fixtures\valid\alarm-map-approved.psd1"
+    $snapshotPath = Join-Path $projectRoot "tests\fixtures\valid\robot-server-alarms.sample.json"
+    $result = & $robotServerAlarmPlanTool -AlarmMapPath $alarmMapPath -SnapshotPath $snapshotPath -OutputPath $planPath -Approved
+    if ($result.WriteRows -ne 2 -or $result.ChangeCount -ne 3) {
+        throw "Expected fixture alarm write plan to include 2 alarm rows and 3 changes."
+    }
+    $plan = Get-Content -LiteralPath $planPath -Raw | ConvertFrom-Json
+    $functionCodes = @()
+    foreach ($write in @($plan.writes)) {
+        if ($write.messageWrite) {
+            $functionCodes += [int]$write.messageWrite.setFunctionCode
+        }
+        if ($write.severityWrite) {
+            $functionCodes += [int]$write.severityWrite.setFunctionCode
+        }
+    }
+    if (@($functionCodes | Where-Object { $_ -notin @(4, 5) }).Count -ne 0) {
+        throw "Alarm write plan included non-alarm Robot Server function codes."
+    }
+    if (@($plan.findings | Where-Object { $_.Rule -eq "AlreadyMatches" }).Count -ne 1) {
+        throw "Expected fixture alarm write plan to report one already-matches row."
+    }
+}
+Invoke-ExpectPass -Name "RobotServerAlarmWriteDryRunValid" -Command {
+    $planPath = Join-Path $projectRoot "generated\test-runs\robot-server-alarm-write-plan-fixture.json"
+    $evidencePath = Join-Path $projectRoot "generated\test-runs\robot-server-alarm-write-evidence-fixture.json"
+    if (-not (Test-Path -LiteralPath $planPath)) {
+        $alarmMapPath = Join-Path $projectRoot "tests\fixtures\valid\alarm-map-approved.psd1"
+        $snapshotPath = Join-Path $projectRoot "tests\fixtures\valid\robot-server-alarms.sample.json"
+        & $robotServerAlarmPlanTool -AlarmMapPath $alarmMapPath -SnapshotPath $snapshotPath -OutputPath $planPath -Approved | Out-Null
+    }
+    $result = & $robotServerAlarmWriteTool -PlanPath $planPath -OutputPath $evidencePath
+    if ($result.Executed) {
+        throw "Dry-run Robot Server alarm writer should not execute."
+    }
+    if ($result.WriteRows -ne 2 -or $result.VerifiedCount -ne 0) {
+        throw "Unexpected dry-run Robot Server alarm writer counts."
+    }
+    $evidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
+    if (@($evidence.rows | Where-Object { $_.beforeMessage -ne $null -or $_.messageWriteStatusCode -ne $null -or $_.severityWriteStatusCode -ne $null }).Count -ne 0) {
+        throw "Dry-run Robot Server alarm writer should not do live readback or writes."
+    }
+}
 Invoke-ExpectPass -Name "CellStatusSnapshotSample" -Command {
     $testRoot = Join-Path $projectRoot "generated\test-runs\cell-status"
     $planRoot = Join-Path $projectRoot "generated\test-runs\cell-status-plan"
@@ -536,6 +632,102 @@ Invoke-ExpectPass -Name "ProjectPackStarterValid" -Command {
 Invoke-ExpectPass -Name "SchemaValidSpec" -Command {
     & $schemaValidator -JsonPath (Join-Path $projectRoot "tests\fixtures\valid\AI_VALID.program-spec.json") -SchemaPath $schemaPath -Quiet
 }
+Invoke-ExpectPass -Name "SpecParameterizedCallPasses" -Command {
+    & $specValidator -SpecPath (Join-Path $projectRoot "examples\A_TSKTEST.program-spec.json") -Quiet
+}
+Invoke-ExpectPass -Name "SpecReviewedRunPasses" -Command {
+    & $specValidator -SpecPath (Join-Path $projectRoot "examples\A_TSKRUN.program-spec.json") -Quiet
+}
+Invoke-ExpectPass -Name "SpecControlFlowPasses" -Command {
+    & $specValidator -SpecPath (Join-Path $projectRoot "tests\fixtures\valid\AI_CONTROL.program-spec.json") -Quiet
+}
+Invoke-ExpectPass -Name "SpecAMainStartupPasses" -Command {
+    & $specValidator -SpecPath (Join-Path $projectRoot "examples\applications\A_MAIN.startup.program-spec.json") -Quiet
+}
+Invoke-ExpectPass -Name "ParameterizedCallGenerator" -Command {
+    $result = & $programGenerator -SpecPath (Join-Path $projectRoot "examples\A_TSKTEST.program-spec.json") -OutputRoot $programGeneratorOutputRoot -Force
+    $text = Get-Content -LiteralPath $result.SourcePath -Raw
+    if ($text -notmatch [regex]::Escape("CALL TSKSTATUS('A_FLEXI_LOADER',91,1) ;")) {
+        throw "Expected generated TP caller to include parameterized TSKSTATUS call."
+    }
+    $compactRemark = "--eg:TSK 200 RUNNING, 204/404 OK START, ELSE NO START ;"
+    if ($text -notmatch [regex]::Escape($compactRemark)) {
+        throw "Expected generated TSKSTATUS caller to include compact remark: $compactRemark"
+    }
+    if (@([regex]::Matches($text, [regex]::Escape("--eg:TSK"))).Count -ne 1) {
+        throw "Expected generated TSKSTATUS caller to use exactly one compact TSKSTATUS remark."
+    }
+    if ($text -notmatch [regex]::Escape("DEFAULT_GROUP = *,*,*,*,*,*,*,*;")) {
+        throw "Expected no-motion generated TP caller to use wildcard DEFAULT_GROUP."
+    }
+}
+Invoke-ExpectPass -Name "ReviewedRunGenerator" -Command {
+    $result = & $programGenerator -SpecPath (Join-Path $projectRoot "examples\A_TSKRUN.program-spec.json") -OutputRoot $programGeneratorOutputRoot -Force
+    $text = Get-Content -LiteralPath $result.SourcePath -Raw
+    if ($text -notmatch [regex]::Escape("RUN A_TSKDUMMY ;")) {
+        throw "Expected generated TP proof to include reviewed RUN A_TSKDUMMY."
+    }
+    if ($text -notmatch [regex]::Escape("DEFAULT_GROUP = *,*,*,*,*,*,*,*;")) {
+        throw "Expected no-motion reviewed RUN proof to use wildcard DEFAULT_GROUP."
+    }
+    & $lsValidator -LsPath $result.SourcePath -Quiet
+}
+Invoke-ExpectPass -Name "ControlFlowGenerator" -Command {
+    $result = & $programGenerator -SpecPath (Join-Path $projectRoot "tests\fixtures\valid\AI_CONTROL.program-spec.json") -OutputRoot $programGeneratorOutputRoot -Force
+    $text = Get-Content -LiteralPath $result.SourcePath -Raw
+    foreach ($expected in @(
+        "IF (R[90]=100),JMP LBL[100] ;",
+        "JMP LBL[900] ;",
+        "LBL[100] ;",
+        "LBL[999] ;"
+    )) {
+        if ($text -notmatch [regex]::Escape($expected)) {
+            throw "Expected control-flow generated LS to include: $expected"
+        }
+    }
+    & $lsValidator -LsPath $result.SourcePath -Quiet
+}
+Invoke-ExpectPass -Name "AMainStartupGenerator" -Command {
+    $result = & $programGenerator -SpecPath (Join-Path $projectRoot "examples\applications\A_MAIN.startup.program-spec.json") -OutputRoot $programGeneratorOutputRoot -Force
+    $text = Get-Content -LiteralPath $result.SourcePath -Raw
+    foreach ($expected in @(
+        "--eg:TSK 204/404 RUN, ELSE ALARM ;",
+        "IF (R[91]=200),JMP LBL[900] ;",
+        "IF (R[91]=204),JMP LBL[110] ;",
+        "IF (R[91]=404),JMP LBL[110] ;",
+        "RUN A_FLEXI_LOADER ;",
+        "--eg:TSK 200 RUNNING, ELSE ALARM ;",
+        "UALM[90] ;",
+        "JMP LBL[999] ;",
+        "UALM[91] ;"
+    )) {
+        if ($text -notmatch [regex]::Escape($expected)) {
+            throw "Expected A_MAIN startup generated LS to include: $expected"
+        }
+    }
+    & $lsValidator -LsPath $result.SourcePath -Quiet
+}
+Invoke-ExpectPass -Name "ManifestLocalEvidenceUploadGate" -Command {
+    $result = & $programGenerator -SpecPath (Join-Path $projectRoot "tests\fixtures\valid\AI_CONTROL.program-spec.json") -OutputRoot $programGeneratorOutputRoot -Force
+    & $tpRoundTripTool -LsPath $result.SourcePath -Force | Out-Null
+    $manifestResult = & $manifestTool -ProgramName AI_CONTROL
+    if (-not $manifestResult.LocalEvidencePassed) {
+        throw "Expected local evidence to pass for generated AI_CONTROL."
+    }
+    if (-not $manifestResult.ReadyForUpload) {
+        throw "Expected standing commissioning policy to make AI_CONTROL ready for upload after local evidence."
+    }
+    $manifest = Get-Content -LiteralPath $manifestResult.ManifestPath -Raw | ConvertFrom-Json
+    if ($manifest.humanReview.status -eq "approved") {
+        throw "Test should not depend on per-job human review approval."
+    }
+    if ($manifest.commissioningPolicy.uploadGate -ne "local-evidence") {
+        throw "Expected manifest to record local-evidence upload gate."
+    }
+    if ($manifest.gates.readyForUploadReason -notmatch "standing commissioning policy") {
+        throw "Expected readyForUploadReason to cite standing commissioning policy."
+    }
+}
 Invoke-ExpectPass -Name "MotionApplicationPlanningSpecValid" -Command {
     $result = & $motionApplicationValidator -SpecPath (Join-Path $projectRoot "examples\applications\AI_APP_PICK_PLACE.motion-application.json")
     if (-not $result.IsValid) {
@@ -569,6 +761,347 @@ Invoke-ExpectPass -Name "WorkflowMigrationReviewPacketValid" -Command {
         throw "A_MAIN review packet markdown should include blocking decisions."
     }
 }
+Invoke-ExpectPass -Name "AMigrationDraftKeepsKarelVisionShallow" -Command {
+    $outputRoot = Join-Path $projectRoot "generated\test-runs\a-migration"
+    $result = & $aMigrationDraftTool -OutputRoot $outputRoot -Force
+    $init = @($result.Programs | Where-Object { $_.TargetProgram -eq "A_INIT" } | Select-Object -First 1)
+    if (-not $init) {
+        throw "Expected migration draft to include A_INIT."
+    }
+    $initText = Get-Content -LiteralPath $init.SourcePath -Raw
+    foreach ($unexpected in @(
+        "CALL A_SELECT_VISION(R[100:PART NUMBER]) ;",
+        "CALL A_INIT_VISION ;"
+    )) {
+        if ($initText -match [regex]::Escape($unexpected)) {
+            throw "A_INIT must not hide KAREL vision wrapper calls behind another TP frame: $unexpected"
+        }
+    }
+    foreach ($expectedProgram in @("A_SELECT_VISION", "A_INIT_VISION")) {
+        $wrapper = @($result.Programs | Where-Object { $_.TargetProgram -eq $expectedProgram } | Select-Object -First 1)
+        if (-not $wrapper) {
+            throw "Expected migration draft to generate wrapper $expectedProgram."
+        }
+        $wrapperText = Get-Content -LiteralPath $wrapper.SourcePath -Raw
+        if ($wrapperText -notmatch '(?im)^TCD:\s+STACK_SIZE\s*=\s*1000,') {
+            throw "$expectedProgram must declare explicit stack size 1000 for KAREL bridge review after INTP-302."
+        }
+    }
+
+    $placeConveyor = @($result.Programs | Where-Object { $_.TargetProgram -eq "A_PLACE_CONVEYOR" } | Select-Object -First 1)
+    $conveyor = @($result.Programs | Where-Object { $_.TargetProgram -eq "A_CONVEYOR" } | Select-Object -First 1)
+    if (-not $placeConveyor -or -not $conveyor) {
+        throw "Expected migration draft to include conveyor placement/proof programs."
+    }
+    $placeConveyorText = Get-Content -LiteralPath $placeConveyor.SourcePath -Raw
+    foreach ($expected in @(
+        "--eg:Call conveyor and require proof before return ;",
+        "CALL A_CONVEYOR ;",
+        "IF (R[94]=200),JMP LBL[430] ;",
+        "LBL[430] ;"
+    )) {
+        if ($placeConveyorText -notmatch [regex]::Escape($expected)) {
+            throw "A_PLACE_CONVEYOR must call A_CONVEYOR synchronously and preserve R94 result: $expected"
+        }
+    }
+    if ($placeConveyorText -match [regex]::Escape("RUN A_CONVEYOR ;")) {
+        throw "A_PLACE_CONVEYOR must not RUN A_CONVEYOR and immediately claim success."
+    }
+
+    $conveyorText = Get-Content -LiteralPath $conveyor.SourcePath -Raw
+    foreach ($expected in @(
+        "R[94]=0 ;",
+        "R[94]=200 ;",
+        "R[94]=408 ;"
+    )) {
+        if ($conveyorText -notmatch [regex]::Escape($expected)) {
+            throw "A_CONVEYOR must report success/timeout through R94: $expected"
+        }
+    }
+}
+Invoke-ExpectPass -Name "AMainWorkflowDraftCallRemarks" -Command {
+    $outputRoot = Join-Path $projectRoot "generated\test-runs\a-main-workflow"
+    $result = & $aMainWorkflowDraftTool -OutputRoot $outputRoot -Force
+    $mainText = Get-Content -LiteralPath $result.SourcePath -Raw
+    foreach ($expected in @(
+        "--eg:Main Loop ********************************* ;",
+        "--eg:Loop Decision ***************************** ;",
+        "--eg:Normal Finish **************************** ;",
+        "--eg:Fault Exit ******************************** ;"
+    )) {
+        if ($mainText -notmatch [regex]::Escape($expected)) {
+            throw "A_MAIN workflow draft missing visible flow marker: $expected"
+        }
+    }
+    if ($mainText -notmatch '(?m)^\s+\d+:\s+;\s*$') {
+        throw "A_MAIN workflow draft should include blank separator lines for pendant readability."
+    }
+
+    foreach ($program in @($result.Programs)) {
+        $lines = Get-Content -LiteralPath $program.SourcePath
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -notmatch '^\s*\d+:\s*(?:IF\s*\(.+\),)?CALL\s+') {
+                continue
+            }
+
+            $j = $i - 1
+            while ($j -ge 0 -and $lines[$j] -match '^\s*\d+:\s*;\s*$') {
+                $j--
+            }
+
+            if ($j -lt 0 -or $lines[$j] -notmatch '^\s*\d+:\s*(--eg:|!)') {
+                throw "$($program.ProgramName) has a CALL without an immediate preceding remark: $($lines[$i])"
+            }
+        }
+    }
+}
+Invoke-ExpectPass -Name "AGreenfieldWorkflowDraftValid" -Command {
+    $outputRoot = Join-Path $projectRoot "generated\test-runs\a-main-greenfield"
+    & $aMigrationDraftTool -OutputRoot $outputRoot -Force | Out-Null
+    $result = & $aGreenfieldWorkflowDraftTool -OutputRoot $outputRoot -Force
+    $mainText = Get-Content -LiteralPath $result.SourcePath -Raw
+    foreach ($expected in @(
+        "--eg:Main Loop ********************************* ;",
+        "--eg:Loop Decision ***************************** ;",
+        "--eg:Status-gated flow: phases own details; R80 200=Run, 204=Work Complete, else Fault; R90 Detail, R94 Step Result ;",
+        "--eg:Normal Finish **************************** ;",
+        "--eg:Fault Exit ******************************** ;",
+        "CALL A_STARTUP ;",
+        "CALL A_FEED ;",
+        "CALL A_EXCH_CNC ;",
+        "CALL A_EXCH_TI ;",
+        "CALL A_OUT ;",
+        "--eg:Finish Work complete: handshake, keep infeed off ;",
+        "CALL A_FINISH_CYCLE ;",
+        "--eg:Return robot to home before normal program end ;",
+        "CALL A_GO_HOME ;"
+    )) {
+        if ($mainText -notmatch [regex]::Escape($expected)) {
+            throw "A_MAIN greenfield draft missing expected flow text: $expected"
+        }
+    }
+    if ($mainText -notmatch '(?m)^\s+\d+:\s+;\s*$') {
+        throw "A_MAIN greenfield draft should include blank separator lines for pendant readability."
+    }
+    if ($mainText -match [regex]::Escape("CALL A_BOOT ;")) {
+        throw "A_MAIN greenfield draft should use A_STARTUP vocabulary, not A_BOOT."
+    }
+    if ($mainText -match "Drained|drained") {
+        throw "A_MAIN greenfield draft should use Finish Work vocabulary instead of drained/drain pendant wording."
+    }
+    if (-not @($result.Programs | Where-Object { $_.ProgramName -eq "A_STARTUP" })) {
+        throw "Expected greenfield draft to include A_STARTUP."
+    }
+    foreach ($stackProgramName in @("A_MAIN", "A_STARTUP", "A_FSTART", "A_FLEXI_LOADER", "A_FLX_SCAN")) {
+        $stackProgram = @($result.Programs | Where-Object { $_.ProgramName -eq $stackProgramName } | Select-Object -First 1)
+        if (-not $stackProgram) {
+            throw "Expected greenfield draft to include $stackProgramName."
+        }
+        $stackText = Get-Content -LiteralPath $stackProgram.SourcePath -Raw
+        if ($stackText -notmatch '(?im)^TCD:\s+STACK_SIZE\s*=\s*1000,') {
+            throw "$stackProgramName must declare stack size 1000 for KAREL-dependent entry chain review after INTP-302."
+        }
+    }
+
+    $startup = @($result.Programs | Where-Object { $_.ProgramName -eq "A_STARTUP" } | Select-Object -First 1)
+    if (-not $startup) {
+        throw "Expected greenfield draft to include A_STARTUP."
+    }
+    $startupText = Get-Content -LiteralPath $startup.SourcePath -Raw
+    foreach ($expected in @(
+        "--eg:Recipe must be valid with no apply pending ;",
+        "IF (F[68:OFF] OR !F[69:OFF]),JMP LBL[495] ;",
+        "MESSAGE[RECIPE NOT READY] ;",
+        "UALM[4] ;",
+        "--eg:Robot must be at perch before startup ;",
+        "IF (!UO[7:OFF:At perch]),JMP LBL[496] ;",
+        "MESSAGE[ROBOT NOT HOME] ;",
+        "UALM[5] ;",
+        "--eg:Initialize non-WIP state; do not erase transfer flags F61-F65 ;",
+        "CALL A_INIT_STATE ;",
+        "--eg:Select vision at startup level to keep bridge stack shallow ;",
+        "CALL A_SELECT_VISION(R[100:PART NUMBER]) ;",
+        "--eg:Initialize vision bridge at the same shallow caller level ;",
+        "CALL A_INIT_VISION ;"
+    )) {
+        if ($startupText -notmatch [regex]::Escape($expected)) {
+            throw "A_STARTUP missing expected startup guard semantics: $expected"
+        }
+    }
+    foreach ($unexpected in @(
+        "MESSAGE[HOME CHECK FAIL] ;",
+        "MESSAGE[PERCH CHECK FAIL] ;"
+    )) {
+        if ($startupText -match [regex]::Escape($unexpected)) {
+            throw "A_STARTUP should not emit stale generic startup message: $unexpected"
+        }
+    }
+    if ($startupText -match 'CALL\s+A_INIT\s*;') {
+        throw "A_STARTUP must not call migrated A_INIT because it clears transfer WIP flags."
+    }
+
+    $initState = @($result.Programs | Where-Object { $_.ProgramName -eq "A_INIT_STATE" } | Select-Object -First 1)
+    if (-not $initState) {
+        throw "Expected greenfield draft to include A_INIT_STATE."
+    }
+    $initStateText = Get-Content -LiteralPath $initState.SourcePath -Raw
+    foreach ($expected in @(
+        "--eg:Skip vacuum reset when robot-held WIP may still be gripped ;",
+        "IF (F[59:OFF] OR F[61:OFF:PART_4_CNC] OR F[63:OFF:PART_4_INS] OR F[65:OFF:PART_2_PRINT]),JMP LBL[100] ;",
+        "--eg:No robot-held WIP: reset vacuum hold outputs ;",
+        "--eg:Reset non-holding feeder/conveyor outputs ;"
+    )) {
+        if ($initStateText -notmatch [regex]::Escape($expected)) {
+            throw "A_INIT_STATE missing physical WIP preservation guard: $expected"
+        }
+    }
+    foreach ($forbiddenWipClear in @(
+        "F[61:OFF:PART_4_CNC]=(OFF) ;",
+        "F[63:OFF:PART_4_INS]=(OFF) ;",
+        "F[65:OFF:PART_2_PRINT]=(OFF) ;"
+    )) {
+        if ($initStateText -match [regex]::Escape($forbiddenWipClear)) {
+            throw "A_INIT_STATE must preserve transfer WIP and not emit: $forbiddenWipClear"
+        }
+    }
+
+    $feedPick = @($result.Programs | Where-Object { $_.ProgramName -eq "A_FEED_PICK" } | Select-Object -First 1)
+    $feedOrient = @($result.Programs | Where-Object { $_.ProgramName -eq "A_FEED_ORIENT" } | Select-Object -First 1)
+    if (-not $feedPick -or -not $feedOrient) {
+        throw "Expected greenfield feed split to include A_FEED_PICK and A_FEED_ORIENT."
+    }
+    $feedPickText = Get-Content -LiteralPath $feedPick.SourcePath -Raw
+    $feedOrientText = Get-Content -LiteralPath $feedOrient.SourcePath -Raw
+    if ($feedPickText -match [regex]::Escape("F[61:OFF:PART_4_CNC]=(ON) ;")) {
+        throw "A_FEED_PICK must not claim F61 before optional orientation is proven."
+    }
+    if ($feedPickText -notmatch [regex]::Escape("F[59:OFF]=(ON) ;")) {
+        throw "A_FEED_PICK must claim intermediate F59 picked WIP before another abort/restart point."
+    }
+    if ($feedOrientText -notmatch [regex]::Escape("F[59:OFF]=(OFF) ;")) {
+        throw "A_FEED_ORIENT must clear intermediate F59 picked WIP after orientation is resolved."
+    }
+    if ($feedOrientText -notmatch [regex]::Escape("F[61:OFF:PART_4_CNC]=(ON) ;")) {
+        throw "A_FEED_ORIENT must claim F61 after optional orientation succeeds or is skipped."
+    }
+
+    foreach ($expectedProgram in @("A_FLEXI_LOADER", "A_FLX_SCAN", "A_FLX_RETRY")) {
+        if (-not @($result.Programs | Where-Object { $_.ProgramName -eq $expectedProgram })) {
+            throw "Expected greenfield Flexi Loader split to include $expectedProgram."
+        }
+    }
+    $flexiLoader = @($result.Programs | Where-Object { $_.ProgramName -eq "A_FLEXI_LOADER" } | Select-Object -First 1)
+    $flexiLoaderText = Get-Content -LiteralPath $flexiLoader.SourcePath -Raw
+    foreach ($expected in @(
+        "CALL TSKSTATUS('A_MAIN',92,0) ;",
+        "CALL A_FLX_SCAN ;",
+        "CALL K_VS_CLOSE ;"
+    )) {
+        if ($flexiLoaderText -notmatch [regex]::Escape($expected)) {
+            throw "A_FLEXI_LOADER missing readable async owner step: $expected"
+        }
+    }
+    if ($flexiLoaderText -match [regex]::Escape("CALL K_VS_SENDCMD('TRG') ;")) {
+        throw "A_FLEXI_LOADER should not inline vision trigger logic; use A_FLX_SCAN."
+    }
+
+    $flexiScan = @($result.Programs | Where-Object { $_.ProgramName -eq "A_FLX_SCAN" } | Select-Object -First 1)
+    $flexiScanText = Get-Content -LiteralPath $flexiScan.SourcePath -Raw
+    foreach ($expected in @(
+        "CALL K_VS_SENDCMD('TRG') ;",
+        "CALL K_VS_WAITCMD('TRG',50) ;",
+        "CALL K_VS_RECVVAL(30) ;",
+        "CALL A_FLX_RETRY ;"
+    )) {
+        if ($flexiScanText -notmatch [regex]::Escape($expected)) {
+            throw "A_FLX_SCAN missing expected scan/retry step: $expected"
+        }
+    }
+
+    $manifestPath = Join-Path $outputRoot "a-main-active-greenfield.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    foreach ($expectedDependency in @(
+        "A_CONVEYOR",
+        "A_FEEDER",
+        "A_SHAKE_RATTLE_N_ROLL",
+        "A_PUSHER1",
+        "A_OPENG1",
+        "A_OPENG2",
+        "A_PUSHER2",
+        "K_VS_CONNECT",
+        "K_VS_SENDCMD",
+        "K_VS_WAITCMD",
+        "K_VS_RECVVAL",
+        "K_VS_CLOSE",
+        "TSKSTATUS"
+    )) {
+        if (-not @($manifest.dependencyPrograms | Where-Object { $_.ProgramName -eq $expectedDependency })) {
+            throw "A_MAIN greenfield manifest missing recursive dependency: $expectedDependency"
+        }
+    }
+    foreach ($unexpectedDependency in @("CNC", "TI", "conveyor", "fault")) {
+        if (@($manifest.dependencyPrograms | Where-Object { $_.ProgramName -eq $unexpectedDependency })) {
+            throw "A_MAIN greenfield manifest should not derive dependencies from prose remarks: $unexpectedDependency"
+        }
+    }
+
+    $outfeed = @($result.Programs | Where-Object { $_.ProgramName -eq "A_OUT" } | Select-Object -First 1)
+    if (-not $outfeed) {
+        throw "Expected greenfield draft to include A_OUT."
+    }
+    $outText = Get-Content -LiteralPath $outfeed.SourcePath -Raw
+    if ($outText -match [regex]::Escape("CALL A_CONV_DROP ;")) {
+        throw "A_OUT must not call A_CONV_DROP because that wrapper clears F[65] internally."
+    }
+    foreach ($expected in @(
+        "CALL A_RGP_CVY ;",
+        "CALL A_PLACE_CONVEYOR ;",
+        "F[65:OFF:PART_2_PRINT]=(OFF) ;"
+    )) {
+        if ($outText -notmatch [regex]::Escape($expected)) {
+            throw "A_OUT missing expected outfeed ownership text: $expected"
+        }
+    }
+
+    foreach ($program in @($result.Programs)) {
+        & $lsValidator -LsPath $program.SourcePath -Quiet
+        $rawText = [System.IO.File]::ReadAllText($program.SourcePath)
+        if (-not $rawText.EndsWith("`r`n")) {
+            throw "$($program.ProgramName) greenfield draft must end with CRLF for MakeTP compatibility."
+        }
+        if ($rawText -match "(?<!`r)`n") {
+            throw "$($program.ProgramName) greenfield draft contains LF-only line endings; MakeTP may reject it."
+        }
+        $lines = Get-Content -LiteralPath $program.SourcePath
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match '\$WAITTMOUT\s*=') {
+                if ($i + 1 -ge $lines.Count -or $lines[$i + 1] -notmatch '\bWAIT\b.+\bTIMEOUT\b') {
+                    throw "$($program.ProgramName) sets `$WAITTMOUT without the timed WAIT on the next line: $($lines[$i])"
+                }
+            }
+
+            if ($lines[$i] -notmatch '^\s*\d+:\s*CALL\s+') {
+                continue
+            }
+
+            $j = $i - 1
+            while ($j -ge 0 -and $lines[$j] -match '^\s*\d+:\s*;\s*$') {
+                $j--
+            }
+
+            if ($j -lt 0 -or $lines[$j] -notmatch '^\s*\d+:\s*(--eg:|!)') {
+                throw "$($program.ProgramName) has a CALL without an immediate preceding remark: $($lines[$i])"
+            }
+        }
+
+        if ($rawText -match '--eg:ERR ' -and $rawText -notmatch [regex]::Escape("--eg:Error Section *************************** ;")) {
+            throw "$($program.ProgramName) has error labels without an Error Section marker."
+        }
+        if ($rawText -match 'LBL\[999\] ;' -and $rawText -notmatch [regex]::Escape("--eg:Program End ***************************** ;")) {
+            throw "$($program.ProgramName) has LBL[999] without a Program End marker."
+        }
+    }
+}
 Invoke-ExpectFail -Name "MotionApplicationBadGenerationFails" -Command {
     & $motionApplicationValidator -SpecPath (Join-Path $projectRoot "tests\fixtures\invalid\AI_APP_BAD.motion-application.json") -Quiet
 }
@@ -594,6 +1127,12 @@ Invoke-ExpectPass -Name "MotionApplicationIoPathValid" -Command {
     $result = & $motionApplicationValidator -SpecPath (Join-Path $projectRoot "examples\applications\AI_IOPATH.motion-application.json")
     if (-not $result.ReadyForGeneration) {
         throw "Expected IO motion application spec to be ready for offline generation."
+    }
+}
+Invoke-ExpectPass -Name "MotionActionCalcPrValid" -Command {
+    $result = & $motionApplicationValidator -SpecPath (Join-Path $projectRoot "tests\fixtures\valid\AI_MOTION_ACTION_CALC_PR.motion-application.json")
+    if (-not $result.ReadyForGeneration) {
+        throw "Expected motion-action calculated PR fixture to be ready for offline generation."
     }
 }
 Invoke-ExpectPass -Name "MotionPrWaypointGenerator" -Command {
@@ -632,6 +1171,84 @@ Invoke-ExpectPass -Name "MotionIoGeneratedLsMatchesSpec" -Command {
         if ($text -notmatch [regex]::Escape($expected)) {
             throw "Generated IO motion LS missing expected text: $expected"
         }
+    }
+}
+Invoke-ExpectPass -Name "MotionActionCalcPrGeneratedLsMatchesSpec" -Command {
+    $outputRoot = Join-Path $projectRoot "generated\test-runs\motion-action-calc-pr"
+    $specPath = Join-Path $projectRoot "tests\fixtures\valid\AI_MOTION_ACTION_CALC_PR.motion-application.json"
+    $result = & $motionLsGenerator -SpecPath $specPath -OutputRoot $outputRoot -Force
+    $validation = & $motionGeneratedLsValidator -SpecPath $specPath -LsPath $result.SourcePath
+    if (-not $validation.IsValid) {
+        throw "Expected generated motion-action calculated PR LS to match its motion application spec."
+    }
+    $text = Get-Content -LiteralPath $result.SourcePath -Raw
+    foreach ($expected in @("CALL A_CALC_POS", "J PR[21] 10% FINE", "R[95]=21", "L PR[20] 100mm/sec FINE", "R[95]=20", "L PR[22] 100mm/sec FINE", "R[95]=22")) {
+        if ($text -notmatch [regex]::Escape($expected)) {
+            throw "Generated motion-action calculated PR LS missing expected text: $expected"
+        }
+    }
+    $frameSetCount = ([regex]::Matches($text, "UFRAME_NUM=1")).Count
+    $toolSetCount = ([regex]::Matches($text, "UTOOL_NUM=1")).Count
+    if ($frameSetCount -lt 3 -or $toolSetCount -lt 3) {
+        throw "Generated motion-action calculated PR LS must repeat UFRAME/UTOOL before each motion."
+    }
+    if ($text -match "Offset,PR|Tool_Offset,PR") {
+        throw "Generated motion-action calculated PR LS must not emit inline offset modifiers by default."
+    }
+}
+Invoke-ExpectPass -Name "UploadRequiresFreshReadbackAndManifest" -Command {
+    $buildText = Get-Content -LiteralPath $tpBuildTool -Raw
+    foreach ($expected in @(
+        "Invoke-FanucUploadReadback.ps1",
+        "-ProgramName `$programName",
+        "-OutputRoot `$resolvedOutputRoot",
+        "HashMatch",
+        "DecodeSucceeded",
+        "Update-FanucJobManifest.ps1"
+    )) {
+        if ($buildText -notmatch [regex]::Escape($expected)) {
+            throw "Invoke-FanucTpBuild upload path missing mandatory evidence step: $expected"
+        }
+    }
+
+    $readbackText = Get-Content -LiteralPath $uploadReadbackTool -Raw
+    if ($readbackText -notmatch [regex]::Escape('[string]$OutputRoot = "generated"')) {
+        throw "Invoke-FanucUploadReadback must accept OutputRoot so build/readback use the same job tree."
+    }
+    if ($readbackText -notmatch 'throw "Robot readback TP hash matched local compiled TP, but PrintTP could not decode') {
+        throw "Invoke-FanucUploadReadback must fail loudly when readback decode fails."
+    }
+}
+Invoke-ExpectPass -Name "AutoHomeLinearRecoveryGenerated" -Command {
+    $outputRoot = Join-Path $projectRoot "generated\test-runs\auto-home"
+    $result = & $autoHomeDraftTool -OutputRoot $outputRoot -Force
+    $text = Get-Content -LiteralPath $result.AutoHomePath -Raw
+
+    foreach ($expected in @(
+        "L PR[11:B_PICK_APP] 50mm/sec FINE",
+        "L PR[21:RG_PLACE_APP] 50mm/sec FINE",
+        "L PR[31:RG_PICK_APP] 10mm/sec FINE",
+        "J PR[1:JHOME] 10% FINE"
+    )) {
+        if ($text -notmatch [regex]::Escape($expected)) {
+            throw "Auto-home generated source missing expected recovery motion: $expected"
+        }
+    }
+
+    foreach ($unexpected in @(
+        "J PR[11:B_PICK_APP] 10% FINE",
+        "J PR[21:RG_PLACE_APP] 10% FINE",
+        "J PR[31:RG_PICK_APP] 10% FINE"
+    )) {
+        if ($text -match [regex]::Escape($unexpected)) {
+            throw "Auto-home generated source converted reviewed linear recovery to joint motion: $unexpected"
+        }
+    }
+
+    $map = Get-Content -LiteralPath $result.MapPath -Raw | ConvertFrom-Json
+    $linearTargets = @($map.linearRecoveryTargets)
+    if (-not @($linearTargets | Where-Object { [int]$_.PositionRegister -eq 11 -and $_.RecoverySpeed -eq "50mm/sec" })) {
+        throw "Auto-home map must record PR[11] linear recovery speed evidence."
     }
 }
 Invoke-ExpectPass -Name "MotionSimulationEvidenceNotesOnly" -Command {
@@ -727,6 +1344,12 @@ Invoke-ExpectFail -Name "LsProgramMismatchFails" -Command {
 }
 Invoke-ExpectFail -Name "LsBlockedPatternFails" -Command {
     & $lsValidator -LsPath (Join-Path $projectRoot "tests\fixtures\invalid\AI_BLOCKED.LS") -Quiet
+}
+Invoke-ExpectFail -Name "LsPrCalculationWildcardFails" -Command {
+    & $lsValidator -LsPath (Join-Path $projectRoot "tests\fixtures\invalid\AI_PR_CALC_WILDCARD.LS") -Quiet
+}
+Invoke-ExpectFail -Name "LsGroupedNegationFails" -Command {
+    & $lsValidator -LsPath (Join-Path $projectRoot "tests\fixtures\invalid\AI_GROUPED_NEGATION.LS") -Quiet
 }
 
 $failed = @($tests | Where-Object { -not $_.Passed })

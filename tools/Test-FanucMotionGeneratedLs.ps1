@@ -111,17 +111,30 @@ if (-not $programMatch.Success) {
 }
 
 $expectedInstructions = New-Object System.Collections.Generic.List[string]
-$expectedInstructions.Add("UFRAME_NUM=$([int]$spec.resources.userFrame.number) ;")
-$expectedInstructions.Add("UTOOL_NUM=$([int]$spec.resources.userTool.number) ;")
 $expectedInstructions.Add("PAYLOAD[$([int]$spec.resources.payload.number)] ;")
+
+$templateId = [string]$spec.generation.templateId
+if ($templateId -ne "motion-action-calc-pr-v1") {
+    $expectedInstructions.Add("UFRAME_NUM=$([int]$spec.resources.userFrame.number) ;")
+    $expectedInstructions.Add("UTOOL_NUM=$([int]$spec.resources.userTool.number) ;")
+} elseif ([bool]$spec.motionPlan.positionArchitecture.calcProgram.required -and [bool]$spec.motionPlan.positionArchitecture.calcProgram.callBeforeMotion) {
+    $expectedInstructions.Add("CALL $($spec.motionPlan.positionArchitecture.calcProgram.programName.ToUpperInvariant()) ;")
+}
 
 $expectedMoves = New-Object System.Collections.Generic.List[string]
 foreach ($step in @($spec.motionPlan.motionSequence)) {
     $speed = Format-FanucSpeed $step.speed
     $termination = Format-FanucTermination $step.termination
     $move = "$($step.motionType.ToUpperInvariant()) PR[$([int]$step.target.number)] $speed $termination ;"
+    if ($templateId -eq "motion-action-calc-pr-v1") {
+        $expectedInstructions.Add("UFRAME_NUM=$([int]$spec.resources.userFrame.number) ;")
+        $expectedInstructions.Add("UTOOL_NUM=$([int]$spec.resources.userTool.number) ;")
+    }
     $expectedInstructions.Add($move)
     $expectedMoves.Add($move)
+    if ($templateId -eq "motion-action-calc-pr-v1") {
+        $expectedInstructions.Add("R[$([int]$spec.motionPlan.positionArchitecture.breadcrumb.register)]=$([int]$step.target.number) ;")
+    }
 }
 
 if ($null -ne $spec.motionPlan.PSObject.Properties["ioSequence"]) {
@@ -133,6 +146,7 @@ if ($null -ne $spec.motionPlan.PSObject.Properties["ioSequence"]) {
 
 $actualMotionInstructions = @($instructions | Where-Object { $_ -match '^(J|L)\s+PR\[[0-9]+\]\s+' })
 $actualIoInstructions = @($instructions | Where-Object { $_ -match '^(DO|RO)\[[0-9]+\]=(ON|OFF)\s+;' })
+$actualRegisterInstructions = @($instructions | Where-Object { $_ -match '^R\[[0-9]+\]=[-]?[0-9]+(\.[0-9]+)?\s+;' })
 foreach ($expected in @($expectedInstructions.ToArray())) {
     if ($instructions -notcontains $expected.ToUpperInvariant()) {
         Add-Finding -Rule "ExpectedInstructionMissing" -Message "Generated LS is missing expected instruction: $expected"
@@ -156,6 +170,20 @@ foreach ($io in $unexpectedIo) {
     Add-Finding -Rule "UnexpectedIoInstruction" -Message "Generated LS includes IO not present in spec: $io"
 }
 
+if ($templateId -eq "motion-action-calc-pr-v1") {
+    $expectedBreadcrumbs = @($spec.motionPlan.motionSequence | ForEach-Object {
+        "R[$([int]$spec.motionPlan.positionArchitecture.breadcrumb.register)]=$([int]$_.target.number) ;"
+    })
+    $unexpectedRegister = @($actualRegisterInstructions | Where-Object { @($expectedBreadcrumbs | ForEach-Object { $_.ToUpperInvariant() }) -notcontains $_ })
+    foreach ($registerWrite in $unexpectedRegister) {
+        Add-Finding -Rule "UnexpectedRegisterInstruction" -Message "Generated LS includes register write not present in spec breadcrumb contract: $registerWrite"
+    }
+} elseif ($actualRegisterInstructions.Count -gt 0) {
+    foreach ($registerWrite in $actualRegisterInstructions) {
+        Add-Finding -Rule "UnexpectedRegisterInstruction" -Message "Generated LS includes register write not supported by this motion template: $registerWrite"
+    }
+}
+
 if ($lsText -match '(?im)^\s*P\[[0-9]+') {
     Add-Finding -Rule "GeneratedPositionRecordsBlocked" -Message "First PR-waypoint motion template must not emit generated /POS position records."
 }
@@ -168,6 +196,7 @@ $result = [pscustomobject]@{
     ExpectedInstructions = $expectedInstructions.ToArray()
     ActualMotionInstructions = $actualMotionInstructions
     ActualIoInstructions = $actualIoInstructions
+    ActualRegisterInstructions = $actualRegisterInstructions
     FindingCount = $findings.Count
     Findings = $findings.ToArray()
 }

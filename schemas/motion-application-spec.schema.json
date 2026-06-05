@@ -250,6 +250,162 @@
               }
             }
           }
+        },
+        "positionArchitecture": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["strategy", "calcProgram", "prFamilies", "offsetPrs", "derivedPrs", "inlineOffsetPolicy", "breadcrumb"],
+          "properties": {
+            "strategy": {
+              "type": "string",
+              "enum": ["direct-reviewed-prs", "explicit-calculated-prs", "inline-offsets"]
+            },
+            "notes": {
+              "type": "string"
+            },
+            "calcProgram": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["required", "programName", "callBeforeMotion", "verified"],
+              "properties": {
+                "required": { "type": "boolean" },
+                "programName": {
+                  "type": "string",
+                  "pattern": "^[A-Z][A-Z0-9_]{0,31}$"
+                },
+                "callBeforeMotion": { "type": "boolean" },
+                "verified": { "type": "boolean" },
+                "notes": { "type": "string" }
+              }
+            },
+            "prFamilies": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["familyName", "start", "size", "purpose", "owner", "verified"],
+                "properties": {
+                  "familyName": { "type": "string", "minLength": 1 },
+                  "start": { "type": "integer", "minimum": 1, "maximum": 9999 },
+                  "size": { "type": "integer", "minimum": 1, "maximum": 100 },
+                  "purpose": { "type": "string", "minLength": 1 },
+                  "owner": { "type": "string", "minLength": 1 },
+                  "verified": { "type": "boolean" },
+                  "notes": { "type": "string" }
+                }
+              }
+            },
+            "fixedPrs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["number", "name", "role", "owner", "verified"],
+                "properties": {
+                  "number": { "type": "integer", "minimum": 1, "maximum": 9999 },
+                  "name": { "type": "string", "minLength": 1 },
+                  "role": {
+                    "type": "string",
+                    "enum": ["home", "safe", "approach", "process", "retract", "intermediate", "other"]
+                  },
+                  "owner": { "type": "string", "minLength": 1 },
+                  "verified": { "type": "boolean" },
+                  "notes": { "type": "string" }
+                }
+              }
+            },
+            "offsetPrs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["number", "name", "owner", "source", "aiMayPopulate", "verified"],
+                "properties": {
+                  "number": { "type": "integer", "minimum": 1, "maximum": 9999 },
+                  "name": { "type": "string", "minLength": 1 },
+                  "owner": { "type": "string", "minLength": 1 },
+                  "source": { "type": "string", "minLength": 1 },
+                  "aiMayPopulate": { "type": "boolean" },
+                  "verified": { "type": "boolean" },
+                  "zeroingMethod": {
+                    "type": "string",
+                    "enum": ["not-required", "lpos-minus-lpos", "manual-existing", "other-reviewed"]
+                  },
+                  "notes": { "type": "string" }
+                }
+              }
+            },
+            "derivedPrs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["number", "name", "role", "sourceBasePr", "sourceOffsetPr", "writer", "availableForPendantMoveTo", "verified"],
+                "properties": {
+                  "number": { "type": "integer", "minimum": 1, "maximum": 9999 },
+                  "name": { "type": "string", "minLength": 1 },
+                  "role": {
+                    "type": "string",
+                    "enum": ["approach", "process", "safe", "retract", "intermediate", "temp", "other"]
+                  },
+                  "sourceBasePr": { "type": "integer", "minimum": 1, "maximum": 9999 },
+                  "sourceOffsetPr": { "type": "integer", "minimum": 1, "maximum": 9999 },
+                  "writer": { "type": "string", "minLength": 1 },
+                  "availableForPendantMoveTo": { "type": "boolean" },
+                  "verified": { "type": "boolean" },
+                  "notes": { "type": "string" }
+                }
+              }
+            },
+            "inlineOffsetPolicy": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["defaultAllowed", "exceptions"],
+              "properties": {
+                "defaultAllowed": { "type": "boolean" },
+                "exceptions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["stepName", "modifier", "reason", "reviewed"],
+                    "properties": {
+                      "stepName": {
+                        "type": "string",
+                        "pattern": "^[A-Z][A-Z0-9_]{0,30}$"
+                      },
+                      "modifier": {
+                        "type": "string",
+                        "enum": ["Offset,PR[]", "Tool_Offset,PR[]"]
+                      },
+                      "reason": { "type": "string", "minLength": 1 },
+                      "reviewed": { "type": "boolean" }
+                    }
+                  }
+                }
+              }
+            },
+            "breadcrumb": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["enabled", "register", "comment", "assignmentPosition", "semantics", "requiredForEveryMotion"],
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "register": { "type": "integer", "minimum": 1, "maximum": 9999 },
+                "comment": { "type": "string", "minLength": 1 },
+                "assignmentPosition": {
+                  "type": "string",
+                  "enum": ["after-motion", "before-motion", "both"]
+                },
+                "semantics": {
+                  "type": "string",
+                  "enum": ["last-motion-statement-advanced-past", "commanded-target", "actual-position-only-fine"]
+                },
+                "requiredForEveryMotion": { "type": "boolean" },
+                "notes": { "type": "string" }
+              }
+            }
+          }
         }
       }
     },

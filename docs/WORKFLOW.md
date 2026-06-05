@@ -14,6 +14,18 @@ It performs steps 2 through 7 locally and writes a review packet.
 
 Capture the task intent, controller assumptions, safety limits, IO/register use, and expected verification method in a structured spec.
 
+For project metadata such as register comments, PR comments, IO comments, and
+user alarm text/severity, use the list-first workflow in
+`docs\PROJECT_METADATA_WORKFLOW.md`. Codex proposes reviewable rows first; only
+human-approved rows may be emitted into a Robot Server metadata writer.
+Use `tools\Get-FanucRobotServerMetadata.ps1` for read-only snapshots from the
+controller's built-in Robot Server when live controller metadata is needed.
+Use SNPX, not Robot Server, as the default runtime register value path; see
+`docs\REGISTER_VALUE_INTERFACE_DECISION.md`.
+PowerShell remains the operator-facing workflow layer for now. Stable parsers,
+protocol clients, write-plan generators, and evidence builders should migrate to
+Rust according to `docs\RUST_MIGRATION_PLAN.md`.
+
 ## 2. Validate Spec
 
 Validate the spec against `schemas/program-spec.schema.json`. Treat schema validation as the first gate, not the only gate.
@@ -39,6 +51,12 @@ Current spec-driven generator:
 ```
 
 The generator writes both `generated/sources/<PROGRAM>.LS` and `generated/jobs/<PROGRAM>/` artifacts.
+
+For generated auto-home recovery TPs, follow the `Auto-Home Recovery TP`
+template in `docs\PROGRAM_TEMPLATES.md`. The generated program must assert the
+reviewed low-speed override before route selection or motion, must route from a
+reviewed breadcrumb map, and must refuse unknown breadcrumb values without
+motion.
 
 ## 4. Validate LS
 
@@ -80,19 +98,26 @@ Collect validation and artifact evidence:
 .\tools\Update-FanucJobManifest.ps1 -ProgramName A_EXAMPLE
 ```
 
-This records `validation.json` and `manifest.json` in `generated/jobs/<PROGRAM>/`. The manifest tracks file hashes, tool paths, validation status, round-trip status, upload status, and human review status.
+This records `validation.json` and `manifest.json` in `generated/jobs/<PROGRAM>/`. The manifest tracks file hashes, tool paths, validation status, round-trip status, upload status, commissioning policy, and optional per-job review status.
 
-`localEvidencePassed=true` means the local spec, LS safety, and round-trip gates passed. It does not mean the program is approved for robot upload.
+`localEvidencePassed=true` means the local spec, LS safety, and round-trip gates passed.
 
 If the spec requires RoboGuide/simulation, `localEvidencePassed` also requires simulation evidence with `status=passed`.
 
-After human review, record the decision:
+This project uses `config\commissioning-policy.psd1` with `UploadGate =
+local-evidence`. That means `readyForUpload=true` after local evidence passes,
+without a repeated per-program pendant-review prompt. Upload is staging only; it
+does not approve automatic operation.
+
+Per-job review can still be recorded when useful:
 
 ```powershell
 .\tools\Set-FanucJobStatus.ps1 -ProgramName A_EXAMPLE -HumanReviewStatus approved -Reviewer "Your Name" -HumanReviewNotes "Reviewed generated LS and evidence."
 ```
 
-Robot-side setup, PR correctness, frame/tool/payload setup, and physical verification are operator-owned and are not tracked as separate manifest gates.
+Robot-side setup, PR correctness, frame/tool/payload setup, pendant selection,
+deadman/low-speed step testing, and physical verification are operator-owned and
+are not tracked as separate manifest gates.
 
 Create a human-readable packet:
 
@@ -106,7 +131,7 @@ Use RoboGuide for motion, IO, and sequence verification. Record the test conditi
 
 ## 9. Upload
 
-Upload only after validation and review:
+Upload only after validation and the active commissioning policy gate:
 
 ```powershell
 .\tools\Invoke-FanucTpBuild.ps1 -LsPath .\generated\sources\A_EXAMPLE.LS -Force -Upload
@@ -114,7 +139,7 @@ Upload only after validation and review:
 
 Uploads do not run programs.
 
-For jobs with `generated/jobs/<PROGRAM>/manifest.json`, upload is blocked until `readyForUpload=true`. A successful upload updates the manifest upload status and log path automatically.
+For jobs with `generated/jobs/<PROGRAM>/manifest.json`, upload is blocked until `readyForUpload=true`. A successful upload updates the manifest upload status and log path automatically. Upload does not run programs.
 
 After upload, read back and decode the robot copy:
 

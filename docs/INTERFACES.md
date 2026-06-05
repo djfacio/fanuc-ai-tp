@@ -64,3 +64,9 @@ KAREL and socket services are controller-side infrastructure, not casual generat
 - Authentication/network assumptions.
 - Fail-safe behavior.
 - Pendant/operator visibility.
+
+Narrow KAREL metadata utilities are allowed only when they use the exact
+controller API for the metadata being changed and stay outside program control,
+motion, IO values, and controller configuration. The register-comment proof uses
+`SET_REG_CMT`; IO comments should use `GET_PORT_CMT` and `SET_PORT_CMT` with
+port constants from `KLIOTYPS`. See `docs\KAREL_IO_COMMENTS.md`.

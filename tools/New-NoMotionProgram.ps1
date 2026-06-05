@@ -59,7 +59,7 @@ TCD: STACK_SIZE = 0,
      BUSY_LAMP_OFF = 0,
      ABORT_REQUEST = 0,
      PAUSE_REQUEST = 0;
-DEFAULT_GROUP = 1,*,*,*,*;
+DEFAULT_GROUP = *,*,*,*,*,*,*,*;
 CONTROL_CODE = 00000000 00000000;
 /MN
    1:  MESSAGE[$safeMessage] ;

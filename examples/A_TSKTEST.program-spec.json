@@ -1,0 +1,42 @@
+{
+  "programName": "A_TSKTEST",
+  "intent": "No-motion pendant caller that proves the TSKSTATUS register contract for A_FLEXI_LOADER.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true,
+    "notes": "This program calls TSKSTATUS only. It does not run, pause, abort, resume, select, or move any program."
+  },
+  "operations": [
+    {
+      "type": "comment",
+      "text": "Task status proof"
+    },
+    {
+      "type": "callProgram",
+      "program": "TSKSTATUS",
+      "arguments": [
+        {
+          "type": "string",
+          "value": "A_FLEXI_LOADER"
+        },
+        {
+          "type": "integer",
+          "value": 91
+        },
+        {
+          "type": "integer",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "type": "message",
+      "text": "TSKSTATUS DONE"
+    }
+  ],
+  "verification": {
+    "roboguideRequired": false,
+    "operatorRunDecisionOwned": true,
+    "notes": "After running from the pendant, verify R[91] and the KAREL user output. Expected inactive result is R[91]=204 for an aborted task instance or R[91]=404 when no task instance is found."
+  }
+}

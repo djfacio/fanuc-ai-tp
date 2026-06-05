@@ -1,0 +1,55 @@
+{
+  "programName": "AI_CONTROL",
+  "intent": "Validate constrained no-motion control-flow emission for labels, jumps, and register comparisons.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true,
+    "notes": "Fixture only. It writes only reviewed scratch register R[90] and does not run or call programs."
+  },
+  "operations": [
+    {
+      "type": "registerWrite",
+      "register": 90,
+      "value": 100
+    },
+    {
+      "type": "ifRegisterEqualsJump",
+      "register": 90,
+      "value": 100,
+      "label": 100
+    },
+    {
+      "type": "jump",
+      "label": 900
+    },
+    {
+      "type": "label",
+      "label": 100
+    },
+    {
+      "type": "message",
+      "text": "CONTROL OK"
+    },
+    {
+      "type": "jump",
+      "label": 999
+    },
+    {
+      "type": "label",
+      "label": 900
+    },
+    {
+      "type": "message",
+      "text": "CONTROL HOLD"
+    },
+    {
+      "type": "label",
+      "label": 999
+    }
+  ],
+  "verification": {
+    "roboguideRequired": false,
+    "operatorRunDecisionOwned": true,
+    "notes": "Offline fixture for generator/tool validation only."
+  }
+}

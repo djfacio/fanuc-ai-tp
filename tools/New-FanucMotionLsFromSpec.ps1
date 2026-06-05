@@ -50,7 +50,7 @@ $spec = Get-Content -LiteralPath $resolvedSpec -Raw | ConvertFrom-Json
 if (-not [bool]$spec.generation.allowed) {
     throw "Motion generation is not allowed by the spec. Set generation.allowed=true only after review."
 }
-$supportedTemplates = @("pr-waypoint-sequence-v1", "approach-process-retract-v1", "io-motion-sequence-v1")
+$supportedTemplates = @("pr-waypoint-sequence-v1", "approach-process-retract-v1", "io-motion-sequence-v1", "motion-action-calc-pr-v1")
 if ($supportedTemplates -notcontains $spec.generation.templateId) {
     throw "Unsupported motion templateId '$($spec.generation.templateId)'."
 }
@@ -108,15 +108,26 @@ function Format-FanucIoState {
 
 $mnLines = New-Object System.Collections.Generic.List[string]
 $lineNumber = 1
+$templateId = [string]$spec.generation.templateId
 
 $mnLines.Add((" {0,3}:  ! {1} ;" -f $lineNumber, (Format-FanucComment "AI REVIEWED MOTION TEMPLATE")))
 $lineNumber++
-$mnLines.Add((" {0,3}:  UFRAME_NUM={1} ;" -f $lineNumber, [int]$spec.resources.userFrame.number))
-$lineNumber++
-$mnLines.Add((" {0,3}:  UTOOL_NUM={1} ;" -f $lineNumber, [int]$spec.resources.userTool.number))
-$lineNumber++
 $mnLines.Add((" {0,3}:  PAYLOAD[{1}] ;" -f $lineNumber, [int]$spec.resources.payload.number))
 $lineNumber++
+
+if ($templateId -ne "motion-action-calc-pr-v1") {
+    $mnLines.Insert(1, (" {0,3}:  UFRAME_NUM={1} ;" -f 2, [int]$spec.resources.userFrame.number))
+    $mnLines.Insert(2, (" {0,3}:  UTOOL_NUM={1} ;" -f 3, [int]$spec.resources.userTool.number))
+    for ($i = 3; $i -lt $mnLines.Count; $i++) {
+        $mnLines[$i] = [regex]::Replace($mnLines[$i], '^\s*\d+\s*:', (" {0,3}:" -f ($i + 1)))
+    }
+    $lineNumber = $mnLines.Count + 1
+} elseif ([bool]$spec.motionPlan.positionArchitecture.calcProgram.required -and [bool]$spec.motionPlan.positionArchitecture.calcProgram.callBeforeMotion) {
+    $mnLines.Add((" {0,3}:  ! {1} ;" -f $lineNumber, (Format-FanucComment "Calculate visible PRs")))
+    $lineNumber++
+    $mnLines.Add((" {0,3}:  CALL {1} ;" -f $lineNumber, $spec.motionPlan.positionArchitecture.calcProgram.programName.ToUpperInvariant()))
+    $lineNumber++
+}
 
 $ioSequence = @()
 if ($null -ne $spec.motionPlan.PSObject.Properties["ioSequence"]) {
@@ -133,12 +144,25 @@ foreach ($step in @($spec.motionPlan.motionSequence)) {
     $mnLines.Add((" {0,3}:  ! {1} ;" -f $lineNumber, (Format-FanucComment $step.stepName)))
     $lineNumber++
 
+    if ($templateId -eq "motion-action-calc-pr-v1") {
+        $mnLines.Add((" {0,3}:  UFRAME_NUM={1} ;" -f $lineNumber, [int]$spec.resources.userFrame.number))
+        $lineNumber++
+        $mnLines.Add((" {0,3}:  UTOOL_NUM={1} ;" -f $lineNumber, [int]$spec.resources.userTool.number))
+        $lineNumber++
+    }
+
     $motionType = $step.motionType.ToUpperInvariant()
     $target = "PR[$([int]$step.target.number)]"
     $speed = Format-FanucSpeed $step.speed
     $termination = Format-FanucTermination $step.termination
     $mnLines.Add((" {0,3}:{1} {2} {3} {4} ;" -f $lineNumber, $motionType, $target, $speed, $termination))
     $lineNumber++
+
+    if ($templateId -eq "motion-action-calc-pr-v1") {
+        $breadcrumbRegister = [int]$spec.motionPlan.positionArchitecture.breadcrumb.register
+        $mnLines.Add((" {0,3}:  R[{1}]={2} ;" -f $lineNumber, $breadcrumbRegister, [int]$step.target.number))
+        $lineNumber++
+    }
 
     foreach ($ioAction in @($ioSequence | Where-Object { $_.stepName -eq $step.stepName -and $_.position -eq "after" })) {
         $state = Format-FanucIoState ([bool]$ioAction.state)

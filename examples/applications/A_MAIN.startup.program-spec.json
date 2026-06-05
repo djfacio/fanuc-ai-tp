@@ -1,0 +1,188 @@
+{
+  "programName": "A_MAIN",
+  "intent": "Start-capable no-motion startup shell for the defensive A_MAIN migration. It starts A_FLEXI_LOADER only when TSKSTATUS reports the task is not active.",
+  "safety": {
+    "motionAllowed": false,
+    "requiresHumanReview": true,
+    "notes": "This shell does not contain robot motion. It may RUN A_FLEXI_LOADER only after TSKSTATUS returns 204 or 404. Any other non-running task state raises a user alarm."
+  },
+  "operations": [
+    {
+      "type": "remark",
+      "text": "A_MAIN startup guard"
+    },
+    {
+      "type": "registerWrite",
+      "register": 90,
+      "value": 100
+    },
+    {
+      "type": "callProgram",
+      "program": "TSKSTATUS",
+      "remark": "TSK 204/404 RUN, ELSE ALARM",
+      "arguments": [
+        {
+          "type": "string",
+          "value": "A_FLEXI_LOADER"
+        },
+        {
+          "type": "integer",
+          "value": 91
+        },
+        {
+          "type": "integer",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "type": "ifRegisterEqualsJump",
+      "register": 91,
+      "value": 200,
+      "label": 900
+    },
+    {
+      "type": "ifRegisterEqualsJump",
+      "register": 91,
+      "value": 204,
+      "label": 110
+    },
+    {
+      "type": "ifRegisterEqualsJump",
+      "register": 91,
+      "value": 404,
+      "label": 110
+    },
+    {
+      "type": "jump",
+      "label": 900
+    },
+    {
+      "type": "label",
+      "label": 110
+    },
+    {
+      "type": "registerWrite",
+      "register": 90,
+      "value": 110
+    },
+    {
+      "type": "message",
+      "text": "FLEXI START"
+    },
+    {
+      "type": "runProgram",
+      "program": "A_FLEXI_LOADER"
+    },
+    {
+      "type": "wait",
+      "seconds": 1
+    },
+    {
+      "type": "registerWrite",
+      "register": 90,
+      "value": 115
+    },
+    {
+      "type": "callProgram",
+      "program": "TSKSTATUS",
+      "remark": "TSK 200 RUNNING, ELSE ALARM",
+      "arguments": [
+        {
+          "type": "string",
+          "value": "A_FLEXI_LOADER"
+        },
+        {
+          "type": "integer",
+          "value": 91
+        },
+        {
+          "type": "integer",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "type": "ifRegisterEqualsJump",
+      "register": 91,
+      "value": 200,
+      "label": 100
+    },
+    {
+      "type": "jump",
+      "label": 901
+    },
+    {
+      "type": "label",
+      "label": 100
+    },
+    {
+      "type": "registerWrite",
+      "register": 90,
+      "value": 200
+    },
+    {
+      "type": "message",
+      "text": "FLEXI RUNNING"
+    },
+    {
+      "type": "jump",
+      "label": 999
+    },
+    {
+      "type": "label",
+      "label": 900
+    },
+    {
+      "type": "registerWrite",
+      "register": 90,
+      "value": 409
+    },
+    {
+      "type": "message",
+      "text": "FLEXI NOT READY"
+    },
+    {
+      "type": "userAlarm",
+      "alarm": 90
+    },
+    {
+      "type": "jump",
+      "label": 999
+    },
+    {
+      "type": "label",
+      "label": 901
+    },
+    {
+      "type": "registerWrite",
+      "register": 90,
+      "value": 502
+    },
+    {
+      "type": "message",
+      "text": "FLEXI RUN FAIL"
+    },
+    {
+      "type": "userAlarm",
+      "alarm": 91
+    },
+    {
+      "type": "jump",
+      "label": 999
+    },
+    {
+      "type": "label",
+      "label": 999
+    },
+    {
+      "type": "message",
+      "text": "STARTUP DONE"
+    }
+  ],
+  "verification": {
+    "roboguideRequired": false,
+    "operatorRunDecisionOwned": true,
+    "notes": "Upload is staging only. Operator owns low-speed step testing and any physical run decision."
+  }
+}

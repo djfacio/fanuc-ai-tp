@@ -26,6 +26,29 @@ if ([System.IO.Path]::IsPathRooted($OutputRoot)) {
 } else {
     $resolvedOutputRoot = Join-Path $projectRoot $OutputRoot
 }
+if ([System.IO.Path]::IsPathRooted($ConfigPath)) {
+    $resolvedConfig = Resolve-Path -LiteralPath $ConfigPath
+} else {
+    $resolvedConfig = Resolve-Path -LiteralPath (Join-Path $scriptRoot $ConfigPath)
+}
+$config = Import-PowerShellDataFile -LiteralPath $resolvedConfig
+$configRoot = Split-Path -Parent $resolvedConfig
+$commissioningPolicyPath = if ($config.CommissioningPolicyPath) {
+    if ([System.IO.Path]::IsPathRooted($config.CommissioningPolicyPath)) {
+        $config.CommissioningPolicyPath
+    } elseif (Test-Path -LiteralPath (Join-Path $projectRoot $config.CommissioningPolicyPath)) {
+        Join-Path $projectRoot $config.CommissioningPolicyPath
+    } else {
+        Join-Path $configRoot $config.CommissioningPolicyPath
+    }
+} else {
+    Join-Path $projectRoot "config\commissioning-policy.psd1"
+}
+$commissioningPolicy = if (Test-Path -LiteralPath $commissioningPolicyPath) {
+    Import-PowerShellDataFile -LiteralPath $commissioningPolicyPath
+} else {
+    $null
+}
 $program = $ProgramName.ToUpperInvariant()
 $jobDir = Join-Path (Join-Path $resolvedOutputRoot "jobs") $program
 $manifestPath = Join-Path $jobDir "manifest.json"
@@ -112,7 +135,24 @@ $localEvidencePassed = if ($null -ne $manifest.gates -and $manifest.gates.PSObje
     $false
 }
 
-$manifest.gates.readyForUpload = ($localEvidencePassed -and $manifest.humanReview.status -eq "approved")
+$uploadGate = if ($null -ne $manifest.commissioningPolicy -and $manifest.commissioningPolicy.uploadGate) {
+    $manifest.commissioningPolicy.uploadGate
+} elseif ($null -ne $commissioningPolicy -and $commissioningPolicy.UploadGate) {
+    $commissioningPolicy.UploadGate
+} else {
+    "human-review"
+}
+$standingUploadApproval = ($uploadGate -eq "local-evidence")
+$manifest.gates.readyForUpload = ($localEvidencePassed -and ($manifest.humanReview.status -eq "approved" -or $standingUploadApproval))
+$manifest.gates.readyForUploadReason = if (-not $localEvidencePassed) {
+    "blocked: local evidence has not passed"
+} elseif ($manifest.humanReview.status -eq "approved") {
+    "ready: per-job human review approved"
+} elseif ($standingUploadApproval) {
+    "ready: standing commissioning policy allows upload after local evidence; operator owns execution"
+} else {
+    "blocked: human review approval required"
+}
 $manifest.updatedAt = (Get-Date).ToString("o")
 
 if ($PSCmdlet.ShouldProcess($manifestPath, "Update FANUC job status")) {
@@ -123,6 +163,7 @@ if ($PSCmdlet.ShouldProcess($manifestPath, "Update FANUC job status")) {
     ProgramName = $program
     LocalEvidencePassed = $localEvidencePassed
     ReadyForUpload = [bool]$manifest.gates.readyForUpload
+    UploadGate = $uploadGate
     HumanReviewStatus = $manifest.humanReview.status
     UploadStatus = $manifest.upload.status
     ManifestPath = (Get-Item -LiteralPath $manifestPath).FullName

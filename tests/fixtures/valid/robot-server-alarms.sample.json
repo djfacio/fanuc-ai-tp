@@ -1,0 +1,44 @@
+{
+  "HostAddress": "192.168.0.10",
+  "CapturedAt": "2026-05-20T00:00:00.0000000-07:00",
+  "Mode": "read-only",
+  "Endpoint": "robot-server",
+  "Families": [
+    "UALM"
+  ],
+  "StartIndex": 90,
+  "EndIndex": 92,
+  "Count": 3,
+  "Items": [
+    {
+      "Family": "UALM",
+      "Index": 90,
+      "Name": "User Alarm[90]",
+      "Comment": "",
+      "Source": "robot-server",
+      "Uri": "http://192.168.0.10/KAREL/ComGet?sFc=31",
+      "Severity": "6",
+      "SeverityName": "STOP.L"
+    },
+    {
+      "Family": "UALM",
+      "Index": 91,
+      "Name": "User Alarm[91]",
+      "Comment": "OLD START FAIL",
+      "Source": "robot-server",
+      "Uri": "http://192.168.0.10/KAREL/ComGet?sFc=31",
+      "Severity": "0",
+      "SeverityName": "WARN"
+    },
+    {
+      "Family": "UALM",
+      "Index": 92,
+      "Name": "User Alarm[92]",
+      "Comment": "ALREADY OK",
+      "Source": "robot-server",
+      "Uri": "http://192.168.0.10/KAREL/ComGet?sFc=31",
+      "Severity": "6",
+      "SeverityName": "STOP.L"
+    }
+  ]
+}

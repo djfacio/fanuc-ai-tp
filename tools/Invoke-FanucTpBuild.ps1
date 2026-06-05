@@ -102,7 +102,8 @@ if ($Upload -and (Test-Path -LiteralPath $manifestPath)) {
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
     if (-not [bool]$manifest.gates.readyForUpload) {
         if (-not $UploadOnlyStaging) {
-            throw "Job manifest is not ready for upload: $manifestPath. Record human review with Set-FanucJobStatus.ps1 after local evidence is reviewed."
+            $reason = if ($manifest.gates.PSObject.Properties.Name -contains "readyForUploadReason") { $manifest.gates.readyForUploadReason } else { "run Update-FanucJobManifest.ps1 to refresh gates" }
+            throw "Job manifest is not ready for upload: $manifestPath. $reason"
         }
 
         $requiredStageGatesPassed = (
@@ -229,6 +230,11 @@ if ($uploadResult.ExitCode -ne 0) {
     throw "FTP failed with exit code $($uploadResult.ExitCode). See $logPath"
 }
 
+$ftpText = $uploadResult.Output -join "`n"
+if ($ftpText -match '(?im)^(45\d|55\d)\s') {
+    throw "FTP upload was rejected by the robot. See $logPath"
+}
+
 $statusTool = Join-Path $scriptRoot "Set-FanucJobStatus.ps1"
 if (Test-Path -LiteralPath $statusTool) {
     try {
@@ -251,5 +257,28 @@ if ($UploadOnlyStaging -and (Test-Path -LiteralPath $jobDir)) {
     } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $stagingPath -Encoding ASCII
 }
 
+$readbackTool = Join-Path $scriptRoot "Invoke-FanucUploadReadback.ps1"
+if (-not (Test-Path -LiteralPath $readbackTool)) {
+    throw "Upload succeeded, but readback tool is missing: $readbackTool"
+}
+
+$readback = & $readbackTool -ProgramName $programName -ConfigPath $resolvedConfig -OutputRoot $resolvedOutputRoot -Force
+if (-not [bool]$readback.HashMatch) {
+    throw "Upload succeeded, but robot readback hash did not match local compiled TP."
+}
+if (-not [bool]$readback.DecodeSucceeded) {
+    throw "Upload succeeded, but robot readback did not decode successfully."
+}
+
+$manifestTool = Join-Path $scriptRoot "Update-FanucJobManifest.ps1"
+if (Test-Path -LiteralPath $manifestTool) {
+    try {
+        & $manifestTool -ProgramName $programName -ConfigPath $resolvedConfig -OutputRoot $resolvedOutputRoot | Out-Null
+    } catch {
+        throw "Upload/readback succeeded, but job manifest refresh failed: $($_.Exception.Message)"
+    }
+}
+
 Write-Host "Uploaded $remoteName to $($config.RobotIp)"
 Write-Host "Log: $logPath"
+Write-Host "Readback: $($readback.ReportPath)"

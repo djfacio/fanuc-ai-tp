@@ -28,7 +28,7 @@ async fn run() -> Result<(), String> {
         return Ok(());
     }
 
-    let host = option_value(&args, "--host").unwrap_or_else(|| "192.168.5.10:60008".to_string());
+    let host = option_value(&args, "--host").unwrap_or_else(|| "192.168.0.10:60008".to_string());
     let port = match option_value(&args, "--port-kind")
         .unwrap_or_else(|| "fanuc-snpx".to_string())
         .as_str()
@@ -139,6 +139,148 @@ async fn run() -> Result<(), String> {
                 join_i16(&after)
             );
         }
+        "asg-read-ualm-severity" => {
+            let setup_file = option_value(&args, "--setup-file")
+                .ok_or_else(|| "asg-read-ualm-severity requires --setup-file".to_string())?;
+            let start = required_u16(&args, "--start")?;
+            let commands = read_setup_commands(&setup_file)?;
+
+            write_g_command(&mut client, "CLRASG").await?;
+            for command in &commands {
+                write_g_command(&mut client, command).await?;
+            }
+
+            let words = read_r_words(&mut client, start, 2).await?;
+            let severity = decode_ualm_severity_words(&words)?;
+            println!(
+                "{{\"ok\":true,\"operation\":\"asg-read-ualm-severity\",\"host\":\"{}\",\"setupFile\":\"{}\",\"setasgCount\":{},\"start\":{},\"words\":[{}],\"severity\":{},\"severityName\":\"{}\"}}",
+                json_escape(&host),
+                json_escape(&setup_file),
+                commands.len(),
+                start,
+                join_i16(&words),
+                severity.value,
+                severity.name
+            );
+        }
+        "asg-write-ualm-severity" => {
+            require_write_ack(&args)?;
+            let setup_file = option_value(&args, "--setup-file")
+                .ok_or_else(|| "asg-write-ualm-severity requires --setup-file".to_string())?;
+            let start = required_u16(&args, "--start")?;
+            let severity_text = option_value(&args, "--severity")
+                .ok_or_else(|| "asg-write-ualm-severity requires --severity".to_string())?;
+            let severity = parse_ualm_severity(&severity_text)?;
+            let commands = read_setup_commands(&setup_file)?;
+
+            write_g_command(&mut client, "CLRASG").await?;
+            for command in &commands {
+                write_g_command(&mut client, command).await?;
+            }
+
+            let before = read_r_words(&mut client, start, 2).await?;
+            let before_severity = decode_ualm_severity_words(&before)?;
+            let bytes = [severity.value, 0u8];
+            let response = client
+                .request(Request::WriteSysWords {
+                    selector: WordSelector::R,
+                    addr: FanucAddr::from_raw(start),
+                    words: Bytes::copy_from_slice(&bytes),
+                })
+                .await
+                .map_err(|err| format!("asg-write-ualm-severity failed: {err}"))?;
+            match response {
+                Response::WriteOk => {}
+                other => {
+                    return Err(format!(
+                        "asg-write-ualm-severity returned unexpected response: {other:?}"
+                    ))
+                }
+            }
+            let after = read_r_words(&mut client, start, 2).await?;
+            let after_severity = decode_ualm_severity_words(&after)?;
+            if after_severity.value != severity.value {
+                return Err(format!(
+                    "asg-write-ualm-severity readback mismatch: requested {} ({}) but got {} ({})",
+                    severity.value, severity.name, after_severity.value, after_severity.name
+                ));
+            }
+            println!(
+                "{{\"ok\":true,\"operation\":\"asg-write-ualm-severity\",\"host\":\"{}\",\"setupFile\":\"{}\",\"setasgCount\":{},\"start\":{},\"requestedSeverity\":{},\"requestedSeverityName\":\"{}\",\"beforeWords\":[{}],\"beforeSeverity\":{},\"beforeSeverityName\":\"{}\",\"afterWords\":[{}],\"afterSeverity\":{},\"afterSeverityName\":\"{}\"}}",
+                json_escape(&host),
+                json_escape(&setup_file),
+                commands.len(),
+                start,
+                severity.value,
+                severity.name,
+                join_i16(&before),
+                before_severity.value,
+                before_severity.name,
+                join_i16(&after),
+                after_severity.value,
+                after_severity.name
+            );
+        }
+        "asg-write-r-text" => {
+            require_write_ack(&args)?;
+            let setup_file = option_value(&args, "--setup-file")
+                .ok_or_else(|| "asg-write-r-text requires --setup-file".to_string())?;
+            let start = required_u16(&args, "--start")?;
+            let text = option_value(&args, "--text")
+                .ok_or_else(|| "asg-write-r-text requires --text".to_string())?;
+            let word_count = option_value(&args, "--word-count")
+                .unwrap_or_else(|| "30".to_string())
+                .parse::<u16>()
+                .map_err(|err| format!("invalid --word-count: {err}"))?;
+            if !text.is_ascii() {
+                return Err("asg-write-r-text only supports ASCII text".to_string());
+            }
+            let max_bytes = word_count as usize * 2;
+            if text.as_bytes().len() > max_bytes {
+                return Err(format!(
+                    "asg-write-r-text text is {} bytes, but projection holds {max_bytes} bytes",
+                    text.as_bytes().len()
+                ));
+            }
+            let commands = read_setup_commands(&setup_file)?;
+
+            write_g_command(&mut client, "CLRASG").await?;
+            for command in &commands {
+                write_g_command(&mut client, command).await?;
+            }
+
+            let before = read_r_words(&mut client, start, word_count).await?;
+            let mut bytes = vec![0u8; max_bytes];
+            bytes[..text.as_bytes().len()].copy_from_slice(text.as_bytes());
+            let response = client
+                .request(Request::WriteSysWords {
+                    selector: WordSelector::R,
+                    addr: FanucAddr::from_raw(start),
+                    words: Bytes::from(bytes),
+                })
+                .await
+                .map_err(|err| format!("asg-write-r-text failed: {err}"))?;
+            match response {
+                Response::WriteOk => {}
+                other => {
+                    return Err(format!(
+                        "asg-write-r-text returned unexpected response: {other:?}"
+                    ))
+                }
+            }
+            let after = read_r_words(&mut client, start, word_count).await?;
+            println!(
+                "{{\"ok\":true,\"operation\":\"asg-write-r-text\",\"host\":\"{}\",\"setupFile\":\"{}\",\"setasgCount\":{},\"start\":{},\"wordCount\":{},\"text\":\"{}\",\"before\":[{}],\"after\":[{}]}}",
+                json_escape(&host),
+                json_escape(&setup_file),
+                commands.len(),
+                start,
+                word_count,
+                json_escape(&text),
+                join_i16(&before),
+                join_i16(&after)
+            );
+        }
         "write-r" => {
             require_write_ack(&args)?;
             let start = required_u16(&args, "--start")?;
@@ -198,12 +340,15 @@ fn print_help() {
         "fanuc-snpx-tool\n\
 \n\
 Usage:\n\
-  fanuc-snpx-tool probe [--host 192.168.5.10:60008]\n\
-  fanuc-snpx-tool read-r --start N --count N [--host 192.168.5.10:60008]\n\
-  fanuc-snpx-tool asg-read --setup-file PATH --start N --count N [--host 192.168.5.10:60008]\n\
-  fanuc-snpx-tool asg-write-r --setup-file PATH --start N --value I32 --i-accept-live-write [--host 192.168.5.10:60008]\n\
-  fanuc-snpx-tool write-r --start N --value I32 --i-accept-live-write [--host 192.168.5.10:60008]\n\
-  fanuc-snpx-tool command-g --text TEXT --i-accept-live-write [--host 192.168.5.10:60008]\n\
+  fanuc-snpx-tool probe [--host 192.168.0.10:60008]\n\
+  fanuc-snpx-tool read-r --start N --count N [--host 192.168.0.10:60008]\n\
+  fanuc-snpx-tool asg-read --setup-file PATH --start N --count N [--host 192.168.0.10:60008]\n\
+  fanuc-snpx-tool asg-write-r --setup-file PATH --start N --value I32 --i-accept-live-write [--host 192.168.0.10:60008]\n\
+  fanuc-snpx-tool asg-read-ualm-severity --setup-file PATH --start N [--host 192.168.0.10:60008]\n\
+  fanuc-snpx-tool asg-write-ualm-severity --setup-file PATH --start N --severity WARN|STOP.L|STOP.G|ABORT.L|ABORT.G --i-accept-live-write [--host 192.168.0.10:60008]\n\
+  fanuc-snpx-tool asg-write-r-text --setup-file PATH --start N --text TEXT [--word-count N] --i-accept-live-write [--host 192.168.0.10:60008]\n\
+  fanuc-snpx-tool write-r --start N --value I32 --i-accept-live-write [--host 192.168.0.10:60008]\n\
+  fanuc-snpx-tool command-g --text TEXT --i-accept-live-write [--host 192.168.0.10:60008]\n\
 \n\
 Writes are intentionally gated. Normal project write flow should use the PowerShell allowlist tools first."
     );
@@ -255,7 +400,9 @@ fn read_setup_commands(path: &str) -> Result<Vec<String>, String> {
         .map(str::to_string)
         .collect();
     if commands.is_empty() {
-        return Err(format!("setup file '{path}' did not contain SETASG commands"));
+        return Err(format!(
+            "setup file '{path}' did not contain SETASG commands"
+        ));
     }
     for command in &commands {
         if !command.starts_with("SETASG ") {
@@ -283,6 +430,60 @@ fn required_i32(args: &[String], name: &str) -> Result<i32, String> {
         .ok_or_else(|| format!("missing {name}"))?
         .parse::<i32>()
         .map_err(|err| format!("invalid {name}: {err}"))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct UalmSeverity {
+    value: u8,
+    name: &'static str,
+}
+
+fn parse_ualm_severity(input: &str) -> Result<UalmSeverity, String> {
+    let normalized = input.trim().to_ascii_uppercase();
+    match normalized.as_str() {
+        "0" | "WARN" => Ok(UalmSeverity {
+            value: 0,
+            name: "WARN",
+        }),
+        "6" | "STOP.L" | "STOPL" | "STOP_L" => Ok(UalmSeverity {
+            value: 6,
+            name: "STOP.L",
+        }),
+        "38" | "STOP.G" | "STOPG" | "STOP_G" => Ok(UalmSeverity {
+            value: 38,
+            name: "STOP.G",
+        }),
+        "11" | "ABORT.L" | "ABORTL" | "ABORT_L" => Ok(UalmSeverity {
+            value: 11,
+            name: "ABORT.L",
+        }),
+        "43" | "ABORT.G" | "ABORTG" | "ABORT_G" => Ok(UalmSeverity {
+            value: 43,
+            name: "ABORT.G",
+        }),
+        _ => Err(format!(
+            "unsupported UALM severity '{input}'; allowed values are 0/WARN, 6/STOP.L, 38/STOP.G, 11/ABORT.L, 43/ABORT.G"
+        )),
+    }
+}
+
+fn decode_ualm_severity_words(words: &[i16]) -> Result<UalmSeverity, String> {
+    if words.len() < 2 {
+        return Err(
+            "UALM severity readback must include two words for guard validation".to_string(),
+        );
+    }
+    let first = words[0] as u16;
+    let second = words[1] as u16;
+    let value = (first & 0x00ff) as u8;
+    let upper_byte = first >> 8;
+    if upper_byte != 0 || second != 0 {
+        return Err(format!(
+            "UALM severity projection has unexpected upper data: words=[{},{}], lowByte={value}, upperByte={upper_byte}, secondWord={second}",
+            words[0], words[1]
+        ));
+    }
+    parse_ualm_severity(&value.to_string())
 }
 
 fn require_write_ack(args: &[String]) -> Result<(), String> {
@@ -324,4 +525,53 @@ fn json_escape(input: &str) -> String {
         .replace('\n', "\\n")
         .replace('\r', "\\r")
         .replace('\t', "\\t")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ualm_severity_accepts_known_values_and_names() {
+        assert_eq!(
+            parse_ualm_severity("WARN").unwrap(),
+            UalmSeverity {
+                value: 0,
+                name: "WARN"
+            }
+        );
+        assert_eq!(
+            parse_ualm_severity("43").unwrap(),
+            UalmSeverity {
+                value: 43,
+                name: "ABORT.G"
+            }
+        );
+        assert_eq!(
+            parse_ualm_severity("stop_g").unwrap(),
+            UalmSeverity {
+                value: 38,
+                name: "STOP.G"
+            }
+        );
+    }
+
+    #[test]
+    fn ualm_severity_rejects_unknown_values() {
+        let err = parse_ualm_severity("7").expect_err("unexpected severity must fail");
+        assert!(err.contains("unsupported UALM severity"));
+    }
+
+    #[test]
+    fn ualm_severity_decodes_low_byte_and_requires_clean_upper_data() {
+        assert_eq!(
+            decode_ualm_severity_words(&[43, 0]).unwrap(),
+            UalmSeverity {
+                value: 43,
+                name: "ABORT.G"
+            }
+        );
+        assert!(decode_ualm_severity_words(&[0x0106, 0]).is_err());
+        assert!(decode_ualm_severity_words(&[6, 1]).is_err());
+    }
 }

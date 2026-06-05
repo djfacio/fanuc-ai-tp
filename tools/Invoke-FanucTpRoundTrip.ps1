@@ -71,6 +71,14 @@ function Get-FanucMnInstructions {
 
         $normalized = [regex]::Replace($normalized, '^\d+\s*:\s*', '')
         $normalized = [regex]::Replace($normalized, '\s+', ' ')
+        if ($normalized -match '^:\s*(.+)$' -and $instructions.Count -gt 0) {
+            $previous = $instructions[$instructions.Count - 1]
+            $continuation = $Matches[1]
+            $joined = [regex]::Replace(($previous + " " + $continuation), '\s+', ' ')
+            $joined = [regex]::Replace($joined, '\s*;\s*$', ' ;')
+            $instructions[$instructions.Count - 1] = $joined.Trim().ToUpperInvariant()
+            continue
+        }
         $normalized = [regex]::Replace($normalized, '(?i)\b(DO|RO)\[(\d+)\s*:\s*\*\s*\]', '$1[$2]')
         $normalized = [regex]::Replace($normalized, '(?i)\bPR\[(\d+)\s*:\s*[^\]]+\]', 'PR[$1]')
         $normalized = [regex]::Replace($normalized, '(?i)\bWAIT\s+\.([0-9]+)\(SEC\)', 'WAIT 0.$1(SEC)')
@@ -87,7 +95,7 @@ function Get-FanucProgramSummary {
     param([string]$Path)
 
     $text = Get-Content -LiteralPath $Path -Raw
-    $programMatch = [regex]::Match($text, '(?im)^\s*/PROG\s+([A-Za-z][A-Za-z0-9_]*)\s*$')
+    $programMatch = [regex]::Match($text, '(?im)^\s*/PROG\s+([A-Za-z][A-Za-z0-9_]*)(?:\s+Macro)?\s*$')
     $lineCountMatch = [regex]::Match($text, '(?im)^\s*LINE_COUNT\s*=\s*([0-9]+)\s*;')
     $defaultGroupMatch = [regex]::Match($text, '(?im)^\s*DEFAULT_GROUP\s*=\s*([^;]+)\s*;')
 
@@ -97,6 +105,33 @@ function Get-FanucProgramSummary {
         defaultGroup = if ($defaultGroupMatch.Success) { ($defaultGroupMatch.Groups[1].Value -replace '\s+', '').ToUpperInvariant() } else { $null }
         hasApplSection = [bool]([regex]::IsMatch($text, '(?im)^\s*/APPL\s*$'))
     }
+}
+
+function Normalize-FanucDefaultGroup {
+    param([string]$DefaultGroup)
+
+    if (-not $DefaultGroup) {
+        return $null
+    }
+
+    $normalized = ($DefaultGroup -replace '\s+', '').ToUpperInvariant()
+    $parts = @($normalized -split ',')
+    if ($parts.Count -gt 0 -and @($parts | Where-Object { $_ -ne "*" }).Count -eq 0) {
+        return "NO_MOTION_GROUP"
+    }
+
+    if ($parts.Count -lt 8) {
+        $padded = New-Object System.Collections.Generic.List[string]
+        foreach ($part in $parts) {
+            $padded.Add($part)
+        }
+        while ($padded.Count -lt 8) {
+            $padded.Add("*")
+        }
+        $normalized = ($padded.ToArray() -join ',')
+    }
+
+    return $normalized
 }
 
 $resolvedLs = Resolve-Path -LiteralPath $LsPath
@@ -182,7 +217,7 @@ $sourceSummary = Get-FanucProgramSummary -Path $lsItem.FullName
 $decodedSummary = Get-FanucProgramSummary -Path $decodedPath
 $programNameMatch = ($sourceSummary.programName -eq $decodedSummary.programName)
 $lineCountMatch = ($sourceSummary.lineCount -eq $decodedSummary.lineCount)
-$defaultGroupMatch = ($sourceSummary.defaultGroup -eq $decodedSummary.defaultGroup)
+$defaultGroupMatch = ((Normalize-FanucDefaultGroup $sourceSummary.defaultGroup) -eq (Normalize-FanucDefaultGroup $decodedSummary.defaultGroup))
 $unexpectedApplSection = (-not [bool]$sourceSummary.hasApplSection -and [bool]$decodedSummary.hasApplSection)
 $overallMatch = ($instructionMatch -and $programNameMatch -and $lineCountMatch -and $defaultGroupMatch)
 

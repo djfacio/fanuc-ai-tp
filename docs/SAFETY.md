@@ -13,6 +13,8 @@ exception is justified.
 - Uploading a program must not run it.
 - Do not overwrite production programs.
 - Keep physical run decisions operator-owned and outside the code-generation gates.
+- Do not require repeated pendant-review approval for upload when local evidence
+  passes under the active project commissioning policy.
 - Motion generation requires explicit frame, tool, point, speed, zone, payload, reach, collision, and verification assumptions.
 
 ## Blocked Unless Explicitly Reviewed
@@ -50,6 +52,13 @@ Update that file when adding reviewed safety rules, then run:
 - Operator-owned physical verification notes, when the operator chooses to record them.
 - Recovery and abort expectations.
 
-## Human Review Boundary
+## Operator-Owned Commissioning Boundary
 
-AI may help draft specs, generate candidate code, explain controller behavior, or compare artifacts. A human with FANUC experience must review the safety contract and generated robot-facing code before upload or execution, especially for motion or controller integration.
+AI may help draft specs, generate candidate code, explain controller behavior,
+or compare artifacts. In this project, the experienced robot programmer owns
+pendant selection, low-speed step testing, deadman control, robot-side setup,
+and final execution judgment.
+
+The tooling should not convert that operator-owned commissioning practice into
+repeated upload prompts. It should enforce local evidence, resource policies,
+and explicit policy decisions when authority expands.

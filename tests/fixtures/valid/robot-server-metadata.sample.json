@@ -1,0 +1,60 @@
+{
+  "HostAddress": "192.168.0.10",
+  "CapturedAt": "2026-05-20T00:00:00.0000000-07:00",
+  "Mode": "read-only",
+  "Endpoint": "robot-server",
+  "Families": [
+    "R",
+    "PR",
+    "DI",
+    "DO",
+    "SR"
+  ],
+  "StartIndex": 1,
+  "EndIndex": 300,
+  "Count": 5,
+  "Items": [
+    {
+      "Family": "R",
+      "Index": 90,
+      "Name": "R[90]",
+      "Comment": "OLD STEP",
+      "Source": "robot-server",
+      "Uri": "http://192.168.0.10/KAREL/ComGet?sFc=28",
+      "Value": "0"
+    },
+    {
+      "Family": "PR",
+      "Index": 300,
+      "Name": "PR[300]",
+      "Comment": "",
+      "Source": "robot-server",
+      "Uri": "http://192.168.0.10/KAREL/ComGet?sFc=29"
+    },
+    {
+      "Family": "DI",
+      "Index": 104,
+      "Name": "DI[104]",
+      "Comment": "Sync1",
+      "Source": "robot-server",
+      "Uri": "http://192.168.0.10/KAREL/ComGet?sFc=33"
+    },
+    {
+      "Family": "DO",
+      "Index": 104,
+      "Name": "DO[104]",
+      "Comment": "Ack1",
+      "Source": "robot-server",
+      "Uri": "http://192.168.0.10/KAREL/ComGet?sFc=33"
+    },
+    {
+      "Family": "SR",
+      "Index": 1,
+      "Name": "SR[1]",
+      "Comment": "",
+      "Source": "robot-server",
+      "Uri": "http://192.168.0.10/KAREL/ComGet?sFc=30",
+      "Value": ""
+    }
+  ]
+}

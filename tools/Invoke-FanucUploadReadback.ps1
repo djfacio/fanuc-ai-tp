@@ -4,6 +4,7 @@ param(
     [string]$ProgramName,
 
     [string]$ConfigPath = "..\config\robot.psd1",
+    [string]$OutputRoot = "generated",
     [switch]$Force
 )
 
@@ -30,6 +31,12 @@ function Resolve-ProjectPath {
     return Join-Path $projectRoot $Path
 }
 
+if ([System.IO.Path]::IsPathRooted($OutputRoot)) {
+    $resolvedOutputRoot = $OutputRoot
+} else {
+    $resolvedOutputRoot = Join-Path $projectRoot $OutputRoot
+}
+
 function Invoke-FtpScript {
     param(
         [string[]]$Commands,
@@ -53,8 +60,8 @@ function Invoke-FtpScript {
 }
 
 $program = $ProgramName.ToUpperInvariant()
-$jobDir = Join-Path (Join-Path $projectRoot "generated\jobs") $program
-$localCompiledPath = Join-Path (Join-Path $projectRoot "generated\compiled") ($program + ".TP")
+$jobDir = Join-Path (Join-Path $resolvedOutputRoot "jobs") $program
+$localCompiledPath = Join-Path (Join-Path $resolvedOutputRoot "compiled") ($program + ".TP")
 $readbackDir = Join-Path $jobDir "upload-readback"
 $readbackTpPath = Join-Path $readbackDir ($program + ".TP")
 $readbackLsPath = Join-Path $readbackDir ($program + ".LS")
@@ -135,7 +142,7 @@ if (-not $hashMatch) {
 }
 
 if (-not $decodeSucceeded) {
-    Write-Warning "Robot readback TP hash matched local compiled TP, but PrintTP could not decode the readback copy. See $reportPath"
+    throw "Robot readback TP hash matched local compiled TP, but PrintTP could not decode the readback copy. See $reportPath"
 }
 
 [pscustomobject]@{

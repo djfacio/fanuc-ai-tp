@@ -92,6 +92,37 @@ function Test-AllowedIoWrite {
     return $false
 }
 
+function Test-AllowedRegisterWrite {
+    param([int]$Register)
+
+    foreach ($entry in @($cellMap.RegisterWrites.Allowed)) {
+        if ([int]$entry.Register -eq $Register) {
+            return $true
+        }
+    }
+
+    foreach ($range in @($cellMap.RegisterWrites.AllowedRanges)) {
+        if ($Register -ge [int]$range.Start -and $Register -le [int]$range.End) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Test-AllowedCallTarget {
+    param([string]$Program)
+
+    $normalizedProgram = $Program.ToUpperInvariant()
+    foreach ($entry in @($cellMap.Calls.Allowed)) {
+        if ($entry.Program.ToUpperInvariant() -eq $normalizedProgram) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 try {
     & $schemaValidator -JsonPath $resolvedSpec -SchemaPath $resolvedSchema -Quiet
 } catch {
@@ -174,7 +205,7 @@ if (-not $spec.generation.templateId -or $spec.generation.templateId.Trim().Leng
 if ($spec.generation.mode -ne "reviewed-motion-template") {
     Add-ReadyGate -Message "generation.mode must be reviewed-motion-template."
 }
-$supportedTemplates = @("pr-waypoint-sequence-v1", "approach-process-retract-v1", "io-motion-sequence-v1")
+$supportedTemplates = @("pr-waypoint-sequence-v1", "approach-process-retract-v1", "io-motion-sequence-v1", "motion-action-calc-pr-v1")
 if ($spec.generation.templateId -and $supportedTemplates -notcontains $spec.generation.templateId) {
     Add-ReadyGate -Message "generation.templateId must be one of: $($supportedTemplates -join ', ')."
 }
@@ -208,6 +239,104 @@ foreach ($ioAction in $ioSequence) {
     }
     if (-not (Test-AllowedIoWrite -Signal $ioAction.signal -State ([bool]$ioAction.state))) {
         Add-ReadyGate -Message "IO action writes $($ioAction.signal), which is not allowed by config\cell-map.psd1."
+    }
+}
+
+if ($spec.generation.templateId -eq "motion-action-calc-pr-v1") {
+    if ($null -eq $spec.motionPlan.PSObject.Properties["positionArchitecture"]) {
+        Add-ReadyGate -Message "motion-action-calc-pr-v1 requires motionPlan.positionArchitecture."
+    } else {
+        $architecture = $spec.motionPlan.positionArchitecture
+        if ($architecture.strategy -ne "explicit-calculated-prs") {
+            Add-ReadyGate -Message "motion-action-calc-pr-v1 requires positionArchitecture.strategy='explicit-calculated-prs'."
+        }
+
+        if (-not [bool]$architecture.calcProgram.required) {
+            Add-ReadyGate -Message "motion-action-calc-pr-v1 requires a CALC_POS-style program contract."
+        }
+        if (-not [bool]$architecture.calcProgram.verified) {
+            Add-ReadyGate -Message "positionArchitecture.calcProgram must be verified."
+        }
+        if (-not [bool]$architecture.calcProgram.callBeforeMotion -and ([string]::IsNullOrWhiteSpace([string]$architecture.calcProgram.notes))) {
+            Add-ReadyGate -Message "If calcProgram.callBeforeMotion is false, calcProgram.notes must state who calculated the PRs before motion."
+        }
+        if ([bool]$architecture.calcProgram.callBeforeMotion -and -not (Test-AllowedCallTarget -Program ([string]$architecture.calcProgram.programName))) {
+            Add-ReadyGate -Message "Calc program '$($architecture.calcProgram.programName)' must be allowlisted in config\cell-map.psd1 before the generated motion program may call it."
+        }
+
+        foreach ($family in @($architecture.prFamilies)) {
+            if (-not [bool]$family.verified) {
+                Add-ReadyGate -Message "PR family '$($family.familyName)' must be verified."
+            }
+        }
+
+        $offsetPrNumbers = @{}
+        foreach ($offsetPr in @($architecture.offsetPrs)) {
+            $offsetPrNumbers[[int]$offsetPr.number] = $true
+            if (-not [bool]$offsetPr.verified) {
+                Add-ReadyGate -Message "Offset PR[$([int]$offsetPr.number):$($offsetPr.name)] must be verified."
+            }
+            if ([bool]$offsetPr.aiMayPopulate -and $null -eq $offsetPr.PSObject.Properties["zeroingMethod"]) {
+                Add-ReadyGate -Message "Offset PR[$([int]$offsetPr.number):$($offsetPr.name)] allows AI population and must declare zeroingMethod."
+            }
+        }
+
+        $fixedPrNumbers = @{}
+        foreach ($fixedPr in @($architecture.fixedPrs)) {
+            $fixedPrNumbers[[int]$fixedPr.number] = $true
+            if (-not [bool]$fixedPr.verified) {
+                Add-ReadyGate -Message "Fixed PR[$([int]$fixedPr.number):$($fixedPr.name)] must be verified."
+            }
+        }
+
+        $derivedPrNumbers = @{}
+        foreach ($derivedPr in @($architecture.derivedPrs)) {
+            $derivedPrNumbers[[int]$derivedPr.number] = $true
+            if (-not [bool]$derivedPr.verified) {
+                Add-ReadyGate -Message "Derived PR[$([int]$derivedPr.number):$($derivedPr.name)] must be verified."
+            }
+            if (-not [bool]$derivedPr.availableForPendantMoveTo) {
+                Add-ReadyGate -Message "Derived PR[$([int]$derivedPr.number):$($derivedPr.name)] must be available for pendant MOVE_TO/touchup review."
+            }
+            if (-not $offsetPrNumbers.ContainsKey([int]$derivedPr.sourceOffsetPr)) {
+                Add-ReadyGate -Message "Derived PR[$([int]$derivedPr.number):$($derivedPr.name)] references missing offset PR[$([int]$derivedPr.sourceOffsetPr)]."
+            }
+        }
+
+        foreach ($step in @($spec.motionPlan.motionSequence)) {
+            $targetNumber = [int]$step.target.number
+            if (-not $derivedPrNumbers.ContainsKey($targetNumber) -and -not $fixedPrNumbers.ContainsKey($targetNumber)) {
+                Add-ReadyGate -Message "motion-action-calc-pr-v1 target PR[$targetNumber] must be listed in positionArchitecture.derivedPrs or fixedPrs."
+            }
+        }
+
+        if ([bool]$architecture.inlineOffsetPolicy.defaultAllowed) {
+            Add-ReadyGate -Message "Inline Offset,PR[] / Tool_Offset,PR[] must not be default-allowed for motion-action-calc-pr-v1."
+        }
+        foreach ($exception in @($architecture.inlineOffsetPolicy.exceptions)) {
+            if (-not [bool]$exception.reviewed) {
+                Add-ReadyGate -Message "Inline offset exception for step '$($exception.stepName)' must be reviewed."
+            }
+            if ($motionStepNames -notcontains $exception.stepName.ToUpperInvariant()) {
+                Add-ReadyGate -Message "Inline offset exception for step '$($exception.stepName)' must reference a motionSequence step."
+            }
+        }
+
+        if (-not [bool]$architecture.breadcrumb.enabled) {
+            Add-ReadyGate -Message "motion-action-calc-pr-v1 requires breadcrumb.enabled=true."
+        }
+        if ($architecture.breadcrumb.assignmentPosition -ne "after-motion") {
+            Add-ReadyGate -Message "Breadcrumb assignmentPosition must be after-motion for this project convention."
+        }
+        if ($architecture.breadcrumb.semantics -ne "last-motion-statement-advanced-past") {
+            Add-ReadyGate -Message "Breadcrumb semantics must be last-motion-statement-advanced-past, not actual robot position."
+        }
+        if (-not [bool]$architecture.breadcrumb.requiredForEveryMotion) {
+            Add-ReadyGate -Message "Breadcrumb must be required for every motion."
+        }
+        if (-not (Test-AllowedRegisterWrite -Register ([int]$architecture.breadcrumb.register))) {
+            Add-ReadyGate -Message "Breadcrumb register R[$([int]$architecture.breadcrumb.register)] is not allowed by config\cell-map.psd1."
+        }
     }
 }
 
