@@ -115,7 +115,7 @@ Approved plans also include exact operator approval text. A live execution must 
 Before a live SNPX write tool is allowed:
 
 1. Use the local `vendor\snpx-codec` source.
-2. Connect to `192.168.5.10:60008`.
+2. Connect to the configured controller, for example `192.0.2.10:60008`.
 3. Program private ASG mapping from `config\snpx-readonly.psd1`.
 4. Verify `$SNPX_ASG` by readback.
 5. Read the current target value before writing.

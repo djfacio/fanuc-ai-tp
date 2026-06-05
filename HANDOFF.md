@@ -4,7 +4,7 @@ Start here in a fresh Codex session.
 
 ## What Works
 
-- Robot FTP is reachable at `192.168.5.10:21`.
+- Robot FTP reachability is project-local and must be configured in `config\robot.local.psd1`.
 - Login works with `anonymous` / `guest`.
 - WinOLPC MakeTP is installed and compiles for `V9.40-1`.
 - `AI_HELLO.TP` has been compiled, uploaded, selected on the pendant, and executed cleanly.
@@ -175,7 +175,7 @@ As of the latest manifest summary, these jobs have local evidence passed, human 
 - `AI_SNAPSHOT`
 - `AI_CELLCHK`
 
-The latest robot directory check connected to `192.168.5.10` and confirmed the generated `AI_*.TP` files are present on robot `MD:`. `Get-FanucJobSummary.ps1 -IncludeRobot` reports `RobotLookupStatus=ok` and `RobotFilePresent=True` for the uploaded jobs.
+Robot directory checks are project-local evidence. Use `Get-FanucJobSummary.ps1 -IncludeRobot` only after configuring the local controller.
 
 After upload, run:
 

@@ -49,6 +49,13 @@ Run the offline validator suite:
 .\tools\Invoke-FanucToolTests.ps1
 ```
 
+After local WinOLPC and `robot.local.psd1` setup is reviewed, include the
+compile/round-trip gate:
+
+```powershell
+.\tools\Invoke-FanucToolTests.ps1 -IncludeWinOlpc
+```
+
 Run the offline/read-only project health check:
 
 ```powershell
@@ -69,6 +76,15 @@ Generate local evidence for a no-motion example:
 
 Live robot operations require local review of `config/robot.psd1` and explicit
 human approval gates in the relevant tools.
+
+Create a local robot config instead of guessing installed FANUC paths:
+
+```powershell
+.\tools\New-FanucRobotConfig.ps1 -OutputPath .\config\robot.local.psd1 -RobotIp 192.0.2.10
+```
+
+Review the generated file and pass it with `-ConfigPath` for live/local work.
+See `docs/SETUP_DISCOVERY.md`.
 
 ## Folders
 

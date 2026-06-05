@@ -195,7 +195,11 @@ try {
     }
 
     Write-Host "Decoding $compiledPath"
-    $printTpOutput = & $printTpPath $compiledPath $decodedPath /config $robotIniPath /ver $config.WinOlpcVersion 2>&1
+    if (Test-Path -LiteralPath $robotIniPath) {
+        $printTpOutput = & $printTpPath $compiledPath $decodedPath /config $robotIniPath /ver $config.WinOlpcVersion 2>&1
+    } else {
+        $printTpOutput = & $printTpPath $compiledPath $decodedPath /ver $config.WinOlpcVersion 2>&1
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "PrintTP failed with exit code $LASTEXITCODE`n$($printTpOutput -join "`n")"
     }

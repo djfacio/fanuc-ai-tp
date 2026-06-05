@@ -5,7 +5,7 @@ This is a FANUC R-30iB Mate Plus TP generation/upload workspace.
 ## Current Robot
 
 - Controller: FANUC R-30iB Mate Plus
-- Robot IP: `192.168.5.10`
+- Robot IP: configure locally, for example `192.0.2.10`
 - PC robot-network IP seen earlier: `192.168.5.200`
 - FTP login: `anonymous` / `guest`
 - FTP target device: robot `MD:`
@@ -27,7 +27,7 @@ The working path is:
 
 - MakeTP path: `C:\Program Files (x86)\FANUC\WinOLPC\bin\maketp.exe`
 - WinOLPC version: `V9.40-1`
-- RoboGuide workcell robot path: `C:\Users\Cubic\Documents\My Workcells\TA_Aerospace\Robot_1`
+- RoboGuide workcell robot path: configure locally with `tools\New-FanucRobotConfig.ps1`
 - Project robot config: `config\robot.psd1`
 - MakeTP robot ini: `config\robot.ini`
 - Project-local paths in `config\robot.psd1` should be repo-relative, such as `config\robot.ini`, so the folder can move without breaking MakeTP/PrintTP. Keep machine-installed tools and RoboGuide workcell paths absolute unless they are moved too.

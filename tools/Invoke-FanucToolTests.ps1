@@ -1,4 +1,6 @@
-param()
+param(
+    [switch]$IncludeWinOlpc
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -708,6 +710,10 @@ Invoke-ExpectPass -Name "AMainStartupGenerator" -Command {
     & $lsValidator -LsPath $result.SourcePath -Quiet
 }
 Invoke-ExpectPass -Name "ManifestLocalEvidenceUploadGate" -Command {
+    if (-not $IncludeWinOlpc) {
+        return
+    }
+
     $result = & $programGenerator -SpecPath (Join-Path $projectRoot "tests\fixtures\valid\AI_CONTROL.program-spec.json") -OutputRoot $programGeneratorOutputRoot -Force
     & $tpRoundTripTool -LsPath $result.SourcePath -Force | Out-Null
     $manifestResult = & $manifestTool -ProgramName AI_CONTROL

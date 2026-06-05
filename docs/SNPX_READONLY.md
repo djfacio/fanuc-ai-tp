@@ -26,7 +26,7 @@ For this project, the read plan uses:
 - Protocol: `SNPX_V2`
 - Mapping mode: `per-connection`
 - Assignment mode: `project-owned-asg`
-- Robot IP: `192.168.5.10`
+- Robot IP: configure locally, for example `192.0.2.10`
 - Port: `60008`
 - Projection area: `%R`
 - ASG slot cap: `80`

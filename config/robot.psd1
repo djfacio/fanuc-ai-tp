@@ -1,36 +1,17 @@
 @{
-    RobotIp = "192.168.5.10"
+    RobotIp = "192.0.2.10"
     UserName = "anonymous"
     Password = "guest"
     WinOlpcVersion = "V9.40-1"
     MakeTpPath = "C:\Program Files (x86)\FANUC\WinOLPC\bin\maketp.exe"
-    RobotIniPath = "config\robot.ini"
+    RobotIniPath = "REVIEW_AND_SET_ROBOT_INI_PATH"
     CellMapPath = "config\cell-map.psd1"
-    WorkcellRobotPath = "C:\Users\Cubic\Documents\My Workcells\TA_Aerospace\Robot_1"
+    WorkcellRobotPath = "REVIEW_AND_SET_ROBOGUIDE_WORKCELL_ROBOT_PATH"
     ProgramPrefix = "A_"
     LegacyProgramPrefixes = @("AI_")
     KnownMacroPrograms = @(
-        "F_BG_SPD_OVRD"
-        "F_OPENG1"
-        "F_OPENG2"
-        "F_PUSHER1"
-        "F_PUSHER2"
     )
     CleanupProtectedPrograms = @(
         "-BCKEDT-"
-        "FS_CLB_HND"
-        "FS_CLB_WRK"
-        "FS_GET_F"
-        "FS_MEAS_WRK1"
-        "FS_MEAS_WRK2"
-        "FS_MOV_15DEG"
-        "FS_MOV_30DEG"
-        "FS_MOV_45DEG"
-        "FS_MOV_5DEG"
-        "GETDATA"
-        "REQMENU"
-        "SENDDATA"
-        "SENDEVNT"
-        "SENDSYSV"
     )
 }

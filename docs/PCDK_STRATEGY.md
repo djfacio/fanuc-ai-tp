@@ -97,7 +97,7 @@ Validate the sample artifact:
 Live read-only collection, when the robot and network are intentionally in scope:
 
 ```powershell
-.\tools\New-FanucPcdkSnapshot.ps1 -HostName 192.168.5.10 -ConnectReadOnly
+.\tools\New-FanucPcdkSnapshot.ps1 -HostName 192.0.2.10 -ConnectReadOnly
 ```
 
 The live mode should still record:

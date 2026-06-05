@@ -3,7 +3,7 @@
     Enabled = $false
     Protocol = "SNPX_V2"
     MappingMode = "per-connection"
-    RobotIp = "192.168.5.10"
+    RobotIp = "192.0.2.10"
     Port = 60008
     Notes = "Read-only SNPX V2 plan. Addresses are project-owned per-connection ASG projections, not raw FANUC native addresses."
 

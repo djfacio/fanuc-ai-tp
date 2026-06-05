@@ -23,3 +23,4 @@ Thumbs.db
 .env.*
 *.secret.*
 /config/controller-inventory.local.psd1
+/config/robot.local.psd1

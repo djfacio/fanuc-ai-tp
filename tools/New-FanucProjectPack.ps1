@@ -4,7 +4,7 @@ param(
 
     [string]$ProjectName = "TestProject",
     [string]$WorkcellName = "Review and rename workcell",
-    [string]$RobotIp = "192.168.5.10",
+    [string]$RobotIp = "192.0.2.10",
     [switch]$Force
 )
 
@@ -90,7 +90,7 @@ $robotConfig = @"
     Password = "guest"
     WinOlpcVersion = "V9.40-1"
     MakeTpPath = "C:\Program Files (x86)\FANUC\WinOLPC\bin\maketp.exe"
-    RobotIniPath = "robot.ini"
+    RobotIniPath = "REVIEW_AND_SET_ROBOT_INI_PATH"
     CellMapPath = "cell-map.psd1"
     WorkcellRobotPath = "REVIEW_AND_SET_ROBOGUIDE_WORKCELL_ROBOT_PATH"
     ProgramPrefix = "A_"

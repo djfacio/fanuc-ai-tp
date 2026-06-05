@@ -3,7 +3,7 @@
   "intent": "Display a short operator message and write a known value to a register for workflow validation.",
   "controller": {
     "model": "R-30iB Mate Plus",
-    "robotIp": "192.168.5.10",
+    "robotIp": "192.0.2.10",
     "winOlpcVersion": "V9.40-1"
   },
   "safety": {
