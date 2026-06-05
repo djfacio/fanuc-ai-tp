@@ -28,6 +28,26 @@ planning and LS generation can proceed without it.
 PCDK is optional and read-only by default. It is not required for normal spec,
 generation, compile, FTP, SNPX, or Robot Server workflows.
 
+## Controller Feature Levels
+
+PC tooling availability is separate from robot controller capability. A
+workstation may have this repo, Rust, PowerShell, WinOLPC, RoboGuide, or PCDK
+installed while the target controller still lacks a required live interface.
+
+For each workcell, confirm and record:
+
+- FTP server enabled/reachable, before upload/readback tools are used
+- SNPX/SRTP capability enabled/reachable, before live SNPX reads/writes are used
+- SNPX port and ASG policy, typically SNPX V2 on TCP `60008` for this toolchain
+- Robot Server HTTP pages reachable, before comment/alarm tools are used live
+- KAREL execution support, before deploying or calling `.PC` helpers
+- socket messaging support and reviewed port policy, before KAREL TCP bridge work
+- PCDK workstation/controller connectivity, before live PCDK snapshots
+
+Exact option names and menus vary by controller and software revision. Treat
+the local controller inventory and human review as the authority, not this
+public starter config.
+
 ## Required Local Inputs For Live Or Compile Workflows
 
 Each robot/workcell needs its own local robot config:
@@ -37,6 +57,8 @@ Each robot/workcell needs its own local robot config:
 - WinOLPC `MakeTP` path, when compiling or decoding
 - project `robot.ini` path, when compiling or decoding
 - RoboGuide workcell robot path, when RoboGuide evidence is used
+- controller feature inventory for FTP, SNPX, Robot Server, KAREL, sockets, and
+  PCDK before using those live paths
 - project cell-map/resource policy
 
 ## Generate A Local Robot Config

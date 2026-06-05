@@ -64,6 +64,31 @@ Live robot FTP, SNPX, and Robot Server access are optional and require a local
 reviewed config plus each tool's approval gates. The public CI/offline tests do
 not connect to FANUC software or a controller.
 
+## Controller Feature Requirements
+
+Offline repository work does not prove that a controller has the options needed
+for live features. For each robot, record the actual installed/enabled
+controller capabilities in a local controller inventory or project notes before
+using live tools.
+
+- FTP upload/readback requires the controller FTP server to be enabled and
+  reachable with reviewed credentials.
+- SNPX live reads/writes require the robot-side SNPX/SRTP capability to be
+  installed/enabled and reachable on the configured port. This project uses SNPX
+  V2 with private per-connection ASG mapping, typically on TCP `60008`.
+- Robot Server comment/alarm tools require the controller's HTTP Robot Server
+  pages to be enabled and reachable from the workstation.
+- KAREL helper programs require controller support for KAREL program execution
+  plus a reviewed compile/deploy path for `.KL`/`.PC` artifacts.
+- TCP socket/KAREL bridge features require KAREL plus the controller socket
+  messaging capability and a reviewed port/message policy.
+- PCDK live snapshots require a licensed/configured PCDK workstation path and
+  controller connectivity. PCDK remains read-only by default in this repo.
+
+Controller option names and menus vary by robot software version and installed
+packages. Do not infer these capabilities from this public repo; confirm them
+on the target controller.
+
 ## Quick Start
 
 Run the offline validator suite:

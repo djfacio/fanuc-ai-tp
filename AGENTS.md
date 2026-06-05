@@ -39,6 +39,15 @@ MakeTP/PrintTP compile/decode and round-trip gates. RoboGuide is optional
 evidence tooling unless a project policy explicitly makes it required. PCDK is
 optional and read-only by default.
 
+Controller feature rule: live features require robot-side capability, not just
+local scripts. FTP tools require FTP server access. SNPX live reads/writes
+require SNPX/SRTP enabled and reachable, with this project using SNPX V2 private
+ASG mapping on TCP `60008` unless a project says otherwise. Robot Server
+comment/alarm writes require reachable HTTP Robot Server pages. KAREL helpers
+require KAREL execution support and reviewed `.KL`/`.PC` compile/deploy. Socket
+bridge work requires KAREL plus socket messaging support and reviewed port
+policy. Record these per controller; do not infer them from the public config.
+
 ## Project Direction
 
 This repo is an AI-assisted FANUC TP workflow, not just a MakeTP/FTP script folder. Read these before adding new generators or deployment behavior:
